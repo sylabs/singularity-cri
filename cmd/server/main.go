@@ -6,15 +6,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/sylabs/sy-cri/pkg/image"
-	"github.com/sylabs/sy-cri/pkg/runtime"
+	"github.com/sylabs/cri/pkg/image"
+	"github.com/sylabs/cri/pkg/runtime"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -29,6 +31,14 @@ func readFlags() flags {
 	flag.StringVar(&f.socket, "sock", "/var/run/singularity.sock", "unix socket to serve cri services")
 	flag.Parse()
 	return f
+}
+
+func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	start := time.Now()
+	resp, err := handler(ctx, req)
+	log.Printf("Method:%s\n\tRequest: %v\n\tResponse: %v\n\tError: %v\n\tDuration:%s\n",
+		info.FullMethod, req, resp, err, time.Since(start))
+	return resp, err
 }
 
 func main() {
@@ -56,7 +66,7 @@ func main() {
 		return
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC))
 	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
 	k8s.RegisterImageServiceServer(grpcServer, syImage)
 
