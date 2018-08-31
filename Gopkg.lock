@@ -8,6 +8,15 @@
   version = "v1.1.1"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/globalsign/mgo"
+  packages = [
+    "bson",
+    "internal/json"
+  ]
+  revision = "6f9f54af1356a8f1a83e6daf0b351ba6ed6e42c6"
+
+[[projects]]
   name = "github.com/gogo/protobuf"
   packages = [
     "gogoproto",
@@ -37,10 +46,25 @@
   version = "v1.2.0"
 
 [[projects]]
+  name = "github.com/mattn/go-runewidth"
+  packages = ["."]
+  revision = "ce7b0b5c7b45a81508558cd1dba6bb1e4ddb51bb"
+  version = "v0.0.3"
+
+[[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/singularityware/singularity"
+  packages = [
+    "src/pkg/library/client",
+    "src/pkg/sylog"
+  ]
+  revision = "d0b3466d311a1d694e6302c9461f4e8d92012e96"
+  version = "v3.0.0-alpha.1"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -138,6 +162,12 @@
   version = "v1.14.0"
 
 [[projects]]
+  name = "gopkg.in/cheggaaa/pb.v1"
+  packages = ["."]
+  revision = "2af8bbdea9e99e83b3ac400d8f6b6d1b8cbbf338"
+  version = "v1.0.25"
+
+[[projects]]
   branch = "master"
   name = "k8s.io/apimachinery"
   packages = [
@@ -147,17 +177,17 @@
   revision = "c6b66c9c507abbefa93ad83f7fe8c9b52ca1ae30"
 
 [[projects]]
-  branch = "master"
   name = "k8s.io/kubernetes"
   packages = [
     "pkg/kubectl/util/logs",
     "pkg/kubelet/apis/cri/runtime/v1alpha2"
   ]
-  revision = "113872798d34daa32277616b99a368244f1f7b65"
+  revision = "bb9ffb1654d4a729bb4cec18ff088eacc153c239"
+  version = "v1.11.2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "12776f56141b9b7c89d3d5fab2aab016974aaef9efb0958f0129d725456e77f1"
+  inputs-digest = "543570192be1d9a51c561b9c171dd1e842d1300381a165a50a0857c54a71429b"
   solver-name = "gps-cdcl"
   solver-version = 1
