@@ -34,5 +34,9 @@
   version = "1.11.2"
 
 [[constraint]]
+  name = "github.com/singularityware/singularity"
+  branch = "master"
+
+[[constraint]]
   name = "google.golang.org/grpc"
   version = "1.7.5"

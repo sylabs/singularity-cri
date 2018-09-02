@@ -23,12 +23,14 @@ import (
 )
 
 type flags struct {
-	socket string
+	socket   string
+	storeDir string
 }
 
 func readFlags() flags {
 	var f flags
 	flag.StringVar(&f.socket, "sock", "/var/run/singularity.sock", "unix socket to serve cri services")
+	flag.StringVar(&f.storeDir, "store", "/var/lib/singularity", "directory to store all pulled images")
 	flag.Parse()
 	return f
 }
@@ -60,7 +62,7 @@ func main() {
 		log.Printf("Could not create Singularity runtime service: %v", err)
 		return
 	}
-	syImage, err := image.NewSingularityRegistry()
+	syImage, err := image.NewSingularityRegistry(f.storeDir)
 	if err != nil {
 		log.Printf("Could not create Singularity image service: %v", err)
 		return
