@@ -1,6 +1,13 @@
 package image
 
-import "strings"
+import (
+	"path/filepath"
+	"strings"
+
+	library "github.com/singularityware/singularity/src/pkg/library/client"
+	"github.com/sylabs/cri/pkg/singularity"
+	"k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+)
 
 type libraryImageInfo struct {
 	ref        string
@@ -40,7 +47,11 @@ func parseLibraryRef(ref string) libraryImageInfo {
 	return info
 }
 
-func (i libraryImageInfo) filename() string {
+func (i libraryImageInfo) Remote() string {
+	return i.ref
+}
+
+func (i libraryImageInfo) Id() string {
 	var parts []string
 	if i.user != "" {
 		parts = append(parts, i.user)
@@ -50,4 +61,21 @@ func (i libraryImageInfo) filename() string {
 	}
 	parts = append(parts, i.container)
 	return strings.Join(parts, "_") + ".sif"
+}
+
+func (i libraryImageInfo) Tags() []string {
+	return i.tags
+}
+
+func (i libraryImageInfo) Digests() []string {
+	return nil
+}
+
+func (i libraryImageInfo) Pull(auth *v1alpha2.AuthConfig, dir string) error {
+	path := filepath.Join(dir, i.Id())
+	server := singularity.LibraryURL
+	if auth != nil && auth.ServerAddress != "" {
+		server = auth.ServerAddress
+	}
+	return library.DownloadImage(path, i.Remote(), server, true, "")
 }

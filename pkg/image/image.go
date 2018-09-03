@@ -8,152 +8,162 @@ package image
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 
-	library "github.com/singularityware/singularity/src/pkg/library/client"
-	shub "github.com/singularityware/singularity/src/pkg/shub/client"
 	"github.com/sylabs/cri/pkg/singularity"
-	"k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
 // SingularityRegistry implements k8s ImageService interface.
 type SingularityRegistry struct {
-	singularity string
-	location    string // path to directory without trailing slash
+	location string // path to directory without trailing slash
 
 	m        sync.RWMutex
-	registry map[string]v1alpha2.Image // key:name value:info
+	registry map[string]k8s.Image // key:name value:info
 }
 
 // NewSingularityRegistry initializes and returns SingularityRuntime.
 // Singularity must be installed on the host otherwise it will return an error.
 func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
-	s, err := exec.LookPath(singularity.RuntimeName)
+	_, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s daemon on this machine: %v", singularity.RuntimeName, err)
 	}
+
 	storePath, err = filepath.Abs(storePath)
 	if err != nil {
-		return nil, fmt.Errorf("could not get absolute storing path: %v", err)
+		return nil, fmt.Errorf("could not get absolute storage directory path: %v", err)
 	}
-	return &SingularityRegistry{
-		singularity: s,
-		location:    storePath,
-		registry:    make(map[string]v1alpha2.Image),
-	}, nil
+
+	registry := SingularityRegistry{
+		location: storePath,
+	}
+
+	err = registry.indexStorage()
+	if err != nil {
+		return nil, fmt.Errorf("could not index storage directory: %v", err)
+	}
+	return &registry, nil
 }
 
 // ListImages lists existing images.
-func (s *SingularityRegistry) ListImages(ctx context.Context, req *v1alpha2.ListImagesRequest) (*v1alpha2.ListImagesResponse, error) {
+func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImagesRequest) (*k8s.ListImagesResponse, error) {
 	// todo apply filter
-	imgs := make([]*v1alpha2.Image, len(s.registry), 0)
+	imgs := make([]*k8s.Image, 0, len(s.registry))
 	s.m.RLock()
 	defer s.m.RUnlock()
 	for _, info := range s.registry {
 		// todo set uid or username
-		imgs = append(imgs, &info)
+		infoCopy := info
+		imgs = append(imgs, &infoCopy)
 	}
 
-	return &v1alpha2.ListImagesResponse{
+	return &k8s.ListImagesResponse{
 		Images: imgs,
 	}, nil
 }
 
 // ImageStatus returns the status of the image. If the image is not
 // present, returns a response with ImageStatusResponse.Image set to nil.
-func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *v1alpha2.ImageStatusRequest) (*v1alpha2.ImageStatusResponse, error) {
+func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
 	// todo add meta information on verbose call
 	s.m.RLock()
-	defer s.m.RUnlock()
-	img := s.registry[req.Image.Image]
-	return &v1alpha2.ImageStatusResponse{
+	img, ok := s.registry[req.Image.Image]
+	s.m.RUnlock()
+	if !ok {
+		return &k8s.ImageStatusResponse{}, nil
+	}
+	return &k8s.ImageStatusResponse{
 		Image: &img,
 	}, nil
 }
 
 // PullImage pulls an image with authentication config.
-func (s *SingularityRegistry) PullImage(ctx context.Context, req *v1alpha2.PullImageRequest) (*v1alpha2.PullImageResponse, error) {
-	uri := "docker"
-	image := req.Image.Image
-	indx := strings.Index(image, "://")
-	if indx != -1 {
-		uri = image[:indx]
-		image = image[indx:]
+func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageRequest) (*k8s.PullImageResponse, error) {
+	info, err := parseImageRef(req.Image.Image)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse image reference: %v", err)
+	}
+	s.m.RLock()
+	_, ok := s.registry[info.Id()]
+	s.m.RUnlock()
+	if ok {
+		return &k8s.PullImageResponse{}, nil
 	}
 
-	var err error
-	var img v1alpha2.Image
-	switch uri {
-	case "library":
-		info := parseLibraryRef(image)
-		name := info.filename()
-		img.Id = name
-		img.RepoTags = info.tags
-		err = library.DownloadImage(s.filepath(name), info.ref, singularity.LibraryURL, false, "")
-	case "shub":
-		info, err := parseShubRef(image)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse shub ref: %v", err)
-		}
-		name := info.filename()
-		img.Id = name
-		img.RepoTags = info.tags
-		err = shub.DownloadImage(s.filepath(name), info.ref, false)
-	case "docker":
-		info := parseOCIRef(image)
-		name := info.filename()
-		img.Id = name
-		img.RepoTags = info.tags
-		buildCmd := exec.Command(s.singularity, "build", s.filepath(name), uri+"://"+image)
-		err = buildCmd.Run()
-	default:
-		return nil, fmt.Errorf("unknown image registry: %s", uri)
-	}
+	err = info.Pull(req.Auth, s.location)
 	if err != nil {
 		return nil, fmt.Errorf("could not pull image: %v", err)
 	}
 
-	fi, err := os.Stat(s.filepath(img.Id))
+	fi, err := os.Stat(s.filepath(info.Id()))
 	if err != nil {
 		return nil, err
 	}
-	img.Size_ = uint64(fi.Size())
+	size := uint64(fi.Size())
 
-	s.registry[req.Image.Image] = img
-	return &v1alpha2.PullImageResponse{
-		ImageRef: img.Id,
+	s.m.Lock()
+	s.registry[req.Image.Image] = k8s.Image{
+		Id:          "",
+		RepoTags:    info.Tags(),
+		RepoDigests: info.Digests(),
+		Size_:       size,
+	}
+	s.m.Unlock()
+
+	return &k8s.PullImageResponse{
+		ImageRef: info.Id(),
 	}, nil
 }
 
 // RemoveImage removes the image.
 // This call is idempotent, and does not return an error if the image has already been removed.
-func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *v1alpha2.RemoveImageRequest) (*v1alpha2.RemoveImageResponse, error) {
-	s.m.Lock()
-	defer s.m.Unlock()
+func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveImageRequest) (*k8s.RemoveImageResponse, error) {
+	s.m.RLock()
+	_, ok := s.registry[req.Image.Image]
+	s.m.RUnlock()
 
-	// todo rlock + lock ?
-	if _, ok := s.registry[req.Image.Image]; !ok {
-		return &v1alpha2.RemoveImageResponse{}, nil
+	if ok {
+		s.m.Lock()
+		delete(s.registry, req.Image.Image)
+		s.m.Unlock()
+
+		err := os.Remove(s.filepath(req.Image.Image))
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	err := os.Remove(s.filepath(req.Image.Image))
-	if err != nil {
-		return nil, err
-	}
-	delete(s.registry, req.Image.Image)
-
-	return &v1alpha2.RemoveImageResponse{}, nil
+	return &k8s.RemoveImageResponse{}, nil
 }
 
 // ImageFsInfo returns information of the filesystem that is used to store images.
-func (s *SingularityRegistry) ImageFsInfo(context.Context, *v1alpha2.ImageFsInfoRequest) (*v1alpha2.ImageFsInfoResponse, error) {
-	return &v1alpha2.ImageFsInfoResponse{}, nil
+func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoRequest) (*k8s.ImageFsInfoResponse, error) {
+	return &k8s.ImageFsInfoResponse{}, nil
+}
+
+func (s *SingularityRegistry) indexStorage() error {
+	// todo check empty path
+	// todo check files extension
+	files, err := ioutil.ReadDir(s.location)
+	if err != nil {
+		return fmt.Errorf("could not read store directory: %v", err)
+	}
+
+	s.registry = make(map[string]k8s.Image, len(files))
+	for _, file := range files {
+		s.registry[file.Name()] = k8s.Image{
+			Id:    file.Name(),
+			Size_: uint64(file.Size()),
+		}
+	}
+	return nil
 }
 
 func (s *SingularityRegistry) filepath(name string) string {
-	return s.location + "/" + name
+	return filepath.Join(s.location, name)
 }

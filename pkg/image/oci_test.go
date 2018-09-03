@@ -116,7 +116,7 @@ func TestOCIImageInfo_Filename(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.expect, func(t *testing.T) {
-			actual := tc.info.filename()
+			actual := tc.info.Filename()
 			require.Equal(t, tc.expect, actual)
 		})
 	}

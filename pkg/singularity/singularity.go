@@ -9,6 +9,7 @@ const (
 	// RuntimeName is the official name of Singularity runtime.
 	RuntimeName = "singularity"
 
+	// LibraryURL is a default singularity library server address.
 	LibraryURL = "https://library.sylabs.io"
 
 	// LibraryProtocol holds the sylabs cloud library base URI

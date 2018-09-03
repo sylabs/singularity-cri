@@ -2,7 +2,11 @@ package image
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
+
+	shub "github.com/singularityware/singularity/src/pkg/shub/client"
+	"k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
 type shubImageInfo struct {
@@ -24,6 +28,7 @@ func parseShubRef(ref string) (shubImageInfo, error) {
 		ref:       "shub://" + ref,
 		user:      refParts[len(refParts)-2],
 		container: refParts[len(refParts)-1],
+		tags:      []string{"latest"},
 	}
 
 	imageParts := strings.Split(info.container, `:`)
@@ -35,6 +40,23 @@ func parseShubRef(ref string) (shubImageInfo, error) {
 	return info, nil
 }
 
-func (i shubImageInfo) filename() string {
+func (i shubImageInfo) Remote() string {
+	return i.ref
+}
+
+func (i shubImageInfo) Id() string {
 	return strings.Join([]string{i.user, i.container}, "_") + ".sif"
+}
+
+func (i shubImageInfo) Tags() []string {
+	return i.tags
+}
+
+func (i shubImageInfo) Digests() []string {
+	return nil
+}
+
+func (i shubImageInfo) Pull(auth *v1alpha2.AuthConfig, dir string) error {
+	path := filepath.Join(dir, i.Id())
+	return shub.DownloadImage(path, i.Remote(), true)
 }

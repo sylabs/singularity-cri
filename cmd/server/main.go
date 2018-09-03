@@ -51,11 +51,11 @@ func main() {
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM)
 
-	sock, err := net.Listen("unix", f.socket)
+	lis, err := net.Listen("unix", f.socket)
 	if err != nil {
-		log.Fatalf("Error listening on socket %q: %v ", f.socket, err)
+		log.Fatalf("Could not start CRI listener: %v ", err)
 	}
-	defer sock.Close()
+	defer lis.Close()
 
 	syRuntime, err := runtime.NewSingularityRuntime()
 	if err != nil {
@@ -72,10 +72,10 @@ func main() {
 	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
 	k8s.RegisterImageServiceServer(grpcServer, syImage)
 
-	log.Printf("starting to serve on %q", f.socket)
-	go grpcServer.Serve(sock)
+	log.Printf("Singularity CRI server started on %v", lis.Addr())
+	go grpcServer.Serve(lis)
 
 	<-exitCh
 
-	log.Println("singularity service exiting...")
+	log.Println("Singularity CRI service exiting...")
 }
