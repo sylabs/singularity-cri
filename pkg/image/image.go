@@ -7,8 +7,10 @@ package image
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,9 +20,12 @@ import (
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
+const registryInfoFile = "registry.json"
+
 // SingularityRegistry implements k8s ImageService interface.
 type SingularityRegistry struct {
 	location string // path to directory without trailing slash
+	infoFile *os.File
 
 	m        sync.RWMutex
 	registry map[string]k8s.Image // key:name value:info
@@ -41,9 +46,13 @@ func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 
 	registry := SingularityRegistry{
 		location: storePath,
+		registry: make(map[string]k8s.Image),
 	}
-
-	err = registry.indexStorage()
+	registry.infoFile, err = os.OpenFile(registry.filePath(registryInfoFile), os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("could not open registry file: %v", err)
+	}
+	err = registry.loadInfo()
 	if err != nil {
 		return nil, fmt.Errorf("could not index storage directory: %v", err)
 	}
@@ -88,31 +97,33 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 	if err != nil {
 		return nil, fmt.Errorf("could not parse image reference: %v", err)
 	}
-	s.m.RLock()
-	_, ok := s.registry[info.Id()]
-	s.m.RUnlock()
-	if ok {
-		return &k8s.PullImageResponse{}, nil
-	}
-
-	err = info.Pull(req.Auth, s.location)
+	pullPath := s.pullPath(info.Id())
+	err = info.Pull(req.Auth, pullPath)
 	if err != nil {
+		s.removeTempFile(info.Id())
 		return nil, fmt.Errorf("could not pull image: %v", err)
 	}
 
-	fi, err := os.Stat(s.filepath(info.Id()))
+	fi, err := os.Stat(pullPath)
 	if err != nil {
-		return nil, err
+		s.removeTempFile(info.Id())
+		return nil, fmt.Errorf("could not find image size: %v", err)
 	}
 	size := uint64(fi.Size())
 
+	err = os.Rename(pullPath, s.filePath(info.Id()))
+	if err != nil {
+		return nil, fmt.Errorf("could not save pulled image: %v", err)
+	}
+
 	s.m.Lock()
 	s.registry[req.Image.Image] = k8s.Image{
-		Id:          "",
+		Id:          info.Id(),
 		RepoTags:    info.Tags(),
 		RepoDigests: info.Digests(),
 		Size_:       size,
 	}
+	s.dumpInfo()
 	s.m.Unlock()
 
 	return &k8s.PullImageResponse{
@@ -130,9 +141,10 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 	if ok {
 		s.m.Lock()
 		delete(s.registry, req.Image.Image)
+		s.dumpInfo()
 		s.m.Unlock()
 
-		err := os.Remove(s.filepath(req.Image.Image))
+		err := os.Remove(s.filePath(req.Image.Image))
 		if err != nil {
 			return nil, err
 		}
@@ -146,24 +158,37 @@ func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoReque
 	return &k8s.ImageFsInfoResponse{}, nil
 }
 
-func (s *SingularityRegistry) indexStorage() error {
-	// todo check empty path
-	// todo check files extension
-	files, err := ioutil.ReadDir(s.location)
+func (s *SingularityRegistry) loadInfo() error {
+	_, err := s.infoFile.Seek(0, io.SeekStart)
 	if err != nil {
-		return fmt.Errorf("could not read store directory: %v", err)
+		return fmt.Errorf("could not seek registry info file: %v", err)
 	}
-
-	s.registry = make(map[string]k8s.Image, len(files))
-	for _, file := range files {
-		s.registry[file.Name()] = k8s.Image{
-			Id:    file.Name(),
-			Size_: uint64(file.Size()),
-		}
+	err = json.NewDecoder(s.infoFile).Decode(&s.registry)
+	if err != nil && err == io.EOF {
+		return nil
 	}
-	return nil
+	return err
 }
 
-func (s *SingularityRegistry) filepath(name string) string {
-	return filepath.Join(s.location, name)
+func (s *SingularityRegistry) dumpInfo() error {
+	_, err := s.infoFile.Seek(0, io.SeekStart)
+	if err != nil {
+		return fmt.Errorf("could not seek registry info file: %v", err)
+	}
+	return json.NewEncoder(s.infoFile).Encode(s.registry)
+}
+
+func (s *SingularityRegistry) filePath(id string) string {
+	return filepath.Join(s.location, id)
+}
+
+func (s *SingularityRegistry) pullPath(id string) string {
+	return filepath.Join(s.location, "."+id)
+}
+
+func (s *SingularityRegistry) removeTempFile(id string) {
+	err := os.Remove(s.pullPath(id))
+	if err != nil {
+		log.Printf("could not remove temparary image file: %v", err)
+	}
 }

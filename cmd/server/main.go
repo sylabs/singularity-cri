@@ -77,5 +77,6 @@ func main() {
 
 	<-exitCh
 
+	grpcServer.Stop()
 	log.Println("Singularity CRI service exiting...")
 }

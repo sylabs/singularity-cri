@@ -15,6 +15,7 @@ const (
 	// LibraryProtocol holds the sylabs cloud library base URI
 	// for more info refer to https://cloud.sylabs.io/library
 	LibraryProtocol = "library"
+
 	// ShubProtocol holds singularity hub base URI
 	// for more info refer to https://singularity-hub.org/
 	ShubProtocol = "shub"

@@ -2,7 +2,6 @@ package image
 
 import (
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/sylabs/cri/pkg/singularity"
@@ -24,7 +23,7 @@ func parseOCIRef(ref string) ociImageInfo {
 	info := ociImageInfo{
 		ref:       "docker://" + ref,
 		container: refParts[len(refParts)-1],
-		tags:      []string{"latest"},
+		tags:      []string{ref},
 	}
 
 	switch len(refParts) {
@@ -34,12 +33,7 @@ func parseOCIRef(ref string) ociImageInfo {
 	case 2:
 		info.repo = refParts[0]
 	}
-
-	imageParts := strings.Split(info.container, `:`)
-	if len(imageParts) != 1 {
-		info.container = imageParts[0]
-		info.tags = strings.Split(imageParts[1], ",")
-	}
+	info.container = strings.Split(info.container, `:`)[0]
 
 	return info
 }
@@ -57,7 +51,7 @@ func (i ociImageInfo) Id() string {
 		parts = append(parts, i.repo)
 	}
 	parts = append(parts, i.container)
-	return strings.Join(parts, "_") + ".sif"
+	return strings.Join(parts, "_")
 }
 
 func (i ociImageInfo) Tags() []string {
@@ -68,8 +62,7 @@ func (i ociImageInfo) Digests() []string {
 	return nil
 }
 
-func (i ociImageInfo) Pull(auth *v1alpha2.AuthConfig, dir string) error {
-	path := filepath.Join(dir, i.Id())
+func (i ociImageInfo) Pull(auth *v1alpha2.AuthConfig, path string) error {
 	buildCmd := exec.Command(singularity.RuntimeName, "build", path, i.Remote())
 	return buildCmd.Run()
 }

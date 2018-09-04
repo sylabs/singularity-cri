@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sylabs/cri/pkg/singularity"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -13,7 +14,7 @@ type imageInfo interface {
 	Tags() []string
 	Digests() []string
 
-	Pull(auth *k8s.AuthConfig, dir string) error
+	Pull(auth *k8s.AuthConfig, path string) error
 }
 
 func parseImageRef(ref string) (imageInfo, error) {
@@ -27,9 +28,9 @@ func parseImageRef(ref string) (imageInfo, error) {
 
 	var info imageInfo
 	switch uri {
-	case "library":
+	case singularity.LibraryProtocol:
 		info = parseLibraryRef(image)
-	case "shub":
+	case singularity.ShubProtocol:
 		var err error
 		info, err = parseShubRef(image)
 		if err != nil {

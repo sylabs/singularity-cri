@@ -2,7 +2,6 @@ package image
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	shub "github.com/singularityware/singularity/src/pkg/shub/client"
@@ -28,15 +27,10 @@ func parseShubRef(ref string) (shubImageInfo, error) {
 		ref:       "shub://" + ref,
 		user:      refParts[len(refParts)-2],
 		container: refParts[len(refParts)-1],
-		tags:      []string{"latest"},
+		tags:      []string{ref},
 	}
 
-	imageParts := strings.Split(info.container, `:`)
-	if len(imageParts) != 1 {
-		info.container = imageParts[0]
-		info.tags = strings.Split(imageParts[1], ",")
-	}
-
+	info.container = strings.Split(info.container, `:`)[0]
 	return info, nil
 }
 
@@ -45,7 +39,7 @@ func (i shubImageInfo) Remote() string {
 }
 
 func (i shubImageInfo) Id() string {
-	return strings.Join([]string{i.user, i.container}, "_") + ".sif"
+	return strings.Join([]string{i.user, i.container}, "_")
 }
 
 func (i shubImageInfo) Tags() []string {
@@ -56,7 +50,6 @@ func (i shubImageInfo) Digests() []string {
 	return nil
 }
 
-func (i shubImageInfo) Pull(auth *v1alpha2.AuthConfig, dir string) error {
-	path := filepath.Join(dir, i.Id())
+func (i shubImageInfo) Pull(auth *v1alpha2.AuthConfig, path string) error {
 	return shub.DownloadImage(path, i.Remote(), true)
 }

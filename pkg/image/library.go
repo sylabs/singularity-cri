@@ -1,7 +1,6 @@
 package image
 
 import (
-	"path/filepath"
 	"strings"
 
 	library "github.com/singularityware/singularity/src/pkg/library/client"
@@ -19,14 +18,14 @@ type libraryImageInfo struct {
 
 // parseLibraryRef parses provided reference to an image and
 // fetches all possible information from it. Reference must be in form
-// [library://][repo/collection/]|[collection/]container[:tag]
+// [library://][repo/collection/|collection/]container[:tag]
 func parseLibraryRef(ref string) libraryImageInfo {
 	ref = strings.TrimPrefix(ref, "library://")
 	refParts := strings.Split(ref, "/")
 
 	info := libraryImageInfo{
 		ref:       "library://" + ref,
-		tags:      []string{"latest"},
+		tags:      []string{ref}, // todo should include 'library://' ?
 		container: refParts[len(refParts)-1],
 	}
 
@@ -37,12 +36,7 @@ func parseLibraryRef(ref string) libraryImageInfo {
 	case 2:
 		info.collection = refParts[0]
 	}
-
-	imageParts := strings.Split(info.container, ":")
-	if len(imageParts) != 1 {
-		info.container = imageParts[0]
-		info.tags = strings.Split(imageParts[1], ",")
-	}
+	info.container = strings.Split(info.container, ":")[0]
 
 	return info
 }
@@ -60,7 +54,7 @@ func (i libraryImageInfo) Id() string {
 		parts = append(parts, i.collection)
 	}
 	parts = append(parts, i.container)
-	return strings.Join(parts, "_") + ".sif"
+	return strings.Join(parts, "_")
 }
 
 func (i libraryImageInfo) Tags() []string {
@@ -71,11 +65,6 @@ func (i libraryImageInfo) Digests() []string {
 	return nil
 }
 
-func (i libraryImageInfo) Pull(auth *v1alpha2.AuthConfig, dir string) error {
-	path := filepath.Join(dir, i.Id())
-	server := singularity.LibraryURL
-	if auth != nil && auth.ServerAddress != "" {
-		server = auth.ServerAddress
-	}
-	return library.DownloadImage(path, i.Remote(), server, true, "")
+func (i libraryImageInfo) Pull(auth *v1alpha2.AuthConfig, path string) error {
+	return library.DownloadImage(path, i.Remote(), singularity.LibraryURL, true, "")
 }
