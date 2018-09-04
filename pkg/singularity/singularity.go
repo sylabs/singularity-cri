@@ -12,11 +12,14 @@ const (
 	// LibraryURL is a default singularity library server address.
 	LibraryURL = "https://library.sylabs.io"
 
-	// LibraryProtocol holds the sylabs cloud library base URI
-	// for more info refer to https://cloud.sylabs.io/library
+	// LibraryProtocol holds the sylabs cloud library base URI.
+	// For more info refer to https://cloud.sylabs.io/library.
 	LibraryProtocol = "library"
 
-	// ShubProtocol holds singularity hub base URI
-	// for more info refer to https://singularity-hub.org/
+	// ShubProtocol holds singularity hub base URI.
+	// For more info refer to https://singularity-hub.org.
 	ShubProtocol = "shub"
+
+	// DockerProtocol holds docker hub base URI.
+	DockerProtocol = "docker"
 )

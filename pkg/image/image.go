@@ -7,10 +7,10 @@ package image
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,7 +28,8 @@ type SingularityRegistry struct {
 	infoFile *os.File
 
 	m        sync.RWMutex
-	registry map[string]k8s.Image // key:name value:info
+	refToID  map[string]string
+	idToInfo map[string]imageInfo
 }
 
 // NewSingularityRegistry initializes and returns SingularityRuntime.
@@ -46,7 +47,8 @@ func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 
 	registry := SingularityRegistry{
 		location: storePath,
-		registry: make(map[string]k8s.Image),
+		refToID:  make(map[string]string),
+		idToInfo: make(map[string]imageInfo),
 	}
 	registry.infoFile, err = os.OpenFile(registry.filePath(registryInfoFile), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
@@ -62,13 +64,18 @@ func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 // ListImages lists existing images.
 func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImagesRequest) (*k8s.ListImagesResponse, error) {
 	// todo apply filter
-	imgs := make([]*k8s.Image, 0, len(s.registry))
+	// todo set uid or username
+
+	imgs := make([]*k8s.Image, 0, len(s.idToInfo))
 	s.m.RLock()
 	defer s.m.RUnlock()
-	for _, info := range s.registry {
-		// todo set uid or username
-		infoCopy := info
-		imgs = append(imgs, &infoCopy)
+	for id, info := range s.idToInfo {
+		imgs = append(imgs, &k8s.Image{
+			Id:          id,
+			RepoTags:    info.Tags,
+			RepoDigests: info.Digests,
+			Size_:       info.Size,
+		})
 	}
 
 	return &k8s.ListImagesResponse{
@@ -80,14 +87,24 @@ func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImage
 // present, returns a response with ImageStatusResponse.Image set to nil.
 func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
 	// todo add meta information on verbose call
+	// todo set uid or username
+
 	s.m.RLock()
-	img, ok := s.registry[req.Image.Image]
+	id := s.refToID[req.Image.Image]
+	info := s.idToInfo[id]
 	s.m.RUnlock()
-	if !ok {
+
+	if id == "" {
 		return &k8s.ImageStatusResponse{}, nil
 	}
+
 	return &k8s.ImageStatusResponse{
-		Image: &img,
+		Image: &k8s.Image{
+			Id:          id,
+			RepoTags:    info.Tags,
+			RepoDigests: info.Digests,
+			Size_:       info.Size,
+		},
 	}, nil
 }
 
@@ -97,50 +114,76 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 	if err != nil {
 		return nil, fmt.Errorf("could not parse image reference: %v", err)
 	}
-	pullPath := s.pullPath(info.Id())
-	err = info.Pull(req.Auth, pullPath)
+
+	randID := randomString(16)
+	pullPath := s.pullPath(randID)
+
+	err = pullImage(req.Auth, pullPath, info)
 	if err != nil {
-		s.removeTempFile(info.Id())
+		removeOrLog(pullPath)
 		return nil, fmt.Errorf("could not pull image: %v", err)
 	}
 
-	fi, err := os.Stat(pullPath)
+	pulled, err := os.Open(pullPath)
 	if err != nil {
-		s.removeTempFile(info.Id())
-		return nil, fmt.Errorf("could not find image size: %v", err)
+		removeOrLog(pullPath)
+		return nil, fmt.Errorf("could not open pulled image: %v", err)
 	}
-	size := uint64(fi.Size())
 
-	err = os.Rename(pullPath, s.filePath(info.Id()))
+	fi, err := pulled.Stat()
+	if err != nil {
+		removeOrLog(pullPath)
+		return nil, fmt.Errorf("could not fetch file info: %v", err)
+	}
+
+	info.Size = uint64(fi.Size())
+
+	h := sha256.New()
+	_, err = io.Copy(h, pulled)
+	if err != nil {
+		removeOrLog(pullPath)
+		return nil, fmt.Errorf("could not get pulled image digest: %v", err)
+	}
+
+	id := fmt.Sprintf("%x", h.Sum(nil))
+	s.m.RLock()
+	oldInfo := s.idToInfo[id]
+	s.m.RUnlock()
+
+	info.Tags = mergeStrSlice(oldInfo.Tags, info.Tags)
+	info.Digests = mergeStrSlice(oldInfo.Digests, info.Digests)
+
+	err = os.Rename(pullPath, s.filePath(id))
 	if err != nil {
 		return nil, fmt.Errorf("could not save pulled image: %v", err)
 	}
 
 	s.m.Lock()
-	s.registry[req.Image.Image] = k8s.Image{
-		Id:          info.Id(),
-		RepoTags:    info.Tags(),
-		RepoDigests: info.Digests(),
-		Size_:       size,
-	}
+	s.idToInfo[id] = info
+	s.refToID[req.Image.Image] = id
 	s.dumpInfo()
 	s.m.Unlock()
 
 	return &k8s.PullImageResponse{
-		ImageRef: info.Id(),
+		ImageRef: id,
 	}, nil
 }
 
 // RemoveImage removes the image.
 // This call is idempotent, and does not return an error if the image has already been removed.
 func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveImageRequest) (*k8s.RemoveImageResponse, error) {
+	// todo make sure remove always accepts image ref!
+
 	s.m.RLock()
-	_, ok := s.registry[req.Image.Image]
+	info, ok := s.idToInfo[req.Image.Image]
 	s.m.RUnlock()
 
 	if ok {
 		s.m.Lock()
-		delete(s.registry, req.Image.Image)
+		delete(s.idToInfo, req.Image.Image)
+		for _, ref := range info.Tags {
+			delete(s.refToID, ref)
+		}
 		s.dumpInfo()
 		s.m.Unlock()
 
@@ -149,7 +192,6 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 			return nil, err
 		}
 	}
-
 	return &k8s.RemoveImageResponse{}, nil
 }
 
@@ -163,11 +205,20 @@ func (s *SingularityRegistry) loadInfo() error {
 	if err != nil {
 		return fmt.Errorf("could not seek registry info file: %v", err)
 	}
-	err = json.NewDecoder(s.infoFile).Decode(&s.registry)
-	if err != nil && err == io.EOF {
+	err = json.NewDecoder(s.infoFile).Decode(&s.idToInfo)
+	if err == io.EOF {
 		return nil
 	}
-	return err
+	if err != nil {
+		return err
+	}
+
+	for id, info := range s.idToInfo {
+		for _, tag := range info.Tags {
+			s.refToID[tag] = id
+		}
+	}
+	return nil
 }
 
 func (s *SingularityRegistry) dumpInfo() error {
@@ -175,7 +226,11 @@ func (s *SingularityRegistry) dumpInfo() error {
 	if err != nil {
 		return fmt.Errorf("could not seek registry info file: %v", err)
 	}
-	return json.NewEncoder(s.infoFile).Encode(s.registry)
+	err = s.infoFile.Truncate(0)
+	if err != nil {
+		return fmt.Errorf("could not reset file: %v", err)
+	}
+	return json.NewEncoder(s.infoFile).Encode(s.idToInfo)
 }
 
 func (s *SingularityRegistry) filePath(id string) string {
@@ -184,11 +239,4 @@ func (s *SingularityRegistry) filePath(id string) string {
 
 func (s *SingularityRegistry) pullPath(id string) string {
 	return filepath.Join(s.location, "."+id)
-}
-
-func (s *SingularityRegistry) removeTempFile(id string) {
-	err := os.Remove(s.pullPath(id))
-	if err != nil {
-		log.Printf("could not remove temparary image file: %v", err)
-	}
 }
