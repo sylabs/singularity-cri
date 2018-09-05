@@ -32,27 +32,45 @@ func parseImageRef(ref string) (imageInfo, error) {
 
 	info := imageInfo{
 		Origin: uri,
-		Tags:   []string{image},
 	}
+
 	switch uri {
-	case singularity.LibraryProtocol:
 	case singularity.ShubProtocol:
+		fallthrough
+	case singularity.LibraryProtocol:
+		if strings.Contains(image, "sha256.") {
+			info.Digests = append(info.Digests, ref)
+		} else {
+			info.Tags = append(info.Tags, normalizedImageRef(ref))
+		}
 	case singularity.DockerProtocol:
+		if strings.IndexByte(image, '@') != -1 {
+			info.Digests = append(info.Digests, image)
+		} else {
+			info.Tags = append(info.Tags, normalizedImageRef(image))
+		}
 	default:
 		return imageInfo{}, fmt.Errorf("unknown image registry: %s", uri)
 	}
+
 	return info, nil
 }
 
 func pullImage(_ *k8s.AuthConfig, path string, image imageInfo) error {
-	remote := fmt.Sprintf("%s://%s", image.Origin, image.Tags[0])
+	var ref string
+	if len(image.Tags) > 0 {
+		ref = image.Tags[0]
+	} else {
+		ref = image.Digests[0]
+	}
 
 	switch uri := image.Origin; uri {
 	case singularity.LibraryProtocol:
-		return library.DownloadImage(path, remote, singularity.LibraryURL, true, "")
+		return library.DownloadImage(path, ref, singularity.LibraryURL, true, "")
 	case singularity.ShubProtocol:
-		return shub.DownloadImage(path, remote, true)
+		return shub.DownloadImage(path, ref, true)
 	case singularity.DockerProtocol:
+		remote := fmt.Sprintf("%s://%s", image.Origin, ref)
 		buildCmd := exec.Command(singularity.RuntimeName, "build", path, remote)
 		return buildCmd.Run()
 	default:
@@ -60,8 +78,8 @@ func pullImage(_ *k8s.AuthConfig, path string, image imageInfo) error {
 	}
 }
 
-func randomString(n int) string {
-	buf := make([]byte, n)
+func randomString() string {
+	buf := make([]byte, 32)
 	rand.Read(buf)
 	return fmt.Sprintf("%x", buf)
 }
@@ -83,4 +101,45 @@ func mergeStrSlice(t1, t2 []string) []string {
 		merged = append(merged, str)
 	}
 	return merged
+}
+
+func removeFromSlice(a []string, v string) []string {
+	for i, str := range a {
+		if str == v {
+			return append(a[:i], a[i+1:]...)
+		}
+	}
+	return a
+}
+
+func normalizedImageRef(ref string) string {
+	image := ref
+	indx := strings.Index(ref, "://")
+	if indx != -1 {
+		image = ref[indx+3:]
+	}
+	i := strings.LastIndexByte(image, ':')
+	if i == -1 {
+		return ref + ":latest"
+	}
+	return ref
+}
+
+func matches(image *k8s.Image, filter *k8s.ImageFilter) bool {
+	if filter == nil || filter.Image == nil {
+		return true
+	}
+
+	ref := filter.Image.Image
+	for _, tag := range image.RepoTags {
+		if strings.HasPrefix(tag, ref) {
+			return true
+		}
+	}
+	for _, digest := range image.RepoDigests {
+		if strings.HasPrefix(digest, ref) {
+			return true
+		}
+	}
+	return false
 }
