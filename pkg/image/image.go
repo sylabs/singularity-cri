@@ -64,7 +64,6 @@ func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 
 // ListImages lists existing images.
 func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImagesRequest) (*k8s.ListImagesResponse, error) {
-	// todo set uid or username
 	imgs := make([]*k8s.Image, 0, len(s.idToInfo))
 	s.m.RLock()
 	defer s.m.RUnlock()
@@ -87,7 +86,6 @@ func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImage
 // ImageStatus returns the status of the image. If the image is not
 // present, returns a response with ImageStatusResponse.Image set to nil.
 func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
-	// todo set uid or username
 	id, info := s.find(req.Image.Image)
 	if id == "" {
 		return &k8s.ImageStatusResponse{}, nil

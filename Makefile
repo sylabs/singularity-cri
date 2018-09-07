@@ -2,6 +2,7 @@
 
 build:
 	GOOS=linux go build -o sycri.out ./cmd/server
+	GOOS=linux go build -o sycri.test.out ./cmd/test
 	GOOS=linux go test -c -o sycri.runtime.test ./pkg/runtime
 	GOOS=linux go test -c -o sycri.image.test ./pkg/image
 

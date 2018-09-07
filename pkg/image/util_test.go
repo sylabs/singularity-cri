@@ -348,6 +348,20 @@ func TestMatches(t *testing.T) {
 			expect: true,
 		},
 		{
+			name: "empty filter",
+			img: &k8s.Image{
+				Id:          "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
+				RepoTags:    []string{},
+				RepoDigests: []string{"gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343"},
+			},
+			filter: &k8s.ImageFilter{
+				Image: &k8s.ImageSpec{
+					Image: "",
+				},
+			},
+			expect: true,
+		},
+		{
 			name: "no match",
 			img: &k8s.Image{
 				Id:          "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
