@@ -1,10 +1,11 @@
-.PHONY: lint
+.PHONY: test lint
 
 build:
-	GOOS=linux go build -o sycri.out ./cmd/server
-	GOOS=linux go build -o sycri.test.out ./cmd/test
-	GOOS=linux go test -c -o sycri.runtime.test ./pkg/runtime
-	GOOS=linux go test -c -o sycri.image.test ./pkg/image
+	GOOS=linux go build -o sycri ./cmd/server
+	GOOS=linux go build -o sycri_client ./cmd/test
+
+test:
+	GOOS=linux go test -cover ./...
 
 lint:
 	gometalinter --vendor --disable-all \
