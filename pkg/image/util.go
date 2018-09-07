@@ -71,13 +71,14 @@ func pullImage(_ *k8s.AuthConfig, path string, image imageInfo) error {
 		return shub.DownloadImage(path, ref, true)
 	case singularity.DockerProtocol:
 		remote := fmt.Sprintf("%s://%s", image.Origin, ref)
-		buildCmd := exec.Command(singularity.RuntimeName, "build", path, remote)
+		buildCmd := exec.Command(singularity.RuntimeName, "build", "-F", path, remote)
 		return buildCmd.Run()
 	default:
 		return fmt.Errorf("unknown image registry: %s", uri)
 	}
 }
 
+// randomString returns random string of length 64 generated with math/rand.Read.
 func randomString() string {
 	buf := make([]byte, 32)
 	rand.Read(buf)
@@ -103,6 +104,8 @@ func mergeStrSlice(t1, t2 []string) []string {
 	return merged
 }
 
+// removeFromSlice returns passed slice without first occurrence of element v.
+// It does not makes a copy of a passed slice.
 func removeFromSlice(a []string, v string) []string {
 	for i, str := range a {
 		if str == v {
@@ -112,6 +115,8 @@ func removeFromSlice(a []string, v string) []string {
 	return a
 }
 
+// normalizedImageRef appends tag 'latest' if the passed ref
+// does not have any tag or digest already.
 func normalizedImageRef(ref string) string {
 	image := ref
 	indx := strings.Index(ref, "://")
@@ -129,8 +134,10 @@ func matches(image *k8s.Image, filter *k8s.ImageFilter) bool {
 	if filter == nil || filter.Image == nil {
 		return true
 	}
-
 	ref := filter.Image.Image
+	if strings.HasPrefix(image.Id, ref) {
+		return true
+	}
 	for _, tag := range image.RepoTags {
 		if strings.HasPrefix(tag, ref) {
 			return true

@@ -25,7 +25,7 @@ const registryInfoFile = "registry.json"
 
 // SingularityRegistry implements k8s ImageService interface.
 type SingularityRegistry struct {
-	location string // path to directory without trailing slash
+	storage string // path to image storage without trailing slash
 
 	m        sync.RWMutex
 	refToID  map[string]string
@@ -38,7 +38,7 @@ type SingularityRegistry struct {
 func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 	_, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
-		return nil, fmt.Errorf("could not find %s daemon on this machine: %v", singularity.RuntimeName, err)
+		return nil, fmt.Errorf("could not find %s executable on this machine: %v", singularity.RuntimeName, err)
 	}
 
 	storePath, err = filepath.Abs(storePath)
@@ -47,17 +47,17 @@ func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 	}
 
 	registry := SingularityRegistry{
-		location: storePath,
+		storage:  storePath,
 		refToID:  make(map[string]string),
 		idToInfo: make(map[string]imageInfo),
 	}
 	registry.infoFile, err = os.OpenFile(registry.filePath(registryInfoFile), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		return nil, fmt.Errorf("could not open registry file: %v", err)
+		return nil, fmt.Errorf("could not open registry backup file: %v", err)
 	}
 	err = registry.loadInfo()
 	if err != nil {
-		return nil, fmt.Errorf("could not load registry backup info: %v", err)
+		return nil, err
 	}
 	return &registry, nil
 }
@@ -65,9 +65,9 @@ func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 // ListImages lists existing images.
 func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImagesRequest) (*k8s.ListImagesResponse, error) {
 	// todo set uid or username
-
 	imgs := make([]*k8s.Image, 0, len(s.idToInfo))
 	s.m.RLock()
+	defer s.m.RUnlock()
 	for id, info := range s.idToInfo {
 		img := &k8s.Image{
 			Id:          id,
@@ -79,8 +79,6 @@ func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImage
 			imgs = append(imgs, img)
 		}
 	}
-	s.m.RUnlock()
-
 	return &k8s.ListImagesResponse{
 		Images: imgs,
 	}, nil
@@ -90,20 +88,10 @@ func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImage
 // present, returns a response with ImageStatusResponse.Image set to nil.
 func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
 	// todo set uid or username
-
-	id := req.Image.Image
-	s.m.RLock()
-	info, ok := s.idToInfo[id]
-	if !ok {
-		id = s.refToID[normalizedImageRef(req.Image.Image)]
-		info, ok = s.idToInfo[id]
-	}
-	s.m.RUnlock()
-
-	if !ok {
+	id, info := s.find(req.Image.Image)
+	if id == "" {
 		return &k8s.ImageStatusResponse{}, nil
 	}
-
 	return &k8s.ImageStatusResponse{
 		Image: &k8s.Image{
 			Id:          id,
@@ -116,6 +104,7 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 
 // PullImage pulls an image with authentication config.
 func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageRequest) (*k8s.PullImageResponse, error) {
+	// todo pull prom private repos using auth
 	info, err := parseImageRef(req.Image.Image)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse image reference: %v", err)
@@ -123,7 +112,6 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 
 	randID := randomString()
 	pullPath := s.pullPath(randID)
-
 	err = pullImage(req.Auth, pullPath, info)
 	if err != nil {
 		removeOrLog(pullPath)
@@ -141,7 +129,6 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 		removeOrLog(pullPath)
 		return nil, fmt.Errorf("could not fetch file info: %v", err)
 	}
-
 	info.Size = uint64(fi.Size())
 
 	h := sha256.New()
@@ -166,11 +153,11 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 
 	s.m.Lock()
 	for _, tag := range info.Tags {
-		oldId := s.refToID[tag]
-		if oldId != "" && oldId != id {
-			oldInfo = s.idToInfo[oldId]
+		oldID := s.refToID[tag]
+		if oldID != "" && oldID != id {
+			oldInfo = s.idToInfo[oldID]
 			oldInfo.Tags = removeFromSlice(oldInfo.Tags, tag)
-			s.idToInfo[oldId] = oldInfo
+			s.idToInfo[oldID] = oldInfo
 		}
 		s.refToID[tag] = id
 	}
@@ -198,16 +185,8 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 // RemoveImage removes the image.
 // This call is idempotent, and does not return an error if the image has already been removed.
 func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveImageRequest) (*k8s.RemoveImageResponse, error) {
-	id := req.Image.Image
-	s.m.RLock()
-	info, ok := s.idToInfo[id]
-	if !ok {
-		id = s.refToID[normalizedImageRef(req.Image.Image)]
-		info, ok = s.idToInfo[id]
-	}
-	s.m.RUnlock()
-
-	if ok {
+	id, info := s.find(req.Image.Image)
+	if id != "" {
 		s.m.Lock()
 		err := os.Remove(s.filePath(id))
 		if err != nil {
@@ -236,6 +215,22 @@ func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoReque
 	return nil, fmt.Errorf("not implemented")
 }
 
+// find queries registry for image that is referenced by ref and returns id of an image and imageInfo.
+// Passed ref may be either image id or repo tag or digest, find handles it correctly.
+// When no image is found the returned id is an empty string. This method is safe for concurrent use.
+func (s *SingularityRegistry) find(ref string) (string, imageInfo) {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	info, ok := s.idToInfo[ref]
+	if ok {
+		return ref, info
+	}
+	id := s.refToID[normalizedImageRef(ref)]
+	info = s.idToInfo[id]
+	return id, info
+}
+
+// loadInfo reads backup file and restores registry according to it.
 func (s *SingularityRegistry) loadInfo() error {
 	_, err := s.infoFile.Seek(0, io.SeekStart)
 	if err != nil {
@@ -246,7 +241,7 @@ func (s *SingularityRegistry) loadInfo() error {
 		return nil
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("could not decode backup file: %v", err)
 	}
 
 	for id, info := range s.idToInfo {
@@ -260,6 +255,7 @@ func (s *SingularityRegistry) loadInfo() error {
 	return nil
 }
 
+// dumpInfo dumps registry into backup file.
 func (s *SingularityRegistry) dumpInfo() error {
 	_, err := s.infoFile.Seek(0, io.SeekStart)
 	if err != nil {
@@ -269,13 +265,17 @@ func (s *SingularityRegistry) dumpInfo() error {
 	if err != nil {
 		return fmt.Errorf("could not reset file: %v", err)
 	}
-	return json.NewEncoder(s.infoFile).Encode(s.idToInfo)
+	err = json.NewEncoder(s.infoFile).Encode(s.idToInfo)
+	if err != nil {
+		return fmt.Errorf("could not encode backup file: %v", err)
+	}
+	return nil
 }
 
 func (s *SingularityRegistry) filePath(id string) string {
-	return filepath.Join(s.location, id)
+	return filepath.Join(s.storage, id)
 }
 
 func (s *SingularityRegistry) pullPath(id string) string {
-	return filepath.Join(s.location, "."+id)
+	return filepath.Join(s.storage, "."+id)
 }

@@ -6,4 +6,15 @@ build:
 	GOOS=linux go test -c -o sycri.image.test ./pkg/image
 
 lint:
-	gometalinter --vendor --enable=misspell --enable=unparam --enable=dupl --enable=gofmt --enable=goimports --disable=gotype --disable=gas --deadline=3m ./...
+	gometalinter --vendor --disable-all \
+	--enable=gofmt \
+	--enable=goimports \
+	--enable=vet \
+	--enable=misspell \
+	--enable=maligned \
+	--enable=deadcode \
+	--enable=ineffassign \
+	--enable=golint \
+	--enable=errcheck \
+	--enable=varcheck \
+	--deadline=3m ./...
