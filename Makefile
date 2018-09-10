@@ -10,10 +10,7 @@ CONFIG_GO := ./vendor/github.com/singularityware/singularity/builddir/config.go
 
 $(CONFIG_GO):
 	@echo " GO" $@
-	@if [ -d $(BUILDDIR) ]; then \
-		rm -rf $(BUILDDIR); \
-	fi
-	$(V)cd ./vendor/github.com/singularityware/singularity && ./mconfig
+	$(V)cd ./vendor/github.com/singularityware/singularity && yes | ./mconfig
 	$(V)make -C ./vendor/github.com/singularityware/singularity/builddir -j2
 
 $(SY_CRI): $(CONFIG_GO)

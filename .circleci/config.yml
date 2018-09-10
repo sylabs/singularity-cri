@@ -41,10 +41,6 @@ jobs:
               curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
               dep ensure -vendor-only
             fi
-      - run:
-          name: singularity 3.0 build config
-          command: |
-            apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
       - save_cache:
           key: dep-cache-{{ checksum "Gopkg.lock" }}
           paths:
@@ -59,6 +55,10 @@ jobs:
     steps:
       - attach_workspace:
           at: /
+      - run:
+          name: singularity 3.0 dependencies
+          command: |-
+            apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools 
       - run:
           name: Build Source
           command: |-
@@ -92,6 +92,10 @@ jobs:
     steps:
       - attach_workspace:
           at: /
+      - run:
+          name: singularity 3.0 dependencies
+          command: |-
+            apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools 
       - run:
           name: Run Tests
           working_directory: /go/src/github.com/sylabs/cri
