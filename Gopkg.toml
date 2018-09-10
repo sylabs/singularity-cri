@@ -24,15 +24,14 @@
 #   go-tests = true
 #   unused-packages = true
 
+[[constraint]]
+  name = "k8s.io/kubernetes"
+  version = "1.11.2"
 
 [prune]
   go-tests = true
   unused-packages = true
 
-[[constraint]]
-  name = "k8s.io/kubernetes"
-  branch = "master"
-
-[[constraint]]
-  name = "google.golang.org/grpc"
-  version = "1.7.5"
+  [[prune.project]]
+ 	name = "github.com/singularityware/singularity"
+ 	unused-packages = false
