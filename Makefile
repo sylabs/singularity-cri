@@ -23,7 +23,7 @@ $(CRI_CLIENT): $(CONFIG_GO)
 
 .PHONY: build
 build: $(CONFIG_GO) $(SY_CRI) $(CRI_CLIENT)
-	$(V)mkdir -p $(BUILDDIR)
+	$(V)mkdir -p $(BINDIR)
 
 .PHONY: clean
 clean:

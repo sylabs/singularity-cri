@@ -61,7 +61,7 @@ jobs:
           at: /
       - run:
           name: Build Source
-          command: |
+          command: |-
             cd /go/src/github.com/sylabs/cri
             make build
 
@@ -72,7 +72,7 @@ jobs:
           at: /
       - run:
           name: Check Formatting
-          command: |
+          command: |-
             cd /go/src/github.com/sylabs/cri
             test -z $(go fmt ./...)
 
@@ -83,7 +83,7 @@ jobs:
           at: /
       - run:
           name: Vet Source
-          command: |
+          command: |-
             cd /go/src/github.com/sylabs/cri
             go vet -all ./...
 
@@ -95,7 +95,7 @@ jobs:
       - run:
           name: Run Tests
           working_directory: /go/src/github.com/sylabs/cri
-          command: |
+          command: |-
             cd /go/src/github.com/sylabs/cri
             make test
 
