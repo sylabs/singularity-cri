@@ -22,12 +22,12 @@ jobs:
           name: Check Formatting
           command: test -z $(go fmt ./...)
       - run:
-          name: Vet Source
+          name: Vet Source`
           command: go vet -all ./...
       - run:
           name: Check for Lint
           command: |
-            curl -L https://git.io/vp6lP | sh
+            curl -L https://git.io/vp6lP | sh && mv ./bin/* /bin/ 
             make lint
       - run:
           name: Run Tests
@@ -96,7 +96,7 @@ jobs:
       - run:
           name: Check for Lint
           command: |
-            curl -L https://git.io/vp6lP | sh
+            curl -L https://git.io/vp6lP | sh && mv ./bin/* /bin/ 
             make lint
 
   unit_test:
