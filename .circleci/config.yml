@@ -54,7 +54,7 @@ jobs:
     <<: *defaults
     steps:
       - attach_workspace:
-          at: /go
+          at: /go/src/github.com/sylabs/cri
       - run:
           name: Build Source
           command: make build
@@ -63,7 +63,7 @@ jobs:
     <<: *defaults
     steps:
       - attach_workspace:
-          at: /go
+          at: /go/src/github.com/sylabs/cri
       - run:
           name: Check Formatting
           command: test -z $(go fmt ./...)
@@ -72,7 +72,7 @@ jobs:
     <<: *defaults
     steps:
       - attach_workspace:
-          at: /go
+          at: /go/src/github.com/sylabs/cri
       - run:
           name: Vet Source
           command: go vet -all ./...
@@ -81,7 +81,7 @@ jobs:
     <<: *defaults
     steps:
       - attach_workspace:
-          at: /go
+          at: /go/src/github.com/sylabs/cri
       - run:
           name: Run Tests
           working_directory: /go/src/github.com/sylabs/cri
