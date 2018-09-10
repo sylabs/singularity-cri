@@ -25,11 +25,6 @@ jobs:
           name: Vet Source`
           command: go vet -all ./...
       - run:
-          name: Check for Lint
-          command: |
-            curl -L https://git.io/vp6lP | sh && mv ./bin/* /bin/ 
-            make lint
-      - run:
           name: Run Tests
           command: make test
 
@@ -88,17 +83,6 @@ jobs:
           name: Vet Source
           command: go vet -all ./...
 
-  lint_source:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: /go
-      - run:
-          name: Check for Lint
-          command: |
-            curl -L https://git.io/vp6lP | sh && mv ./bin/* /bin/ 
-            make lint
-
   unit_test:
     <<: *defaults
     steps:
@@ -121,9 +105,6 @@ workflows:
           requires:
             - get_source
       - vet_source:
-          requires:
-            - get_source
-      - lint_source:
           requires:
             - get_source
       - unit_test:
