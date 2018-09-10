@@ -3,7 +3,7 @@ version: 2
 defaults: &defaults
   working_directory: /go/src/github.com/sylabs/cri
   docker:
-    - image: ashael/singularity:3.0
+    - image: golang:latest
 
 jobs:
   build:
@@ -11,21 +11,24 @@ jobs:
     steps:
       - checkout
       - run:
-          name: singularity 3.0 build config
-          command: |
-            cp -r /go/src/github.com/singularityware/singularity/builddir ./vendor/github.com/singularityware/singularity/builddir
-            cp /go/src/github.com/singularityware/singularity/src/pkg/buildcfg/config.go ./vendor/github.com/singularityware/singularity/src/pkg/buildcfg/config.go
+          name: install dependencies
+          working_directory: /go/src/github.com/sylabs/cri
+          command: apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
       - run:
           name: Build Source
-          command: go build ./...
+          working_directory: /go/src/github.com/sylabs/cri
+          command: make build
       - run:
           name: Check Formatting
+          working_directory: /go/src/github.com/sylabs/cri
           command: test -z $(go fmt ./...)
       - run:
-          name: Vet Source`
+          name: Vet Source
+          working_directory: /go/src/github.com/sylabs/cri
           command: go vet -all ./...
       - run:
           name: Run Tests
+          working_directory: /go/src/github.com/sylabs/cri
           command: make test
 
   get_source:
@@ -38,23 +41,21 @@ jobs:
             - vendor
       - run:
           name: Set Up Vendor Directory
+          working_directory: /go/src/github.com/sylabs/cri
           command: |
             if [ ! -d vendor ]; then
               curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
               dep ensure -vendor-only
             fi
-            # singularity build vars
-            cp -r /go/src/github.com/singularityware/singularity/builddir ./vendor/github.com/singularityware/singularity/builddir
-            cp /go/src/github.com/singularityware/singularity/src/pkg/buildcfg/config.go ./vendor/github.com/singularityware/singularity/src/pkg/buildcfg/config.go
-
+      - run:
+          name: singularity 3.0 build config
+          working_directory: /go/src/github.com/singularityware/singularity
+          command: |
+            apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
       - save_cache:
           key: dep-cache-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
-      - persist_to_workspace:
-          root: /go
-          paths:
-            - src/github.com/sylabs/cri/*
 
   build_source:
     <<: *defaults
