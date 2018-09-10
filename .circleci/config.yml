@@ -12,23 +12,18 @@ jobs:
       - checkout
       - run:
           name: install dependencies
-          working_directory: /go/src/github.com/sylabs/cri
           command: apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
       - run:
           name: Build Source
-          working_directory: /go/src/github.com/sylabs/cri
           command: make build
       - run:
           name: Check Formatting
-          working_directory: /go/src/github.com/sylabs/cri
           command: test -z $(go fmt ./...)
       - run:
           name: Vet Source
-          working_directory: /go/src/github.com/sylabs/cri
           command: go vet -all ./...
       - run:
           name: Run Tests
-          working_directory: /go/src/github.com/sylabs/cri
           command: make test
 
   get_source:
@@ -41,7 +36,6 @@ jobs:
             - vendor
       - run:
           name: Set Up Vendor Directory
-          working_directory: /go/src/github.com/sylabs/cri
           command: |
             if [ ! -d vendor ]; then
               curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
@@ -49,7 +43,6 @@ jobs:
             fi
       - run:
           name: singularity 3.0 build config
-          working_directory: /go/src/github.com/singularityware/singularity
           command: |
             apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
       - save_cache:
@@ -64,7 +57,6 @@ jobs:
           at: /go
       - run:
           name: Build Source
-          working_directory: /go/src/github.com/sylabs/cri
           command: make build
 
   check_formatting:
@@ -74,7 +66,6 @@ jobs:
           at: /go
       - run:
           name: Check Formatting
-          working_directory: /go/src/github.com/sylabs/cri
           command: test -z $(go fmt ./...)
 
   vet_source:
@@ -84,7 +75,6 @@ jobs:
           at: /go
       - run:
           name: Vet Source
-          working_directory: /go/src/github.com/sylabs/cri
           command: go vet -all ./...
 
   unit_test:
