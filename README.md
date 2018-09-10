@@ -15,6 +15,7 @@ To work on Singularity CRI install the following:
 - [git](https://git-scm.com/downloads)
 - [go](https://golang.org/doc/install)
 - [dep](https://golang.github.io/dep/docs/installation.html)
+- [gometalinter](https://github.com/alecthomas/gometalinter#installing)
 
 Make sure you configured [go workspace](https://golang.org/doc/code.html).
 
@@ -50,7 +51,7 @@ To start CRI server simply run _sycri_ binary. By default CRI listens for reques
 with flags, run `./sycri -h` for more details. 
 
 ##
-To run unit tests use Makefile:
+To run unit tests you can use Makefile:
 ```bash
 make test
 ```
@@ -62,7 +63,7 @@ for production use.** To start interactive cli test tool run the executable and 
 ./sycri_client unix:///var/run/singularity.sock
 ```
 
-The following cammands are supported:
+The following commands are supported:
 - `pull <image>` - pull image by tag or digest. To pull from library or shub specify `library://` or `shub://` prefix
 before image respectively.
 - `list` - list all available images
