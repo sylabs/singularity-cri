@@ -37,7 +37,7 @@ all your interactions with the project members and users.
    as part of the Continuous Integration (Circle CI) system.
 6. The project's default copyright and header have been included in any new
    source files.
-7. Make sure you have implemented a local `make lint && make test` and all tests succeed
+7. Make sure you have run a local `make lint && make test` and all tests succeed
    before submitting the PR.
 8. Is the code human understandable? This can be accomplished via a clear code
    style as well as documentation and/or comments.
