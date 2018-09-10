@@ -14,7 +14,7 @@ form.
 
 # Contributing
 
-When contributing to SIF, it is important to properly communicate the
+When contributing to Sylabs/CRI, it is important to properly communicate the
 gist of the contribution. If it is a simple code or editorial fix, simply
 explaining this within the GitHub Pull Request (PR) will suffice. But if this
 is a larger fix or Enhancement, you are advised to first discuss the change
@@ -37,7 +37,7 @@ all your interactions with the project members and users.
    as part of the Continuous Integration (Circle CI) system.
 6. The project's default copyright and header have been included in any new
    source files.
-7. Make sure you have implemented a local `make test` and all tests succeed
+7. Make sure you have implemented a local `make lint && make test` and all tests succeed
    before submitting the PR.
 8. Is the code human understandable? This can be accomplished via a clear code
    style as well as documentation and/or comments.
