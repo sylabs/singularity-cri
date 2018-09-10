@@ -6,51 +6,77 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/sylabs/sy-cri"
+	"github.com/sylabs/cri/pkg/image"
+	"github.com/sylabs/cri/pkg/runtime"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
-	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-func main() {
+type flags struct {
+	socket   string
+	storeDir string
+}
+
+func readFlags() flags {
+	var f flags
+	flag.StringVar(&f.socket, "sock", "/var/run/singularity.sock", "unix socket to serve cri services")
+	flag.StringVar(&f.storeDir, "store", "/var/lib/singularity", "directory to store all pulled images")
 	flag.Parse()
+	return f
+}
+
+func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	start := time.Now()
+	resp, err := handler(ctx, req)
+	log.Printf("Method:%s\n\tRequest: %v\n\tResponse: %v\n\tError: %v\n\tDuration:%s\n",
+		info.FullMethod, req, resp, err, time.Since(start))
+	return resp, err
+}
+
+func main() {
+	f := readFlags()
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM)
 
-	socketPath := "/var/run/singularity.sock"
-	defer os.Remove(socketPath)
-
-	sock, err := net.Listen("unix", socketPath)
+	lis, err := net.Listen("unix", f.socket)
 	if err != nil {
-		log.Fatalf("Error listening on socket %q: %v ", socketPath, err)
+		log.Fatalf("Could not start CRI listener: %v ", err)
 	}
-	defer sock.Close()
+	defer lis.Close()
 
-	syRuntime, err := sycri.NewSingularityRuntimeService()
+	syRuntime, err := runtime.NewSingularityRuntime()
 	if err != nil {
 		log.Printf("Could not create Singularity runtime service: %v", err)
 		return
 	}
-	syImage := &sycri.SignularityImageService{}
+	syImage, err := image.NewSingularityRegistry(f.storeDir)
+	if err != nil {
+		log.Printf("Could not create Singularity image service: %v", err)
+		return
+	}
 
-	grpcServer := grpc.NewServer()
-	runtimeapi.RegisterRuntimeServiceServer(grpcServer, syRuntime)
-	runtimeapi.RegisterImageServiceServer(grpcServer, syImage)
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC))
+	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
+	k8s.RegisterImageServiceServer(grpcServer, syImage)
 
-	log.Printf("starting to serve on %q", socketPath)
-	go grpcServer.Serve(sock)
+	log.Printf("Singularity CRI server started on %v", lis.Addr())
+	go grpcServer.Serve(lis)
 
 	<-exitCh
 
-	log.Println("singularity service exiting...")
+	grpcServer.Stop()
+	log.Println("Singularity CRI service exiting...")
 }

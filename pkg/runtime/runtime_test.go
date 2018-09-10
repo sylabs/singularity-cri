@@ -3,7 +3,7 @@
 // LICENSE file distributed with the sources of this project regarding your
 // rights to use or distribute this software.
 
-package sycri
+package runtime
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestSingularityRuntimeService_Version(t *testing.T) {
-	s, err := NewSingularityRuntimeService()
+	s, err := NewSingularityRuntime()
 	require.NoError(t, err, "could not create new runtime service")
 
 	expectedVersion, err := exec.Command(s.singularity, "version").Output()
@@ -24,8 +24,8 @@ func TestSingularityRuntimeService_Version(t *testing.T) {
 	actualVersion, err := s.Version(context.Background(), &v1alpha2.VersionRequest{})
 	require.NoError(t, err, "could not query runtime version")
 	require.Equal(t, &v1alpha2.VersionResponse{
-		Version:           kubeAPIVersion,
-		RuntimeName:       singularityRuntimeName,
+		Version:           "0.1.0",
+		RuntimeName:       "singularity",
 		RuntimeVersion:    string(expectedVersion),
 		RuntimeApiVersion: string(expectedVersion),
 	}, actualVersion, "runtime version mismatch")
