@@ -49,6 +49,10 @@ jobs:
           key: dep-cache-{{ checksum "Gopkg.lock" }}
           paths:
             - vendor
+      - persist_to_workspace:
+          root: /
+          paths:
+            - go/src/github.com/sylabs/cri/*
 
   build_source:
     <<: *defaults
