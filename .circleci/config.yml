@@ -58,7 +58,7 @@ jobs:
     <<: *defaults
     steps:
       - attach_workspace:
-          at: /go
+          at: /
       - run:
           name: Build Source
           command: |
@@ -69,7 +69,7 @@ jobs:
     <<: *defaults
     steps:
       - attach_workspace:
-          at: /go
+          at: /
       - run:
           name: Check Formatting
           command: |
@@ -80,7 +80,7 @@ jobs:
     <<: *defaults
     steps:
       - attach_workspace:
-          at: /go
+          at: /
       - run:
           name: Vet Source
           command: |
@@ -91,7 +91,7 @@ jobs:
     <<: *defaults
     steps:
       - attach_workspace:
-          at: /go
+          at: /
       - run:
           name: Run Tests
           working_directory: /go/src/github.com/sylabs/cri
