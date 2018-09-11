@@ -62,6 +62,7 @@ jobs:
           name: singularity 3.0 dependencies
           command: |-
             apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
+            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
           name: Build Source
           command: |-
@@ -89,6 +90,7 @@ jobs:
           name: singularity 3.0
           command: |-
             apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
+            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
             git clone https://github.com/singularityware/singularity.git /go/src/github.com/singularityware/singularity
             cd /go/src/github.com/singularityware/singularity && \
             go get -u github.com/golang/dep/cmd/dep && dep ensure
