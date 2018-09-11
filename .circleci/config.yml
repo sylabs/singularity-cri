@@ -35,10 +35,13 @@ jobs:
           paths:
             - vendor
       - run:
+          name: install dep tool
+          command: |-
+            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+      - run:
           name: Set Up Vendor Directory
-          command: |
+          command: |-
             if [ ! -d vendor ]; then
-              curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
               dep ensure -vendor-only
             fi
       - save_cache:
