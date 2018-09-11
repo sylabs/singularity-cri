@@ -11,7 +11,7 @@ CONFIG_GO := ./vendor/github.com/singularityware/singularity/builddir/config.go
 $(CONFIG_GO):
 	@echo " GO" $@
 	$(V)cd ./vendor/github.com/singularityware/singularity && yes | ./mconfig
-	$(V)make -C ./vendor/github.com/singularityware/singularity/builddir -j2
+	$(V)cd ./vendor/github.com/singularityware/singularity/builddir make -j2
 
 $(SY_CRI): $(CONFIG_GO)
 	@echo " GO" $@
