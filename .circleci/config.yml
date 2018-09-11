@@ -1,0 +1,114 @@
+version: 2
+
+defaults: &defaults
+  working_directory: /go/src/github.com/sylabs/cri
+  docker:
+    - image: golang:latest
+
+jobs:
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+      - run:
+          name: install dependencies
+          command: apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
+      - run:
+          name: Build Source
+          command: make build
+      - run:
+          name: Gometalinter Check
+          command: |-
+            cd / && curl -L https://git.io/vp6lP | sh
+            cd /go/src/github.com/sylabs/cri
+            make lint
+      - run:
+          name: Run Tests
+          command: make test
+
+  get_source:
+    <<: *defaults
+    steps:
+      - checkout
+      - restore_cache:
+          key: dep-cache-{{ checksum "Gopkg.lock" }}
+          paths:
+            - vendor
+      - run:
+          name: Set Up Vendor Directory
+          command: |
+            if [ ! -d vendor ]; then
+              curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure -vendor-only
+            fi
+      - save_cache:
+          key: dep-cache-{{ checksum "Gopkg.lock" }}
+          paths:
+            - vendor
+      - persist_to_workspace:
+          root: /
+          paths:
+            - go/src/github.com/sylabs/cri/*
+
+  build_source:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: /
+      - run:
+          name: singularity 3.0 dependencies
+          command: |-
+            apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
+      - run:
+          name: Build Source
+          command: |-
+            cd /go/src/github.com/sylabs/cri
+            make build
+
+  gometalinter_check:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: /
+      - run:
+          name: Check Formatting
+          command: |-
+            cd / && curl -L https://git.io/vp6lP | sh
+            cd /go/src/github.com/sylabs/cri
+            make lint
+
+  unit_test:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: /
+      - run:
+          name: singularity 3.0
+          command: |-
+            apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
+            git clone https://github.com/singularityware/singularity.git /go/src/github.com/singularityware/singularity
+            cd /go/src/github.com/singularityware/singularity && \
+            go get -u github.com/golang/dep/cmd/dep && dep ensure
+            ./mconfig && make -C builddir/ && make -C builddir/ install
+      - run:
+          name: Run Tests
+          working_directory: /go/src/github.com/sylabs/cri
+          command: |-
+            cd /go/src/github.com/sylabs/cri
+            make test
+
+workflows:
+  version: 2
+
+  build_and_test:
+    jobs:
+      - get_source
+      - build_source:
+          requires:
+            - get_source
+      - gometalinter_check:
+          requires:
+            - get_source
+      - unit_test:
+          requires:
+            - get_source

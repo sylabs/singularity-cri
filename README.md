@@ -17,14 +17,14 @@ To work on Singularity CRI install the following:
 - [dep](https://golang.github.io/dep/docs/installation.html)
 - [gometalinter](https://github.com/alecthomas/gometalinter#installing)
 
-Make sure you configured [go workspace](https://golang.org/doc/code.html).
+Make sure you configured [go workspace](https://golang.org/doc/code.html). 
 
 To set up project do the following:
 
 ```bash
 $ go get https://github.com/sylabs/cri
 $ cd $GOPATH/src/github.com/sylabs/cri
-$ dep ensure
+$ make dep
 ```
 After this steps you can start working on the project.
 
@@ -33,6 +33,13 @@ Make sure to run linters before submitting a PR:
 ```bash
 make lint
 ``` 
+## Install dependencies
+
+Sylabs CRI 
+ - Install and setup a go 1.10 development environment.
+ - Install  build-essential/Development tools and libssl-dev uuid-dev squashfs-tools -- packages
+ - Install [singularity](https://github.com/singularityware/singularity) 3.0+
+
 
 ## Running and testing
 
