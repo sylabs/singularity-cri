@@ -17,6 +17,5 @@ lint:
 	--enable=deadcode \
 	--enable=ineffassign \
 	--enable=golint \
-	--enable=errcheck \
-	--enable=varcheck \
+	--enable=unused \
 	--deadline=3m ./...
