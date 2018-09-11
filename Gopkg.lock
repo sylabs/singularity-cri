@@ -97,7 +97,7 @@
     "src/pkg/sylog",
     "src/pkg/util/user-agent"
   ]
-  revision = "345371f2f7fb93d0d6aa3100aba78d13c4a2ddcd"
+  revision = "59f2c9faf2af7872c773392997ec9425e58a9ca7"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -208,8 +208,6 @@
     "metadata",
     "naming",
     "peer",
-    "reflection",
-    "reflection/grpc_reflection_v1alpha",
     "resolver",
     "resolver/dns",
     "resolver/passthrough",
@@ -266,6 +264,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "10ea866340b042b046b8d9efbd2342b475a75a247efceb3e8605f86b42cbf4eb"
+  inputs-digest = "056b43477dc52655972643dd767fa5886de39d20f651493954ad2096c86e642e"
   solver-name = "gps-cdcl"
   solver-version = 1
