@@ -93,9 +93,13 @@ jobs:
       - attach_workspace:
           at: /
       - run:
-          name: singularity 3.0 dependencies
+          name: singularity 3.0 
           command: |-
             apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools 
+            git clone https://github.com/singularityware/singularity.git /go/src/github.com/singularityware/singularity
+            cd /go/src/github.com/singularityware/singularity && \
+            go get -u github.com/golang/dep/cmd/dep && dep ensure
+            ./mconfig && make -C builddir/ && make -C builddir/ install
       - run:
           name: Run Tests
           working_directory: /go/src/github.com/sylabs/cri
