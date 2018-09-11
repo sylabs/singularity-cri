@@ -17,11 +17,8 @@ jobs:
           name: Build Source
           command: make build
       - run:
-          name: Check Formatting
-          command: test -z $(go fmt ./...)
-      - run:
-          name: Vet Source
-          command: go vet -all ./...
+          name: Gometalinter Check
+          command: make lint
       - run:
           name: Run Tests
           command: make test
@@ -65,7 +62,7 @@ jobs:
             cd /go/src/github.com/sylabs/cri
             make build
 
-  check_formatting:
+  gometalinter_check:
     <<: *defaults
     steps:
       - attach_workspace:
@@ -74,18 +71,7 @@ jobs:
           name: Check Formatting
           command: |-
             cd /go/src/github.com/sylabs/cri
-            test -z $(go fmt ./...)
-
-  vet_source:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: /
-      - run:
-          name: Vet Source
-          command: |-
-            cd /go/src/github.com/sylabs/cri
-            go vet -all ./...
+            make lint
 
   unit_test:
     <<: *defaults
@@ -116,10 +102,7 @@ workflows:
       - build_source:
           requires:
             - get_source
-      - check_formatting:
-          requires:
-            - get_source
-      - vet_source:
+      - gometalinter_check:
           requires:
             - get_source
       - unit_test:
