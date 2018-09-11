@@ -18,7 +18,10 @@ jobs:
           command: make build
       - run:
           name: Gometalinter Check
-          command: make lint
+          command: |-
+            cd / && curl -L https://git.io/vp6lP | sh
+            cd /go/src/github.com/sylabs/cri
+            make lint
       - run:
           name: Run Tests
           command: make test
@@ -70,6 +73,7 @@ jobs:
       - run:
           name: Check Formatting
           command: |-
+            cd / && curl -L https://git.io/vp6lP | sh
             cd /go/src/github.com/sylabs/cri
             make lint
 
