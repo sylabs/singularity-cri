@@ -24,11 +24,17 @@ import (
 	"syscall"
 	"time"
 
+	useragent "github.com/singularityware/singularity/src/pkg/util/user-agent"
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/runtime"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+)
+
+const (
+	org  = "Sylabs"
+	name = "Sy-CRI"
 )
 
 type flags struct {
@@ -56,6 +62,9 @@ func main() {
 	f := readFlags()
 	logs.InitLogs()
 	defer logs.FlushLogs()
+
+	// Initialize user agent strings
+	useragent.InitValue("singularity", "3.0.0-alpha.1")
 
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM)

@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 
+	useragent "github.com/singularityware/singularity/src/pkg/util/user-agent"
 	"google.golang.org/grpc"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -33,6 +34,9 @@ func main() {
 	}
 	c := k8s.NewImageServiceClient(cc)
 	defer cc.Close()
+
+	// Initialize user agent strings
+	useragent.InitValue("singularity", "3.0.0-alpha.1")
 
 	log.Println("Listening to your commands...")
 	defer log.Println("Stopped listening.")
