@@ -91,13 +91,12 @@
   branch = "master"
   name = "github.com/singularityware/singularity"
   packages = [
-    "src/pkg/buildcfg",
     "src/pkg/library/client",
     "src/pkg/shub/client",
     "src/pkg/sylog",
     "src/pkg/util/user-agent"
   ]
-  revision = "59f2c9faf2af7872c773392997ec9425e58a9ca7"
+  revision = "1f11bd51c2676a0f1b8e18aff0446463303578a6"
 
 [[projects]]
   name = "github.com/spf13/pflag"
