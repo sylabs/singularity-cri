@@ -32,11 +32,6 @@ import (
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-const (
-	org  = "Sylabs"
-	name = "Sy-CRI"
-)
-
 type flags struct {
 	socket   string
 	storeDir string
