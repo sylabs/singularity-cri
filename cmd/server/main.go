@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	useragent "github.com/singularityware/singularity/src/pkg/util/user-agent"
+	"github.com/singularityware/singularity/src/pkg/util/user-agent"
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/runtime"
 	"google.golang.org/grpc"
@@ -47,6 +47,7 @@ func readFlags() flags {
 
 func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
+	log.Printf("Method:%s\n\tRequest: %v\n", info.FullMethod, req)
 	resp, err := handler(ctx, req)
 	log.Printf("Method:%s\n\tRequest: %v\n\tResponse: %v\n\tError: %v\n\tDuration:%s\n",
 		info.FullMethod, req, resp, err, time.Since(start))

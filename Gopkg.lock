@@ -2,15 +2,6 @@
 
 
 [[projects]]
-  name = "github.com/client9/misspell"
-  packages = [
-    ".",
-    "cmd/misspell"
-  ]
-  revision = "b90dc15cfd220ecf8bbc9043ecb928cef381f011"
-  version = "v0.3.4"
-
-[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
@@ -23,7 +14,7 @@
     "bson",
     "internal/json"
   ]
-  revision = "6f9f54af1356a8f1a83e6daf0b351ba6ed6e42c6"
+  revision = "1ca0a4f7cbcbe61c005d1bd43fdd8bb8b71df6bc"
 
 [[projects]]
   name = "github.com/gogo/protobuf"
@@ -43,21 +34,9 @@
   revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/golang/lint"
-  packages = ["golint"]
-  revision = "06c8688daad7faa9da5a0c2f163a3d14aac986ca"
-
-[[projects]]
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
-    "protoc-gen-go",
-    "protoc-gen-go/descriptor",
-    "protoc-gen-go/generator",
-    "protoc-gen-go/generator/internal/remap",
-    "protoc-gen-go/grpc",
-    "protoc-gen-go/plugin",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
@@ -65,15 +44,6 @@
   ]
   revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
   version = "v1.2.0"
-
-[[projects]]
-  name = "github.com/kisielk/gotool"
-  packages = [
-    ".",
-    "internal/load"
-  ]
-  revision = "80517062f582ea3340cd4baf70e86d539ae7d84d"
-  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/mattn/go-runewidth"
@@ -94,9 +64,11 @@
     "src/pkg/library/client",
     "src/pkg/shub/client",
     "src/pkg/sylog",
-    "src/pkg/util/user-agent"
+    "src/pkg/util/exec",
+    "src/pkg/util/user-agent",
+    "src/runtime/engines/config"
   ]
-  revision = "1f11bd51c2676a0f1b8e18aff0446463303578a6"
+  revision = "72551a988ed57a7e367f833c7d2a10abfabd7402"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -115,12 +87,6 @@
 
 [[projects]]
   branch = "master"
-  name = "golang.org/x/lint"
-  packages = ["."]
-  revision = "06c8688daad7faa9da5a0c2f163a3d14aac986ca"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -131,13 +97,13 @@
     "internal/timeseries",
     "trace"
   ]
-  revision = "8a410e7b638dca158bf9e766925842f6651ff828"
+  revision = "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "fa5fdf94c78965f1aa8423f0cc50b8b8d728b05a"
+  revision = "d0be0721c37eeb5299f245a996a483160fc36940"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -162,29 +128,11 @@
 
 [[projects]]
   branch = "master"
-  name = "golang.org/x/tools"
-  packages = [
-    "cmd/goimports",
-    "go/ast/astutil",
-    "go/buildutil",
-    "go/gcexportdata",
-    "go/internal/cgo",
-    "go/internal/gcimporter",
-    "go/loader",
-    "go/types/typeutil",
-    "imports",
-    "internal/fastwalk"
-  ]
-  revision = "7ca132754999accbaa5c1735eda29e7ce0f3bf03"
-
-[[projects]]
-  branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "11092d34479b07829b72e10713b159248caf5dad"
+  revision = "4b56f30a1fd96a133a036b62cdd2a249883dd89b"
 
 [[projects]]
-  branch = "master"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -214,7 +162,8 @@
     "status",
     "tap"
   ]
-  revision = "ce4f3c8a89229d9db3e0c30d28a9f905435ad365"
+  revision = "8dea3dc473e90c8179e519d91302d0597c0ca1d1"
+  version = "v1.15.0"
 
 [[projects]]
   name = "gopkg.in/cheggaaa/pb.v1"
@@ -223,33 +172,13 @@
   version = "v1.0.25"
 
 [[projects]]
-  name = "honnef.co/go/tools"
-  packages = [
-    "callgraph",
-    "callgraph/static",
-    "cmd/staticcheck",
-    "deprecated",
-    "functions",
-    "internal/sharedcheck",
-    "lint",
-    "lint/lintutil",
-    "ssa",
-    "ssa/ssautil",
-    "staticcheck",
-    "staticcheck/vrp",
-    "version"
-  ]
-  revision = "d73ab98e7c39fdcf9ba65062e43d34310f198353"
-  version = "2017.2.2"
-
-[[projects]]
   branch = "master"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/util/runtime",
     "pkg/util/wait"
   ]
-  revision = "9dc1de72c0f3996657ffc88895f89f3844d8cf01"
+  revision = "99c5fa21f87204c2875a7f7ba977895d79b35c44"
 
 [[projects]]
   name = "k8s.io/kubernetes"
@@ -257,12 +186,12 @@
     "pkg/kubectl/util/logs",
     "pkg/kubelet/apis/cri/runtime/v1alpha2"
   ]
-  revision = "bb9ffb1654d4a729bb4cec18ff088eacc153c239"
-  version = "v1.11.2"
+  revision = "a4529464e4629c21224b3d52edfe0ea91b072862"
+  version = "v1.11.3"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "056b43477dc52655972643dd767fa5886de39d20f651493954ad2096c86e642e"
+  inputs-digest = "ebdbbaf315de513b3d59af1b115bd4046dc99599fad8826ffc234ab5ee3f0aee"
   solver-name = "gps-cdcl"
   solver-version = 1

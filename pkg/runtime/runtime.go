@@ -16,9 +16,15 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"os/exec"
+	"time"
 
+	"github.com/singularityware/singularity/src/pkg/sylog"
+	syexec "github.com/singularityware/singularity/src/pkg/util/exec"
+	"github.com/singularityware/singularity/src/runtime/engines/config"
 	"github.com/sylabs/cri/pkg/singularity"
 	"k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -26,6 +32,9 @@ import (
 // SingularityRuntime implements k8s RuntimeService interface.
 type SingularityRuntime struct {
 	singularity string
+
+	// todo save state??
+	pods map[string]*v1alpha2.PodSandbox
 }
 
 // NewSingularityRuntime initializes and returns SingularityRuntime.
@@ -37,11 +46,12 @@ func NewSingularityRuntime() (*SingularityRuntime, error) {
 	}
 	return &SingularityRuntime{
 		singularity: s,
+		pods:        make(map[string]*v1alpha2.PodSandbox),
 	}, nil
 }
 
 // Version returns the runtime name, runtime version and runtime API version
-func (s *SingularityRuntime) Version(ctx context.Context, req *v1alpha2.VersionRequest) (*v1alpha2.VersionResponse, error) {
+func (s *SingularityRuntime) Version(_ context.Context, _ *v1alpha2.VersionRequest) (*v1alpha2.VersionResponse, error) {
 	const kubeAPIVersion = "0.1.0"
 
 	syVersion, err := exec.Command(s.singularity, "version").Output()
@@ -59,8 +69,40 @@ func (s *SingularityRuntime) Version(ctx context.Context, req *v1alpha2.VersionR
 
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
 // the sandbox is in the ready state on success.
-func (s *SingularityRuntime) RunPodSandbox(ctx context.Context, req *v1alpha2.RunPodSandboxRequest) (*v1alpha2.RunPodSandboxResponse, error) {
-	return &v1alpha2.RunPodSandboxResponse{}, nil
+func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunPodSandboxRequest) (*v1alpha2.RunPodSandboxResponse, error) {
+	meta := req.Config.Metadata // assume metadata is always non-nil
+	podID := fmt.Sprintf("%s_%s_%s_%d", meta.Name, meta.Namespace, meta.Uid, meta.Attempt)
+
+	engineConf := config.Common{
+		EngineName:   "podsandbox",
+		EngineConfig: req.Config,
+	}
+
+	configData, err := json.Marshal(engineConf)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal engine config: %s", err)
+	}
+
+	log.Println("will create pod now")
+	envs := []string{sylog.GetEnvVar(), "SRUNTIME=podsandbox"}
+	if err := syexec.Pipe("/home/sashayakovtseva/go/src/github.com/singularityware/singularity/builddir/src/runtime/starter/c/starter",
+		[]string{podID}, envs, configData); err != nil {
+		log.Printf("got error: %+v", err)
+		return nil, fmt.Errorf("could not start pod: %s", err)
+	}
+	log.Println("pod created")
+
+	s.pods[podID] = &v1alpha2.PodSandbox{
+		Id:          podID,
+		Metadata:    meta,
+		State:       v1alpha2.PodSandboxState_SANDBOX_READY,
+		CreatedAt:   time.Now().Unix(),
+		Labels:      req.Config.Labels,
+		Annotations: req.Config.Annotations,
+	}
+	return &v1alpha2.RunPodSandboxResponse{
+		PodSandboxId: podID,
+	}, nil
 }
 
 // StopPodSandbox stops any running process that is part of the sandbox and
@@ -86,8 +128,23 @@ func (s *SingularityRuntime) RemovePodSandbox(context.Context, *v1alpha2.RemoveP
 
 // PodSandboxStatus returns the status of the PodSandbox. If the PodSandbox is not
 // present, returns an error.
-func (s *SingularityRuntime) PodSandboxStatus(context.Context, *v1alpha2.PodSandboxStatusRequest) (*v1alpha2.PodSandboxStatusResponse, error) {
-	return &v1alpha2.PodSandboxStatusResponse{}, nil
+func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.PodSandboxStatusRequest) (*v1alpha2.PodSandboxStatusResponse, error) {
+	pod, ok := s.pods[req.PodSandboxId]
+	if !ok {
+		return nil, fmt.Errorf("not found")
+	}
+	return &v1alpha2.PodSandboxStatusResponse{
+		Status: &v1alpha2.PodSandboxStatus{
+			Id:          pod.Id,
+			Metadata:    pod.Metadata,
+			State:       pod.State,
+			CreatedAt:   pod.CreatedAt,
+			Network:     nil, // todo
+			Linux:       nil, // todo
+			Labels:      pod.Labels,
+			Annotations: pod.Annotations,
+		},
+	}, nil
 }
 
 // ListPodSandbox returns a list of PodSandboxes.

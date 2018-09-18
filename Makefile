@@ -20,7 +20,7 @@ build: $(SY_CRI) $(CRI_CLIENT)
 
 .PHONY: clean
 clean:
-	@printf " CLEAN\n"
+	@echo " CLEAN"
 	$(V)go clean
 	$(V)rm -rf $(BINDIR)
 	$(V)rm -rf $(BUILDDIR)

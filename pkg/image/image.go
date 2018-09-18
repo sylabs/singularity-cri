@@ -60,6 +60,10 @@ func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 		refToID:  make(map[string]string),
 		idToInfo: make(map[string]imageInfo),
 	}
+
+	if err := os.MkdirAll(storePath, os.ModePerm); err != nil {
+		return nil, fmt.Errorf("could not create storage directory: %v", err)
+	}
 	registry.infoFile, err = os.OpenFile(registry.filePath(registryInfoFile), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("could not open registry backup file: %v", err)
@@ -111,7 +115,6 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 
 // PullImage pulls an image with authentication config.
 func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageRequest) (*k8s.PullImageResponse, error) {
-	// todo pull prom private repos using auth
 	info, err := parseImageRef(req.Image.Image)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse image reference: %v", err)
