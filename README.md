@@ -1,13 +1,14 @@
 # Singularity CRI
 
+[![CircleCI](https://circleci.com/gh/sylabs/cri.svg?style=svg&circle-token=276de7aa1d82749ecf8ed6513c72399041885dec)](https://circleci.com/gh/sylabs/cri)
 <a href="https://app.zenhub.com/workspace/o/sylabs/cri/boards"><img src="https://raw.githubusercontent.com/ZenHubIO/support/master/zenhub-badge.png"></a>
 
 This repository contains Singularity implementation of [Kubernetes CRI](https://github.com/kubernetes/community/blob/master/contributors/devel/container-runtime-interface.md). Singularity CRI consists of
-two separate services: runtime and image, each of which implements K8s RuntimeService and ImageService respectively. 
+two separate services: runtime and image, each of which implements K8s RuntimeService and ImageService respectively.
 
 
 The ImageService is currently under development and passes 4/6 [validation tests](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/validation.md).
- 
+
 ## Quick Start
 
 To work on Singularity CRI install the following:
@@ -16,8 +17,9 @@ To work on Singularity CRI install the following:
 - [go](https://golang.org/doc/install)
 - [dep](https://golang.github.io/dep/docs/installation.html)
 - [gometalinter](https://github.com/alecthomas/gometalinter#installing)
+- [singularity](https://github.com/singularityware/singularity/blob/master/INSTALL.md)
 
-Make sure you configured [go workspace](https://golang.org/doc/code.html). 
+Make sure you configured [go workspace](https://golang.org/doc/code.html).
 
 To set up project do the following:
 
@@ -32,10 +34,10 @@ Make sure to run linters before submitting a PR:
 
 ```bash
 make lint
-``` 
+```
 ## Install dependencies
 
-Sylabs CRI 
+Sylabs CRI
  - Install and setup a go 1.10 development environment.
  - Install  build-essential/Development tools and libssl-dev uuid-dev squashfs-tools -- packages
  - Install [singularity](https://github.com/singularityware/singularity) 3.0+
@@ -49,13 +51,13 @@ To build server and test client binaries you can use Makefile:
 make build
 ```
 
-This will produce the following files: 
-- sycri - CRI server 
+This will produce the following files:
+- sycri - CRI server
 - sycri_client - custom cli to test running CRI server
 
-To start CRI server simply run _sycri_ binary. By default CRI listens for requests on 
+To start CRI server simply run _sycri_ binary. By default CRI listens for requests on
 `unix:///var/run/singularity.sock` and stores image files at `/var/lib/singularity`. This behaviour may be configured
-with flags, run `./sycri -h` for more details. 
+with flags, run `./sycri -h` for more details.
 
 ##
 To run unit tests you can use Makefile:
@@ -63,9 +65,14 @@ To run unit tests you can use Makefile:
 make test
 ```
 
-## 
-For live testing you can use `sycri_client`. **WARNING! This is a quickly made cli to test ImageService and is not
-for production use.** To start interactive cli test tool run the executable and pass socket to connect to CRI:
+##
+For live testing you can use `sycri_client`.
+
+**WARNING!**
+> This is a quickly made cli to test ImageService and is not
+for production use.
+
+To start interactive cli test tool run the executable and pass socket to connect to CRI:
 ```bash
 ./sycri_client unix:///var/run/singularity.sock
 ```
@@ -74,7 +81,7 @@ The following commands are supported:
 - `pull <image>` - pull image by tag or digest. To pull from library or shub specify `library://` or `shub://` prefix
 before image respectively.
 - `list` - list all available images
-- `remove <iamge>` - remove image by tag, digest or ID
+- `remove <image>` - remove image by tag, digest or ID
 - `stat <image>` - get image info by tag, digest or ID
 - `exit` - stop interactive cli
 

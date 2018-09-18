@@ -23,6 +23,7 @@ import (
 	"sort"
 	"testing"
 
+	useragent "github.com/singularityware/singularity/src/pkg/util/user-agent"
 	"github.com/stretchr/testify/require"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -122,6 +123,8 @@ func TestParseImageRef(t *testing.T) {
 }
 
 func TestPullImage(t *testing.T) {
+	useragent.InitValue("singularity", "3.0.0-alpha.1-303-1f11bd5-dirty")
+
 	tt := []struct {
 		name         string
 		image        imageInfo

@@ -6,23 +6,17 @@ BUILDDIR := ./vendor/github.com/singularityware/singularity/builddir
 BINDIR := ./bin
 SY_CRI := $(BINDIR)/sycri
 CRI_CLIENT := $(BINDIR)/sycri_client
-CONFIG_GO := ./vendor/github.com/singularityware/singularity/builddir/config.go
 
-$(CONFIG_GO):
-	@echo " GO" $@
-	$(V)cd ./vendor/github.com/singularityware/singularity && yes | ./mconfig
-	$(V)cd ./vendor/github.com/singularityware/singularity/builddir make -j2
-
-$(SY_CRI): $(CONFIG_GO)
+$(SY_CRI):
 	@echo " GO" $@
 	$(V)export GOOS=linux && go build -o $(SY_CRI) ./cmd/server
 
-$(CRI_CLIENT): $(CONFIG_GO)
+$(CRI_CLIENT): 
 	@echo " GO" $@
 	$(V)export GOOS=linux && go build -o $(CRI_CLIENT) ./cmd/test
 
 .PHONY: build
-build: $(CONFIG_GO) $(SY_CRI) $(CRI_CLIENT)
+build: $(SY_CRI) $(CRI_CLIENT)
 
 .PHONY: clean
 clean:

@@ -35,10 +35,13 @@ jobs:
           paths:
             - vendor
       - run:
+          name: install dep tool
+          command: |-
+            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+      - run:
           name: Set Up Vendor Directory
-          command: |
+          command: |-
             if [ ! -d vendor ]; then
-              curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
               dep ensure -vendor-only
             fi
       - save_cache:
@@ -59,6 +62,7 @@ jobs:
           name: singularity 3.0 dependencies
           command: |-
             apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
+            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
           name: Build Source
           command: |-
@@ -83,13 +87,17 @@ jobs:
       - attach_workspace:
           at: /
       - run:
-          name: singularity 3.0
+          name: singularity 3.0 dependencies
           command: |-
             apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
+            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+      - run:
+          name: singularity 3.0
+          command: |-
             git clone https://github.com/singularityware/singularity.git /go/src/github.com/singularityware/singularity
             cd /go/src/github.com/singularityware/singularity && \
-            go get -u github.com/golang/dep/cmd/dep && dep ensure
-            ./mconfig && make -C builddir/ && make -C builddir/ install
+            dep ensure --vendor-only
+            ./mconfig && make -C builddir/ -j$(nproc) && make -C builddir/ install
       - run:
           name: Run Tests
           working_directory: /go/src/github.com/sylabs/cri
