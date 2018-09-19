@@ -93,12 +93,8 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 	}
 	envs = append(envs, pipefd)
 
-	cmd := exec.Cmd{
-		Path: "/home/sashayakovtseva/go/src/github.com/singularityware/singularity/builddir/src/runtime/starter/c/starter",
-		Args: []string{"sylab" + podID},
-		Env:  envs,
-	}
-
+	cmd := exec.Command("starter", podID)
+	cmd.Env = envs
 	log.Println("will start pod now")
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("could not start pod: %s", err)
