@@ -18,8 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
+	"syscall"
 	"time"
 
 	"github.com/singularityware/singularity/src/pkg/sylog"
@@ -33,8 +36,7 @@ import (
 type SingularityRuntime struct {
 	singularity string
 
-	// todo save state??
-	pods map[string]*v1alpha2.PodSandbox
+	pods map[string]pod
 }
 
 // NewSingularityRuntime initializes and returns SingularityRuntime.
@@ -44,9 +46,10 @@ func NewSingularityRuntime() (*SingularityRuntime, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s daemon on this machine: %v", singularity.RuntimeName, err)
 	}
+	// todo read instances on start?
 	return &SingularityRuntime{
 		singularity: s,
-		pods:        make(map[string]*v1alpha2.PodSandbox),
+		pods:        make(map[string]pod),
 	}, nil
 }
 
@@ -83,23 +86,40 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 		return nil, fmt.Errorf("could not marshal engine config: %s", err)
 	}
 
-	log.Println("will create pod now")
 	envs := []string{sylog.GetEnvVar(), "SRUNTIME=podsandbox"}
-	if err := syexec.Pipe("/home/sashayakovtseva/go/src/github.com/singularityware/singularity/builddir/src/runtime/starter/c/starter",
-		[]string{podID}, envs, configData); err != nil {
-		log.Printf("got error: %+v", err)
+	pipefd, err := syexec.SetPipe(configData)
+	if err != nil {
+		return nil, fmt.Errorf("could not configure pipe: %v", err)
+	}
+	envs = append(envs, pipefd)
+
+	cmd := exec.Cmd{
+		Path: "/home/sashayakovtseva/go/src/github.com/singularityware/singularity/builddir/src/runtime/starter/c/starter",
+		Args: []string{"sylab" + podID},
+		Env:  envs,
+	}
+
+	log.Println("will start pod now")
+	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("could not start pod: %s", err)
 	}
-	log.Println("pod created")
+	log.Println("pod started")
 
-	s.pods[podID] = &v1alpha2.PodSandbox{
-		Id:          podID,
-		Metadata:    meta,
-		State:       v1alpha2.PodSandboxState_SANDBOX_READY,
-		CreatedAt:   time.Now().Unix(),
-		Labels:      req.Config.Labels,
-		Annotations: req.Config.Annotations,
+	pod := pod{
+		PodSandbox: &v1alpha2.PodSandbox{
+			Id:          podID,
+			Metadata:    meta,
+			State:       v1alpha2.PodSandboxState_SANDBOX_READY,
+			CreatedAt:   time.Now().Unix(),
+			Labels:      req.Config.Labels,
+			Annotations: req.Config.Annotations,
+		},
 	}
+	if req.Config.Linux != nil && req.Config.Linux.SecurityContext != nil {
+		pod.ns = req.Config.Linux.SecurityContext.NamespaceOptions
+	}
+
+	s.pods[podID] = pod
 	return &v1alpha2.RunPodSandboxResponse{
 		PodSandboxId: podID,
 	}, nil
@@ -114,7 +134,14 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 // at least once before calling RemovePodSandbox. It will also attempt to
 // reclaim resources eagerly, as soon as a sandbox is not needed. Hence,
 // multiple StopPodSandbox calls are expected.
-func (s *SingularityRuntime) StopPodSandbox(context.Context, *v1alpha2.StopPodSandboxRequest) (*v1alpha2.StopPodSandboxResponse, error) {
+func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *v1alpha2.StopPodSandboxRequest) (*v1alpha2.StopPodSandboxResponse, error) {
+	// todo stop process?? free resources
+
+	pod, ok := s.pods[req.PodSandboxId]
+	if ok {
+		pod.State = v1alpha2.PodSandboxState_SANDBOX_NOTREADY
+		s.pods[pod.Id] = pod
+	}
 	return &v1alpha2.StopPodSandboxResponse{}, nil
 }
 
@@ -122,7 +149,42 @@ func (s *SingularityRuntime) StopPodSandbox(context.Context, *v1alpha2.StopPodSa
 // in the sandbox, they must be forcibly terminated and removed.
 // This call is idempotent, and must not return an error if the sandbox has
 // already been removed.
-func (s *SingularityRuntime) RemovePodSandbox(context.Context, *v1alpha2.RemovePodSandboxRequest) (*v1alpha2.RemovePodSandboxResponse, error) {
+func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.RemovePodSandboxRequest) (*v1alpha2.RemovePodSandboxResponse, error) {
+	const instanceDir = "/var/run/singularity/instances/root/"
+
+	pod, ok := s.pods[req.PodSandboxId]
+	if !ok {
+		return &v1alpha2.RemovePodSandboxResponse{}, nil
+	}
+	podFile := instanceDir + pod.Id + ".json"
+	c, err := ioutil.ReadFile(podFile)
+	if err != nil {
+		return nil, fmt.Errorf("could not read pod instance file: %v", err)
+	}
+	var info podInfo
+	err = json.Unmarshal(c, &info)
+	if err != nil {
+		return nil, fmt.Errorf("could not unmarshal pod instance information: %v", err)
+	}
+	err = syscall.Kill(info.Pid, syscall.SIGKILL)
+	if err != nil {
+		return nil, fmt.Errorf("could not stop pod: %v", err)
+	}
+
+	for err != syscall.ESRCH {
+		// todo use epoll?
+		err = syscall.Kill(info.PPid, syscall.SIGKILL)
+	}
+	log.Println("monitor exited")
+
+	_, err = os.Stat(podFile)
+	if !os.IsNotExist(err) {
+		err := os.Remove(podFile)
+		if err != nil {
+			return nil, fmt.Errorf("could not remove pod instance file: %v", err)
+		}
+	}
+	delete(s.pods, pod.Id)
 	return &v1alpha2.RemovePodSandboxResponse{}, nil
 }
 
@@ -135,12 +197,16 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.P
 	}
 	return &v1alpha2.PodSandboxStatusResponse{
 		Status: &v1alpha2.PodSandboxStatus{
-			Id:          pod.Id,
-			Metadata:    pod.Metadata,
-			State:       pod.State,
-			CreatedAt:   pod.CreatedAt,
-			Network:     nil, // todo
-			Linux:       nil, // todo
+			Id:        pod.Id,
+			Metadata:  pod.Metadata,
+			State:     pod.State,
+			CreatedAt: pod.CreatedAt,
+			Network:   nil, // todo
+			Linux: &v1alpha2.LinuxPodSandboxStatus{
+				Namespaces: &v1alpha2.Namespace{
+					Options: pod.ns,
+				},
+			},
 			Labels:      pod.Labels,
 			Annotations: pod.Annotations,
 		},
@@ -148,18 +214,24 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.P
 }
 
 // ListPodSandbox returns a list of PodSandboxes.
-func (s *SingularityRuntime) ListPodSandbox(context.Context, *v1alpha2.ListPodSandboxRequest) (*v1alpha2.ListPodSandboxResponse, error) {
-	return &v1alpha2.ListPodSandboxResponse{}, nil
+func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *v1alpha2.ListPodSandboxRequest) (*v1alpha2.ListPodSandboxResponse, error) {
+	resp := &v1alpha2.ListPodSandboxResponse{}
+	for _, pod := range s.pods {
+		if matchFilter(pod, req.Filter) {
+			resp.Items = append(resp.Items, pod.PodSandbox)
+		}
+	}
+	return resp, nil
 }
 
 // CreateContainer creates a new container in specified PodSandbox
 func (s *SingularityRuntime) CreateContainer(context.Context, *v1alpha2.CreateContainerRequest) (*v1alpha2.CreateContainerResponse, error) {
-	return &v1alpha2.CreateContainerResponse{}, nil
+	return &v1alpha2.CreateContainerResponse{}, fmt.Errorf("not implemented")
 }
 
 // StartContainer starts the container.
 func (s *SingularityRuntime) StartContainer(context.Context, *v1alpha2.StartContainerRequest) (*v1alpha2.StartContainerResponse, error) {
-	return &v1alpha2.StartContainerResponse{}, nil
+	return &v1alpha2.StartContainerResponse{}, fmt.Errorf("not implemented")
 }
 
 // StopContainer stops a running container with a grace period (i.e., timeout).
@@ -167,7 +239,7 @@ func (s *SingularityRuntime) StartContainer(context.Context, *v1alpha2.StartCont
 // already been stopped.
 // TODO: what must the runtime do after the grace period is reached?
 func (s *SingularityRuntime) StopContainer(context.Context, *v1alpha2.StopContainerRequest) (*v1alpha2.StopContainerResponse, error) {
-	return &v1alpha2.StopContainerResponse{}, nil
+	return &v1alpha2.StopContainerResponse{}, fmt.Errorf("not implemented")
 }
 
 // RemoveContainer removes the container. If the container is running, the
@@ -175,23 +247,23 @@ func (s *SingularityRuntime) StopContainer(context.Context, *v1alpha2.StopContai
 // This call is idempotent, and must not return an error if the container has
 // already been removed.
 func (s *SingularityRuntime) RemoveContainer(context.Context, *v1alpha2.RemoveContainerRequest) (*v1alpha2.RemoveContainerResponse, error) {
-	return &v1alpha2.RemoveContainerResponse{}, nil
+	return &v1alpha2.RemoveContainerResponse{}, fmt.Errorf("not implemented")
 }
 
 // ListContainers lists all containers by filters.
 func (s *SingularityRuntime) ListContainers(context.Context, *v1alpha2.ListContainersRequest) (*v1alpha2.ListContainersResponse, error) {
-	return &v1alpha2.ListContainersResponse{}, nil
+	return &v1alpha2.ListContainersResponse{}, fmt.Errorf("not implemented")
 }
 
 // ContainerStatus returns status of the container. If the container is not
 // present, returns an error.
 func (s *SingularityRuntime) ContainerStatus(context.Context, *v1alpha2.ContainerStatusRequest) (*v1alpha2.ContainerStatusResponse, error) {
-	return &v1alpha2.ContainerStatusResponse{}, nil
+	return &v1alpha2.ContainerStatusResponse{}, fmt.Errorf("not implemented")
 }
 
 // UpdateContainerResources updates ContainerConfig of the container.
 func (s *SingularityRuntime) UpdateContainerResources(context.Context, *v1alpha2.UpdateContainerResourcesRequest) (*v1alpha2.UpdateContainerResourcesResponse, error) {
-	return &v1alpha2.UpdateContainerResourcesResponse{}, nil
+	return &v1alpha2.UpdateContainerResourcesResponse{}, fmt.Errorf("not implemented")
 }
 
 // ReopenContainerLog asks runtime to reopen the stdout/stderr log file
@@ -200,43 +272,43 @@ func (s *SingularityRuntime) UpdateContainerResources(context.Context, *v1alpha2
 // to either create a new log file and return nil, or return an error.
 // Once it returns error, new container log file MUST NOT be created.
 func (s *SingularityRuntime) ReopenContainerLog(context.Context, *v1alpha2.ReopenContainerLogRequest) (*v1alpha2.ReopenContainerLogResponse, error) {
-	return &v1alpha2.ReopenContainerLogResponse{}, nil
+	return &v1alpha2.ReopenContainerLogResponse{}, fmt.Errorf("not implemented")
 }
 
 // ExecSync runs a command in a container synchronously.
 func (s *SingularityRuntime) ExecSync(context.Context, *v1alpha2.ExecSyncRequest) (*v1alpha2.ExecSyncResponse, error) {
-	return &v1alpha2.ExecSyncResponse{}, nil
+	return &v1alpha2.ExecSyncResponse{}, fmt.Errorf("not implemented")
 }
 
 // Exec prepares a streaming endpoint to execute a command in the container.
 func (s *SingularityRuntime) Exec(context.Context, *v1alpha2.ExecRequest) (*v1alpha2.ExecResponse, error) {
-	return &v1alpha2.ExecResponse{}, nil
+	return &v1alpha2.ExecResponse{}, fmt.Errorf("not implemented")
 }
 
 // Attach prepares a streaming endpoint to attach to a running container.
 func (s *SingularityRuntime) Attach(context.Context, *v1alpha2.AttachRequest) (*v1alpha2.AttachResponse, error) {
-	return &v1alpha2.AttachResponse{}, nil
+	return &v1alpha2.AttachResponse{}, fmt.Errorf("not implemented")
 }
 
 // PortForward prepares a streaming endpoint to forward ports from a PodSandbox.
 func (s *SingularityRuntime) PortForward(context.Context, *v1alpha2.PortForwardRequest) (*v1alpha2.PortForwardResponse, error) {
-	return &v1alpha2.PortForwardResponse{}, nil
+	return &v1alpha2.PortForwardResponse{}, fmt.Errorf("not implemented")
 }
 
 // ContainerStats returns stats of the container. If the container does not
 // exist, the call returns an error.
 func (s *SingularityRuntime) ContainerStats(context.Context, *v1alpha2.ContainerStatsRequest) (*v1alpha2.ContainerStatsResponse, error) {
-	return &v1alpha2.ContainerStatsResponse{}, nil
+	return &v1alpha2.ContainerStatsResponse{}, fmt.Errorf("not implemented")
 }
 
 // ListContainerStats returns stats of all running containers.
 func (s *SingularityRuntime) ListContainerStats(context.Context, *v1alpha2.ListContainerStatsRequest) (*v1alpha2.ListContainerStatsResponse, error) {
-	return &v1alpha2.ListContainerStatsResponse{}, nil
+	return &v1alpha2.ListContainerStatsResponse{}, fmt.Errorf("not implemented")
 }
 
 // UpdateRuntimeConfig updates the runtime configuration based on the given request.
 func (s *SingularityRuntime) UpdateRuntimeConfig(context.Context, *v1alpha2.UpdateRuntimeConfigRequest) (*v1alpha2.UpdateRuntimeConfigResponse, error) {
-	return &v1alpha2.UpdateRuntimeConfigResponse{}, nil
+	return &v1alpha2.UpdateRuntimeConfigResponse{}, fmt.Errorf("not implemented")
 }
 
 // Status returns the status of the runtime.
