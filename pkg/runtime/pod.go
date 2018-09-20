@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"syscall"
 	"time"
 
+	"github.com/singularityware/singularity/src/pkg/instance"
 	"github.com/singularityware/singularity/src/pkg/sylog"
 	syexec "github.com/singularityware/singularity/src/pkg/util/exec"
 	"github.com/singularityware/singularity/src/runtime/engines/config"
@@ -18,13 +18,10 @@ import (
 )
 
 type pod struct {
-	*v1alpha2.PodSandbox
-	ns *v1alpha2.NamespaceOption
-}
-
-type podInfo struct {
-	Pid  int `json:"pid"`
-	PPid int `json:"ppid"`
+	ID        string
+	Config    *v1alpha2.PodSandboxConfig
+	State     v1alpha2.PodSandboxState
+	CreatedAt int64
 }
 
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
@@ -52,6 +49,8 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 
 	cmd := exec.Command("starter", podID)
 	cmd.Env = envs
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	log.Println("will start pod now")
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("could not start pod: %s", err)
@@ -59,17 +58,10 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 	log.Println("pod started")
 
 	pod := pod{
-		PodSandbox: &v1alpha2.PodSandbox{
-			Id:          podID,
-			Metadata:    meta,
-			State:       v1alpha2.PodSandboxState_SANDBOX_READY,
-			CreatedAt:   time.Now().Unix(),
-			Labels:      req.Config.Labels,
-			Annotations: req.Config.Annotations,
-		},
-	}
-	if req.Config.Linux != nil && req.Config.Linux.SecurityContext != nil {
-		pod.ns = req.Config.Linux.SecurityContext.NamespaceOptions
+		ID:        podID,
+		Config:    req.Config,
+		State:     v1alpha2.PodSandboxState_SANDBOX_READY,
+		CreatedAt: time.Now().Unix(),
 	}
 
 	s.pods[podID] = pod
@@ -93,7 +85,7 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *v1alpha2.Sto
 	pod, ok := s.pods[req.PodSandboxId]
 	if ok {
 		pod.State = v1alpha2.PodSandboxState_SANDBOX_NOTREADY
-		s.pods[pod.Id] = pod
+		s.pods[pod.ID] = pod
 	}
 	return &v1alpha2.StopPodSandboxResponse{}, nil
 }
@@ -103,41 +95,34 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *v1alpha2.Sto
 // This call is idempotent, and must not return an error if the sandbox has
 // already been removed.
 func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.RemovePodSandboxRequest) (*v1alpha2.RemovePodSandboxResponse, error) {
-	const instanceDir = "/var/run/singularity/instances/root/"
-
 	pod, ok := s.pods[req.PodSandboxId]
 	if !ok {
 		return &v1alpha2.RemovePodSandboxResponse{}, nil
 	}
-	podFile := instanceDir + pod.Id + ".json"
-	c, err := ioutil.ReadFile(podFile)
+
+	podI, err := instance.Get(pod.ID)
 	if err != nil {
 		return nil, fmt.Errorf("could not read pod instance file: %v", err)
 	}
-	var info podInfo
-	err = json.Unmarshal(c, &info)
-	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal pod instance information: %v", err)
-	}
-	err = syscall.Kill(info.Pid, syscall.SIGKILL)
+	err = syscall.Kill(podI.Pid, syscall.SIGKILL)
 	if err != nil {
 		return nil, fmt.Errorf("could not stop pod: %v", err)
 	}
 
 	for err != syscall.ESRCH {
 		// todo use epoll?
-		err = syscall.Kill(info.PPid, syscall.SIGKILL)
+		err = syscall.Kill(podI.PPid, syscall.SIGKILL)
 	}
 	log.Println("monitor exited")
 
-	_, err = os.Stat(podFile)
+	_, err = os.Stat(podI.Path)
 	if !os.IsNotExist(err) {
-		err := os.Remove(podFile)
+		err := os.Remove(podI.Path)
 		if err != nil {
 			return nil, fmt.Errorf("could not remove pod instance file: %v", err)
 		}
 	}
-	delete(s.pods, pod.Id)
+	delete(s.pods, pod.ID)
 	return &v1alpha2.RemovePodSandboxResponse{}, nil
 }
 
@@ -148,20 +133,25 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.P
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
+	var ns *v1alpha2.NamespaceOption
+	if pod.Config.Linux != nil && pod.Config.Linux.SecurityContext != nil {
+		ns = pod.Config.Linux.SecurityContext.NamespaceOptions
+	}
+
 	return &v1alpha2.PodSandboxStatusResponse{
 		Status: &v1alpha2.PodSandboxStatus{
-			Id:        pod.Id,
-			Metadata:  pod.Metadata,
+			Id:        pod.ID,
+			Metadata:  pod.Config.Metadata,
 			State:     pod.State,
 			CreatedAt: pod.CreatedAt,
 			Network:   nil, // todo
 			Linux: &v1alpha2.LinuxPodSandboxStatus{
 				Namespaces: &v1alpha2.Namespace{
-					Options: pod.ns,
+					Options: ns,
 				},
 			},
-			Labels:      pod.Labels,
-			Annotations: pod.Annotations,
+			Labels:      pod.Config.Labels,
+			Annotations: pod.Config.Annotations,
 		},
 	}, nil
 }
@@ -171,7 +161,14 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *v1alpha2.Lis
 	resp := &v1alpha2.ListPodSandboxResponse{}
 	for _, pod := range s.pods {
 		if matchFilter(pod, req.Filter) {
-			resp.Items = append(resp.Items, pod.PodSandbox)
+			resp.Items = append(resp.Items, &v1alpha2.PodSandbox{
+				Id:          pod.ID,
+				Metadata:    pod.Config.Metadata,
+				State:       pod.State,
+				CreatedAt:   pod.CreatedAt,
+				Labels:      pod.Config.Labels,
+				Annotations: pod.Config.Annotations,
+			})
 		}
 	}
 	return resp, nil
@@ -182,7 +179,7 @@ func matchFilter(pod pod, filter *v1alpha2.PodSandboxFilter) bool {
 		return true
 	}
 
-	if filter.Id != "" && filter.Id != pod.Id {
+	if filter.Id != "" && filter.Id != pod.ID {
 		return false
 	}
 
@@ -191,7 +188,7 @@ func matchFilter(pod pod, filter *v1alpha2.PodSandboxFilter) bool {
 	}
 
 	for k, v := range filter.LabelSelector {
-		lablel, ok := pod.Labels[k]
+		lablel, ok := pod.Config.Labels[k]
 		if !ok {
 			return false
 		}
