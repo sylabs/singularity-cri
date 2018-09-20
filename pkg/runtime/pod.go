@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/singularityware/singularity/src/pkg/instance"
-	"github.com/singularityware/singularity/src/pkg/sylog"
-	syexec "github.com/singularityware/singularity/src/pkg/util/exec"
-	"github.com/singularityware/singularity/src/runtime/engines/config"
+	"github.com/sylabs/singularity/src/pkg/instance"
+	"github.com/sylabs/singularity/src/pkg/sylog"
+	syexec "github.com/sylabs/singularity/src/pkg/util/exec"
+	"github.com/sylabs/singularity/src/runtime/engines/config"
 	"k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 

@@ -59,7 +59,7 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/singularityware/singularity"
+  name = "github.com/sylabs/singularity"
   packages = [
     "src/pkg/library/client",
     "src/pkg/shub/client",

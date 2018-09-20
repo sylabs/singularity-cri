@@ -22,9 +22,9 @@ import (
 	"os/exec"
 	"strings"
 
-	library "github.com/singularityware/singularity/src/pkg/library/client"
-	shub "github.com/singularityware/singularity/src/pkg/shub/client"
 	"github.com/sylabs/cri/pkg/singularity"
+	library "github.com/sylabs/singularity/src/pkg/library/client"
+	shub "github.com/sylabs/singularity/src/pkg/shub/client"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
