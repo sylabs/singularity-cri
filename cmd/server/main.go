@@ -24,9 +24,9 @@ import (
 	"syscall"
 	"time"
 
-	useragent "github.com/singularityware/singularity/src/pkg/util/user-agent"
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/runtime"
+	useragent "github.com/sylabs/singularity/src/pkg/util/user-agent"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"

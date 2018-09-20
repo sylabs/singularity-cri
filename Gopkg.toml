@@ -33,5 +33,5 @@
   unused-packages = true
 
   [[prune.project]]
- 	name = "github.com/singularityware/singularity"
+ 	name = "github.com/sylabs/singularity"
  	unused-packages = false
