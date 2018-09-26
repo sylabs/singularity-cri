@@ -96,8 +96,13 @@
   packages = [
     "src/pkg/client/library",
     "src/pkg/client/shub",
+    "src/pkg/instance",
     "src/pkg/sylog",
+    "src/pkg/util/exec",
+    "src/pkg/util/fs/proc",
+    "src/pkg/util/user",
     "src/pkg/util/user-agent",
+    "src/runtime/engines/config",
   ]
   pruneopts = "T"
   revision = "18a0a1b270384fad22f9f4488de9c652db186b9d"
@@ -230,7 +235,11 @@
     "github.com/stretchr/testify/require",
     "github.com/sylabs/singularity/src/pkg/client/library",
     "github.com/sylabs/singularity/src/pkg/client/shub",
+    "github.com/sylabs/singularity/src/pkg/instance",
+    "github.com/sylabs/singularity/src/pkg/sylog",
+    "github.com/sylabs/singularity/src/pkg/util/exec",
     "github.com/sylabs/singularity/src/pkg/util/user-agent",
+    "github.com/sylabs/singularity/src/runtime/engines/config",
     "google.golang.org/grpc",
     "k8s.io/kubernetes/pkg/kubectl/util/logs",
     "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2",
