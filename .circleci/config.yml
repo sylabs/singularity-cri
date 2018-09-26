@@ -94,8 +94,8 @@ jobs:
       - run:
           name: singularity 3.0
           command: |-
-            git clone https://github.com/singularityware/singularity.git /go/src/github.com/singularityware/singularity
-            cd /go/src/github.com/singularityware/singularity && \
+            git clone https://github.com/sylabs/singularity.git /go/src/github.com/sylabs/singularity
+            cd /go/src/github.com/sylabs/singularity && \
             dep ensure --vendor-only
             ./mconfig && make -C builddir/ -j$(nproc) && make -C builddir/ install
       - run:
