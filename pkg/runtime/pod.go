@@ -18,10 +18,11 @@ import (
 )
 
 type pod struct {
-	ID        string
-	Config    *v1alpha2.PodSandboxConfig
-	State     v1alpha2.PodSandboxState
-	CreatedAt int64
+	id         string
+	config     *v1alpha2.PodSandboxConfig
+	state      v1alpha2.PodSandboxState
+	createdAt  int64
+	containers []string
 }
 
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
@@ -31,7 +32,7 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 	podID := fmt.Sprintf("%s_%s_%s_%d", meta.Name, meta.Namespace, meta.Uid, meta.Attempt)
 
 	engineConf := config.Common{
-		EngineName:   "podsandbox",
+		EngineName:   "kube_podsandbox",
 		EngineConfig: req.Config,
 	}
 
@@ -40,7 +41,7 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 		return nil, fmt.Errorf("could not marshal engine config: %s", err)
 	}
 
-	envs := []string{sylog.GetEnvVar(), "SRUNTIME=podsandbox"}
+	envs := []string{sylog.GetEnvVar(), fmt.Sprintf("SRUNTIME=%s", engineConf.EngineName)}
 	pipefd, err := syexec.SetPipe(configData)
 	if err != nil {
 		return nil, fmt.Errorf("could not configure pipe: %v", err)
@@ -58,13 +59,15 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 	log.Println("pod started")
 
 	pod := pod{
-		ID:        podID,
-		Config:    req.Config,
-		State:     v1alpha2.PodSandboxState_SANDBOX_READY,
-		CreatedAt: time.Now().Unix(),
+		id:        podID,
+		config:    req.Config,
+		state:     v1alpha2.PodSandboxState_SANDBOX_READY,
+		createdAt: time.Now().Unix(),
 	}
 
+	s.pMu.Lock()
 	s.pods[podID] = pod
+	s.pMu.Unlock()
 	return &v1alpha2.RunPodSandboxResponse{
 		PodSandboxId: podID,
 	}, nil
@@ -82,10 +85,14 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *v1alpha2.StopPodSandboxRequest) (*v1alpha2.StopPodSandboxResponse, error) {
 	// todo stop process?? free resources
 
+	s.pMu.RLock()
 	pod, ok := s.pods[req.PodSandboxId]
+	s.pMu.RUnlock()
 	if ok {
-		pod.State = v1alpha2.PodSandboxState_SANDBOX_NOTREADY
-		s.pods[pod.ID] = pod
+		pod.state = v1alpha2.PodSandboxState_SANDBOX_NOTREADY
+		s.pMu.Lock()
+		s.pods[pod.id] = pod
+		s.pMu.Unlock()
 	}
 	return &v1alpha2.StopPodSandboxResponse{}, nil
 }
@@ -95,12 +102,14 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *v1alpha2.Sto
 // This call is idempotent, and must not return an error if the sandbox has
 // already been removed.
 func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.RemovePodSandboxRequest) (*v1alpha2.RemovePodSandboxResponse, error) {
+	s.pMu.RLock()
 	pod, ok := s.pods[req.PodSandboxId]
+	s.pMu.RUnlock()
 	if !ok {
 		return &v1alpha2.RemovePodSandboxResponse{}, nil
 	}
 
-	podI, err := instance.Get(pod.ID)
+	podI, err := instance.Get(pod.id)
 	if err != nil {
 		return nil, fmt.Errorf("could not read pod instance file: %v", err)
 	}
@@ -110,7 +119,7 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.R
 	}
 
 	for err != syscall.ESRCH {
-		// todo use epoll?
+		// todo think how this may be optimized
 		err = syscall.Kill(podI.PPid, syscall.SIGKILL)
 	}
 	log.Println("monitor exited")
@@ -122,36 +131,40 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.R
 			return nil, fmt.Errorf("could not remove pod instance file: %v", err)
 		}
 	}
-	delete(s.pods, pod.ID)
+	s.pMu.Lock()
+	delete(s.pods, pod.id)
+	s.pMu.Unlock()
 	return &v1alpha2.RemovePodSandboxResponse{}, nil
 }
 
 // PodSandboxStatus returns the status of the PodSandbox. If the PodSandbox is not
 // present, returns an error.
 func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.PodSandboxStatusRequest) (*v1alpha2.PodSandboxStatusResponse, error) {
+	s.pMu.RLock()
 	pod, ok := s.pods[req.PodSandboxId]
+	s.pMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
 	var ns *v1alpha2.NamespaceOption
-	if pod.Config.Linux != nil && pod.Config.Linux.SecurityContext != nil {
-		ns = pod.Config.Linux.SecurityContext.NamespaceOptions
+	if pod.config.Linux != nil && pod.config.Linux.SecurityContext != nil {
+		ns = pod.config.Linux.SecurityContext.NamespaceOptions
 	}
 
 	return &v1alpha2.PodSandboxStatusResponse{
 		Status: &v1alpha2.PodSandboxStatus{
-			Id:        pod.ID,
-			Metadata:  pod.Config.Metadata,
-			State:     pod.State,
-			CreatedAt: pod.CreatedAt,
+			Id:        pod.id,
+			Metadata:  pod.config.Metadata,
+			State:     pod.state,
+			CreatedAt: pod.createdAt,
 			Network:   nil, // todo
 			Linux: &v1alpha2.LinuxPodSandboxStatus{
 				Namespaces: &v1alpha2.Namespace{
 					Options: ns,
 				},
 			},
-			Labels:      pod.Config.Labels,
-			Annotations: pod.Config.Annotations,
+			Labels:      pod.config.Labels,
+			Annotations: pod.config.Annotations,
 		},
 	}, nil
 }
@@ -159,36 +172,38 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.P
 // ListPodSandbox returns a list of PodSandboxes.
 func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *v1alpha2.ListPodSandboxRequest) (*v1alpha2.ListPodSandboxResponse, error) {
 	resp := &v1alpha2.ListPodSandboxResponse{}
+	s.pMu.RLock()
+	defer s.pMu.RUnlock()
 	for _, pod := range s.pods {
-		if matchFilter(pod, req.Filter) {
+		if podMatches(pod, req.Filter) {
 			resp.Items = append(resp.Items, &v1alpha2.PodSandbox{
-				Id:          pod.ID,
-				Metadata:    pod.Config.Metadata,
-				State:       pod.State,
-				CreatedAt:   pod.CreatedAt,
-				Labels:      pod.Config.Labels,
-				Annotations: pod.Config.Annotations,
+				Id:          pod.id,
+				Metadata:    pod.config.Metadata,
+				State:       pod.state,
+				CreatedAt:   pod.createdAt,
+				Labels:      pod.config.Labels,
+				Annotations: pod.config.Annotations,
 			})
 		}
 	}
 	return resp, nil
 }
 
-func matchFilter(pod pod, filter *v1alpha2.PodSandboxFilter) bool {
+func podMatches(pod pod, filter *v1alpha2.PodSandboxFilter) bool {
 	if filter == nil {
 		return true
 	}
 
-	if filter.Id != "" && filter.Id != pod.ID {
+	if filter.Id != "" && filter.Id != pod.id {
 		return false
 	}
 
-	if filter.State != nil && filter.State.State != pod.State {
+	if filter.State != nil && filter.State.State != pod.state {
 		return false
 	}
 
 	for k, v := range filter.LabelSelector {
-		lablel, ok := pod.Config.Labels[k]
+		lablel, ok := pod.config.Labels[k]
 		if !ok {
 			return false
 		}

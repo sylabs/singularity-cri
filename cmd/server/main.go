@@ -70,14 +70,14 @@ func main() {
 	}
 	defer lis.Close()
 
-	syRuntime, err := runtime.NewSingularityRuntime()
-	if err != nil {
-		log.Printf("Could not create Singularity runtime service: %v", err)
-		return
-	}
 	syImage, err := image.NewSingularityRegistry(f.storeDir)
 	if err != nil {
 		log.Printf("Could not create Singularity image service: %v", err)
+		return
+	}
+	syRuntime, err := runtime.NewSingularityRuntime(syImage)
+	if err != nil {
+		log.Printf("Could not create Singularity runtime service: %v", err)
 		return
 	}
 

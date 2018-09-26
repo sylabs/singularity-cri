@@ -18,7 +18,9 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"sync"
 
+	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/singularity"
 	"k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -26,21 +28,27 @@ import (
 // SingularityRuntime implements k8s RuntimeService interface.
 type SingularityRuntime struct {
 	singularity string
+	registry    *image.SingularityRegistry
 
+	pMu  sync.RWMutex
 	pods map[string]pod
+
+	cMu        sync.RWMutex
+	containers map[string]container
 }
 
 // NewSingularityRuntime initializes and returns SingularityRuntime.
 // Singularity must be installed on the host otherwise it will return an error.
-func NewSingularityRuntime() (*SingularityRuntime, error) {
+// SingularityRuntime depends on SingularityRegistry so it must not be nil.
+func NewSingularityRuntime(registry *image.SingularityRegistry) (*SingularityRuntime, error) {
 	s, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s daemon on this machine: %v", singularity.RuntimeName, err)
 	}
-	// todo pods are ephemeral. make sure instance file are force written?
 	return &SingularityRuntime{
 		singularity: s,
 		pods:        make(map[string]pod),
+		registry:    registry,
 	}, nil
 }
 

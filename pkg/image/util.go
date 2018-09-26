@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"github.com/sylabs/cri/pkg/singularity"
-	library "github.com/sylabs/singularity/src/pkg/library/client"
-	shub "github.com/sylabs/singularity/src/pkg/shub/client"
+	library "github.com/sylabs/singularity/src/pkg/client/library"
+	shub "github.com/sylabs/singularity/src/pkg/client/shub"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 

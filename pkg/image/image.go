@@ -225,6 +225,16 @@ func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoReque
 	return nil, fmt.Errorf("not implemented")
 }
 
+// ImagePath return path to image file on host or empty
+// string of image is not found.
+func (s *SingularityRegistry) ImagePath(ref string) string {
+	id, _ := s.find(ref)
+	if id == "" {
+		return ""
+	}
+	return s.filePath(id)
+}
+
 // find queries registry for image that is referenced by ref and returns id of an image and imageInfo.
 // Passed ref may be either image id or repo tag or digest, find handles it correctly.
 // When no image is found the returned id is an empty string. This method is safe for concurrent use.
