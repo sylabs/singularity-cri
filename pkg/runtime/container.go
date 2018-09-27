@@ -14,22 +14,26 @@ import (
 	"github.com/sylabs/singularity/src/pkg/sylog"
 	syexec "github.com/sylabs/singularity/src/pkg/util/exec"
 	"github.com/sylabs/singularity/src/runtime/engines/config"
+	"github.com/sylabs/singularity/src/runtime/engines/kube"
 	"k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
 type container struct {
-	id        string
-	podID     string
-	config    *v1alpha2.ContainerConfig
-	createdAt int64
-	startedAt int64
-	state     v1alpha2.ContainerState
+	id         string
+	podID      string
+	config     *v1alpha2.ContainerConfig
+	createdAt  int64
+	startedAt  int64
+	finishedAt int64
+	state      v1alpha2.ContainerState
+	imageID    string
 }
 
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.CreateContainerRequest) (*v1alpha2.CreateContainerResponse, error) {
 	meta := req.Config.Metadata // assume metadata is always non-nil
 	containerID := fmt.Sprintf("%s_%s_%d", req.PodSandboxId, meta.Name, meta.Attempt)
+	originalRef := req.Config.Image.Image
 	req.Config.Image.Image = s.registry.ImagePath(req.Config.Image.Image)
 
 	engineConf := config.Common{
@@ -58,12 +62,14 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.Cr
 	}
 	log.Println("container started")
 
+	req.Config.Image.Image = originalRef
 	cont := container{
 		id:        containerID,
 		podID:     req.PodSandboxId,
 		config:    req.Config,
 		createdAt: time.Now().Unix(),
 		state:     v1alpha2.ContainerState_CONTAINER_CREATED,
+		imageID:   s.registry.ImageID(originalRef),
 	}
 
 	s.pMu.RLock()
@@ -91,7 +97,7 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *v1alpha2.Sta
 		return nil, fmt.Errorf("not found")
 	}
 
-	contI, err := instance.Get(cont.id)
+	contI, err := kube.GetInstance(cont.id)
 	if err != nil {
 		return nil, fmt.Errorf("could not read container instance file: %v", err)
 	}
@@ -120,7 +126,7 @@ func (s *SingularityRuntime) StopContainer(_ context.Context, req *v1alpha2.Stop
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
-	if cont.state == v1alpha2.ContainerState_CONTAINER_CREATED {
+	if cont.state == v1alpha2.ContainerState_CONTAINER_EXITED {
 		return &v1alpha2.StopContainerResponse{}, nil
 	}
 
@@ -129,12 +135,17 @@ func (s *SingularityRuntime) StopContainer(_ context.Context, req *v1alpha2.Stop
 		return nil, fmt.Errorf("could not read container instance file: %v", err)
 	}
 
-	err = syscall.Kill(contI.Pid, syscall.SIGSTOP)
+	err = syscall.Kill(contI.Pid, syscall.SIGTERM)
 	if err != nil {
 		return nil, fmt.Errorf("could not stop container: %v", err)
 	}
+	for err != syscall.ESRCH {
+		err = syscall.Kill(contI.PPid, syscall.SIGTERM)
+	}
+	log.Println("monitor exited")
 
-	cont.state = v1alpha2.ContainerState_CONTAINER_CREATED
+	cont.state = v1alpha2.ContainerState_CONTAINER_EXITED
+	cont.finishedAt = time.Now().Unix()
 	s.cMu.Lock()
 	s.containers[cont.id] = cont
 	s.cMu.Unlock()
@@ -142,10 +153,9 @@ func (s *SingularityRuntime) StopContainer(_ context.Context, req *v1alpha2.Stop
 	return &v1alpha2.StopContainerResponse{}, nil
 }
 
-// RemoveContainer removes the container. If the container is running, the
-// container must be forcibly removed.
-// This call is idempotent, and must not return an error if the container has
-// already been removed.
+// RemoveContainer removes the container. If the container is running,
+// the container must be forcibly removed. This call is idempotent, and
+// must not return an error if the container has already been removed.
 func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *v1alpha2.RemoveContainerRequest) (*v1alpha2.RemoveContainerResponse, error) {
 	s.cMu.RLock()
 	cont, ok := s.containers[req.ContainerId]
@@ -153,28 +163,29 @@ func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *v1alpha2.Re
 	if !ok {
 		return &v1alpha2.RemoveContainerResponse{}, nil
 	}
-	contI, err := instance.Get(cont.id)
+	contI, err := kube.GetInstance(cont.id)
 	if err != nil {
 		return nil, fmt.Errorf("could not read container instance file: %v", err)
 	}
 
 	err = syscall.Kill(contI.Pid, syscall.SIGKILL)
-	if err != nil {
+	if err != nil && err != syscall.ESRCH {
 		return nil, fmt.Errorf("could not kill container: %v", err)
 	}
+	log.Println("container is killed")
 
+	err = syscall.Kill(contI.PPid, 0)
 	for err != syscall.ESRCH {
-		// todo think how this may be optimized
-		err = syscall.Kill(contI.PPid, syscall.SIGKILL)
+		err = syscall.Kill(contI.PPid, 0)
 	}
-	log.Println("monitor exited")
+	if err != nil && err != syscall.ESRCH {
+		return nil, fmt.Errorf("could not kill monitor: %v", err)
+	}
+	log.Println("monitor is killed")
 
-	_, err = os.Stat(contI.Path)
-	if !os.IsNotExist(err) {
-		err := os.Remove(contI.Path)
-		if err != nil {
-			return nil, fmt.Errorf("could not remove container instance file: %v", err)
-		}
+	err = contI.Delete()
+	if err != nil {
+		return nil, fmt.Errorf("could not remove instance file: %v", err)
 	}
 
 	s.cMu.Lock()
@@ -200,10 +211,10 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *v1alpha2.Co
 			State:       cont.state,
 			CreatedAt:   cont.createdAt,
 			StartedAt:   cont.startedAt,
-			FinishedAt:  0,
+			FinishedAt:  cont.finishedAt,
 			ExitCode:    0,
 			Image:       cont.config.Image,
-			ImageRef:    cont.config.Image.Image,
+			ImageRef:    cont.imageID,
 			Reason:      "",
 			Message:     "",
 			Labels:      cont.config.Labels,
@@ -226,7 +237,7 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *v1alpha2.Lis
 				PodSandboxId: cont.podID,
 				Metadata:     cont.config.Metadata,
 				Image:        cont.config.Image,
-				ImageRef:     cont.config.Image.Image,
+				ImageRef:     cont.imageID,
 				State:        cont.state,
 				CreatedAt:    cont.createdAt,
 				Labels:       cont.config.Labels,

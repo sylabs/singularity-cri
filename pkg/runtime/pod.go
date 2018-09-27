@@ -119,7 +119,6 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.R
 	}
 
 	for err != syscall.ESRCH {
-		// todo think how this may be optimized
 		err = syscall.Kill(podI.PPid, syscall.SIGKILL)
 	}
 	log.Println("monitor exited")

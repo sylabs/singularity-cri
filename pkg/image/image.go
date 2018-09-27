@@ -225,14 +225,19 @@ func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoReque
 	return nil, fmt.Errorf("not implemented")
 }
 
-// ImagePath return path to image file on host or empty
-// string of image is not found.
+// ImagePath returns path to image file on host or empty string of image is not found.
 func (s *SingularityRegistry) ImagePath(ref string) string {
 	id, _ := s.find(ref)
 	if id == "" {
 		return ""
 	}
 	return s.filePath(id)
+}
+
+// ImageID returns id of an image which uniquely identifies image in registry.
+func (s *SingularityRegistry) ImageID(ref string) string {
+	id, _ := s.find(ref)
+	return id
 }
 
 // find queries registry for image that is referenced by ref and returns id of an image and imageInfo.
