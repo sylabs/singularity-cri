@@ -28,6 +28,11 @@
   name = "k8s.io/kubernetes"
   version = "1.11.2"
 
+[[constraint]]
+  name = "github.com/sylabs/singularity"
+  branch = "kube-engines"
+  source = "github.com/sashayakovtseva/singularity"
+
 [prune]
   go-tests = true
   unused-packages = true

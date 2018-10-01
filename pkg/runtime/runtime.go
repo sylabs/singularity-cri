@@ -47,8 +47,9 @@ func NewSingularityRuntime(registry *image.SingularityRegistry) (*SingularityRun
 	}
 	return &SingularityRuntime{
 		singularity: s,
-		pods:        make(map[string]pod),
 		registry:    registry,
+		pods:        make(map[string]pod),
+		containers:  make(map[string]container),
 	}, nil
 }
 

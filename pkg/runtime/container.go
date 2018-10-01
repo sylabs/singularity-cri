@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sylabs/singularity/src/pkg/instance"
 	"github.com/sylabs/singularity/src/pkg/sylog"
 	syexec "github.com/sylabs/singularity/src/pkg/util/exec"
 	"github.com/sylabs/singularity/src/runtime/engines/config"
@@ -31,7 +30,7 @@ type container struct {
 
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.CreateContainerRequest) (*v1alpha2.CreateContainerResponse, error) {
-	meta := req.Config.Metadata // assume metadata is always non-nil
+	meta := req.Config.Metadata
 	containerID := fmt.Sprintf("%s_%s_%d", req.PodSandboxId, meta.Name, meta.Attempt)
 	originalRef := req.Config.Image.Image
 	req.Config.Image.Image = s.registry.ImagePath(req.Config.Image.Image)
@@ -56,17 +55,20 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.Cr
 	cmd.Env = envs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	log.Println("will start container now")
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("could not start container: %s", err)
-	}
-	log.Println("container started")
+	log.Println("will create container now")
+	go func() {
+		if err := cmd.Run(); err != nil {
+			log.Printf("could not create container: %v", err)
+		}
+	}()
+	time.Sleep(time.Second * 5)
+	log.Println("container created")
 
 	req.Config.Image.Image = originalRef
 	cont := container{
 		id:        containerID,
-		podID:     req.PodSandboxId,
-		config:    req.Config,
+		podID:     req.GetPodSandboxId(),
+		config:    req.GetConfig(),
 		createdAt: time.Now().Unix(),
 		state:     v1alpha2.ContainerState_CONTAINER_CREATED,
 		imageID:   s.registry.ImageID(originalRef),
@@ -75,7 +77,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.Cr
 	s.pMu.RLock()
 	pod := s.pods[req.PodSandboxId]
 	s.pMu.RUnlock()
-	pod.containers = append(pod.containers, containerID)
+	pod.containers = addElem(pod.containers, containerID)
 	s.pMu.Lock()
 	s.pods[req.PodSandboxId] = pod
 	s.pMu.Unlock()
@@ -97,6 +99,9 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *v1alpha2.Sta
 		return nil, fmt.Errorf("not found")
 	}
 
+	s.cMu.Lock()
+	defer s.cMu.Unlock()
+
 	contI, err := kube.GetInstance(cont.id)
 	if err != nil {
 		return nil, fmt.Errorf("could not read container instance file: %v", err)
@@ -109,9 +114,7 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *v1alpha2.Sta
 
 	cont.state = v1alpha2.ContainerState_CONTAINER_RUNNING
 	cont.startedAt = time.Now().Unix()
-	s.cMu.Lock()
 	s.containers[cont.id] = cont
-	s.cMu.Unlock()
 	return &v1alpha2.StartContainerResponse{}, nil
 }
 
@@ -130,25 +133,17 @@ func (s *SingularityRuntime) StopContainer(_ context.Context, req *v1alpha2.Stop
 		return &v1alpha2.StopContainerResponse{}, nil
 	}
 
-	contI, err := instance.Get(cont.id)
-	if err != nil {
-		return nil, fmt.Errorf("could not read container instance file: %v", err)
-	}
+	s.cMu.Lock()
+	defer s.cMu.Unlock()
 
-	err = syscall.Kill(contI.Pid, syscall.SIGTERM)
+	err := killInstance(cont.id, syscall.SIGTERM)
 	if err != nil {
-		return nil, fmt.Errorf("could not stop container: %v", err)
+		return nil, fmt.Errorf("could not terminate container: %v", err)
 	}
-	for err != syscall.ESRCH {
-		err = syscall.Kill(contI.PPid, syscall.SIGTERM)
-	}
-	log.Println("monitor exited")
 
 	cont.state = v1alpha2.ContainerState_CONTAINER_EXITED
 	cont.finishedAt = time.Now().Unix()
-	s.cMu.Lock()
 	s.containers[cont.id] = cont
-	s.cMu.Unlock()
 
 	return &v1alpha2.StopContainerResponse{}, nil
 }
@@ -163,34 +158,22 @@ func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *v1alpha2.Re
 	if !ok {
 		return &v1alpha2.RemoveContainerResponse{}, nil
 	}
-	contI, err := kube.GetInstance(cont.id)
-	if err != nil {
-		return nil, fmt.Errorf("could not read container instance file: %v", err)
-	}
-
-	err = syscall.Kill(contI.Pid, syscall.SIGKILL)
-	if err != nil && err != syscall.ESRCH {
-		return nil, fmt.Errorf("could not kill container: %v", err)
-	}
-	log.Println("container is killed")
-
-	err = syscall.Kill(contI.PPid, 0)
-	for err != syscall.ESRCH {
-		err = syscall.Kill(contI.PPid, 0)
-	}
-	if err != nil && err != syscall.ESRCH {
-		return nil, fmt.Errorf("could not kill monitor: %v", err)
-	}
-	log.Println("monitor is killed")
-
-	err = contI.Delete()
-	if err != nil {
-		return nil, fmt.Errorf("could not remove instance file: %v", err)
-	}
 
 	s.cMu.Lock()
+	defer s.cMu.Unlock()
+
+	err := killInstance(cont.id, syscall.SIGKILL)
+	if err != nil {
+		return nil, fmt.Errorf("could not fill container: %v", err)
+	}
+
+	s.pMu.Lock()
+	pod := s.pods[cont.podID]
+	pod.containers = removeElem(pod.containers, cont.id)
+	s.pods[cont.podID] = pod
+	s.pMu.Unlock()
+
 	delete(s.containers, cont.id)
-	s.cMu.Unlock()
 	return &v1alpha2.RemoveContainerResponse{}, nil
 }
 
@@ -207,19 +190,19 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *v1alpha2.Co
 	return &v1alpha2.ContainerStatusResponse{
 		Status: &v1alpha2.ContainerStatus{
 			Id:          req.ContainerId,
-			Metadata:    cont.config.Metadata,
+			Metadata:    cont.config.GetMetadata(),
 			State:       cont.state,
 			CreatedAt:   cont.createdAt,
 			StartedAt:   cont.startedAt,
 			FinishedAt:  cont.finishedAt,
 			ExitCode:    0,
-			Image:       cont.config.Image,
+			Image:       cont.config.GetImage(),
 			ImageRef:    cont.imageID,
 			Reason:      "",
 			Message:     "",
-			Labels:      cont.config.Labels,
-			Annotations: cont.config.Annotations,
-			Mounts:      cont.config.Mounts,
+			Labels:      cont.config.GetLabels(),
+			Annotations: cont.config.GetAnnotations(),
+			Mounts:      cont.config.GetMounts(),
 			LogPath:     "",
 		},
 	}, nil
@@ -235,13 +218,13 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *v1alpha2.Lis
 			resp.Containers = append(resp.Containers, &v1alpha2.Container{
 				Id:           cont.id,
 				PodSandboxId: cont.podID,
-				Metadata:     cont.config.Metadata,
-				Image:        cont.config.Image,
+				Metadata:     cont.config.GetMetadata(),
+				Image:        cont.config.GetImage(),
 				ImageRef:     cont.imageID,
 				State:        cont.state,
 				CreatedAt:    cont.createdAt,
-				Labels:       cont.config.Labels,
-				Annotations:  cont.config.Annotations,
+				Labels:       cont.config.GetLabels(),
+				Annotations:  cont.config.GetAnnotations(),
 			})
 		}
 	}

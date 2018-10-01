@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"syscall"
 	"time"
 
-	"github.com/sylabs/singularity/src/pkg/instance"
 	"github.com/sylabs/singularity/src/pkg/sylog"
 	syexec "github.com/sylabs/singularity/src/pkg/util/exec"
 	"github.com/sylabs/singularity/src/runtime/engines/config"
@@ -28,12 +26,12 @@ type pod struct {
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
 // the sandbox is in the ready state on success.
 func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunPodSandboxRequest) (*v1alpha2.RunPodSandboxResponse, error) {
-	meta := req.Config.Metadata // assume metadata is always non-nil
+	meta := req.GetConfig().GetMetadata()
 	podID := fmt.Sprintf("%s_%s_%s_%d", meta.Name, meta.Namespace, meta.Uid, meta.Attempt)
 
 	engineConf := config.Common{
 		EngineName:   "kube_podsandbox",
-		EngineConfig: req.Config,
+		EngineConfig: req.GetConfig(),
 	}
 
 	configData, err := json.Marshal(engineConf)
@@ -52,22 +50,20 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 	cmd.Env = envs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	log.Println("will start pod now")
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("could not start pod: %s", err)
 	}
-	log.Println("pod started")
 
 	pod := pod{
 		id:        podID,
-		config:    req.Config,
+		config:    req.GetConfig(),
 		state:     v1alpha2.PodSandboxState_SANDBOX_READY,
 		createdAt: time.Now().Unix(),
 	}
-
 	s.pMu.Lock()
 	s.pods[podID] = pod
 	s.pMu.Unlock()
+
 	return &v1alpha2.RunPodSandboxResponse{
 		PodSandboxId: podID,
 	}, nil
@@ -83,17 +79,43 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 // reclaim resources eagerly, as soon as a sandbox is not needed. Hence,
 // multiple StopPodSandbox calls are expected.
 func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *v1alpha2.StopPodSandboxRequest) (*v1alpha2.StopPodSandboxResponse, error) {
-	// todo stop process?? free resources
-
 	s.pMu.RLock()
 	pod, ok := s.pods[req.PodSandboxId]
 	s.pMu.RUnlock()
-	if ok {
-		pod.state = v1alpha2.PodSandboxState_SANDBOX_NOTREADY
-		s.pMu.Lock()
-		s.pods[pod.id] = pod
-		s.pMu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("not found")
 	}
+	if pod.state == v1alpha2.PodSandboxState_SANDBOX_NOTREADY {
+		return &v1alpha2.StopPodSandboxResponse{}, nil
+	}
+
+	s.pMu.Lock()
+	defer s.pMu.Unlock()
+
+	// todo reclaim resources somewhere here
+
+	for _, contID := range pod.containers {
+		err := killInstance(contID, syscall.SIGTERM)
+		if err != nil {
+			return nil, fmt.Errorf("could not terminate container: %v", err)
+		}
+
+		s.cMu.Lock()
+		cont := s.containers[contID] // assume containers are running
+		cont.state = v1alpha2.ContainerState_CONTAINER_EXITED
+		cont.finishedAt = time.Now().Unix()
+		s.containers[contID] = cont
+		s.cMu.Unlock()
+	}
+
+	err := killInstance(pod.id, syscall.SIGTERM)
+	if err != nil {
+		return nil, fmt.Errorf("could not terminate pod: %v", err)
+	}
+
+	pod.state = v1alpha2.PodSandboxState_SANDBOX_NOTREADY
+	s.pods[pod.id] = pod
+
 	return &v1alpha2.StopPodSandboxResponse{}, nil
 }
 
@@ -109,35 +131,29 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.R
 		return &v1alpha2.RemovePodSandboxResponse{}, nil
 	}
 
-	podI, err := instance.Get(pod.id)
-	if err != nil {
-		return nil, fmt.Errorf("could not read pod instance file: %v", err)
-	}
-	err = syscall.Kill(podI.Pid, syscall.SIGKILL)
-	if err != nil {
-		return nil, fmt.Errorf("could not stop pod: %v", err)
-	}
-
-	for err != syscall.ESRCH {
-		err = syscall.Kill(podI.PPid, syscall.SIGKILL)
-	}
-	log.Println("monitor exited")
-
-	_, err = os.Stat(podI.Path)
-	if !os.IsNotExist(err) {
-		err := os.Remove(podI.Path)
-		if err != nil {
-			return nil, fmt.Errorf("could not remove pod instance file: %v", err)
-		}
-	}
 	s.pMu.Lock()
+	defer s.pMu.Unlock()
+
+	for _, contID := range pod.containers {
+		err := killInstance(contID, syscall.SIGKILL)
+		if err != nil {
+			return nil, fmt.Errorf("could not kill container: %v", err)
+		}
+		s.cMu.Lock()
+		delete(s.containers, contID)
+		s.cMu.Unlock()
+	}
+
+	err := killInstance(pod.id, syscall.SIGKILL)
+	if err != nil {
+		return nil, fmt.Errorf("could not kill pod: %v", err)
+	}
 	delete(s.pods, pod.id)
-	s.pMu.Unlock()
 	return &v1alpha2.RemovePodSandboxResponse{}, nil
 }
 
-// PodSandboxStatus returns the status of the PodSandbox. If the PodSandbox is not
-// present, returns an error.
+// PodSandboxStatus returns the status of the PodSandbox.
+// If the PodSandbox is not present, returns an error.
 func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.PodSandboxStatusRequest) (*v1alpha2.PodSandboxStatusResponse, error) {
 	s.pMu.RLock()
 	pod, ok := s.pods[req.PodSandboxId]
@@ -145,15 +161,11 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.P
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
-	var ns *v1alpha2.NamespaceOption
-	if pod.config.Linux != nil && pod.config.Linux.SecurityContext != nil {
-		ns = pod.config.Linux.SecurityContext.NamespaceOptions
-	}
-
+	ns := pod.config.GetLinux().GetSecurityContext().GetNamespaceOptions()
 	return &v1alpha2.PodSandboxStatusResponse{
 		Status: &v1alpha2.PodSandboxStatus{
 			Id:        pod.id,
-			Metadata:  pod.config.Metadata,
+			Metadata:  pod.config.GetMetadata(),
 			State:     pod.state,
 			CreatedAt: pod.createdAt,
 			Network:   nil, // todo
@@ -162,8 +174,8 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.P
 					Options: ns,
 				},
 			},
-			Labels:      pod.config.Labels,
-			Annotations: pod.config.Annotations,
+			Labels:      pod.config.GetLabels(),
+			Annotations: pod.config.GetAnnotations(),
 		},
 	}, nil
 }
@@ -177,11 +189,11 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *v1alpha2.Lis
 		if podMatches(pod, req.Filter) {
 			resp.Items = append(resp.Items, &v1alpha2.PodSandbox{
 				Id:          pod.id,
-				Metadata:    pod.config.Metadata,
+				Metadata:    pod.config.GetMetadata(),
 				State:       pod.state,
 				CreatedAt:   pod.createdAt,
-				Labels:      pod.config.Labels,
-				Annotations: pod.config.Annotations,
+				Labels:      pod.config.GetLabels(),
+				Annotations: pod.config.GetAnnotations(),
 			})
 		}
 	}
