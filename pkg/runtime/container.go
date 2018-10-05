@@ -1,3 +1,17 @@
+// Copyright (c) 2018 Sylabs, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package runtime
 
 import (
@@ -26,6 +40,7 @@ type container struct {
 	finishedAt int64
 	state      v1alpha2.ContainerState
 	imageID    string
+	cmd        *exec.Cmd
 }
 
 // CreateContainer creates a new container in specified PodSandbox.
@@ -56,11 +71,10 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.Cr
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	log.Println("will create container now")
-	go func() {
-		if err := cmd.Run(); err != nil {
-			log.Printf("could not create container: %v", err)
-		}
-	}()
+	err = cmd.Start()
+	if err != nil {
+		return nil, fmt.Errorf("could not create conatiner: %v", err)
+	}
 	time.Sleep(time.Second * 5)
 	log.Println("container created")
 
@@ -72,6 +86,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.Cr
 		createdAt: time.Now().Unix(),
 		state:     v1alpha2.ContainerState_CONTAINER_CREATED,
 		imageID:   s.registry.ImageID(originalRef),
+		cmd:       cmd,
 	}
 
 	s.pMu.RLock()
@@ -112,6 +127,12 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *v1alpha2.Sta
 		return nil, fmt.Errorf("could not start container: %v", err)
 	}
 
+	err = cont.cmd.Wait()
+	if err != nil {
+		return nil, fmt.Errorf("could not wait container cmd: %v", err)
+	}
+	log.Printf("pid = %d", cont.cmd.ProcessState.Pid())
+	cont.cmd = nil
 	cont.state = v1alpha2.ContainerState_CONTAINER_RUNNING
 	cont.startedAt = time.Now().Unix()
 	s.containers[cont.id] = cont
