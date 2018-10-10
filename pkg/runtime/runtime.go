@@ -86,7 +86,7 @@ func (s *SingularityRuntime) ReopenContainerLog(context.Context, *v1alpha2.Reope
 
 // ExecSync runs a command in a container synchronously.
 func (s *SingularityRuntime) ExecSync(context.Context, *v1alpha2.ExecSyncRequest) (*v1alpha2.ExecSyncResponse, error) {
-	return &v1alpha2.ExecSyncResponse{}, fmt.Errorf("not implemented")
+	return &v1alpha2.ExecSyncResponse{}, fmt.Errorf("EXEC SYNC not implemented")
 }
 
 // Exec prepares a streaming endpoint to execute a command in the container.

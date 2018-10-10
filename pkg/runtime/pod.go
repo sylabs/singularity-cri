@@ -18,14 +18,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"syscall"
-	"time"
 
 	"github.com/sylabs/singularity/src/pkg/sylog"
 	syexec "github.com/sylabs/singularity/src/pkg/util/exec"
 	"github.com/sylabs/singularity/src/runtime/engines/config"
+	"github.com/sylabs/singularity/src/runtime/engines/kube"
 	"k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -33,7 +34,6 @@ type pod struct {
 	id         string
 	config     *v1alpha2.PodSandboxConfig
 	state      v1alpha2.PodSandboxState
-	createdAt  int64
 	containers []string
 }
 
@@ -65,14 +65,16 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
+		if err := kube.CleanupInstance(podID); err != nil {
+			log.Printf("could not cleanup %s: %v", podID, err)
+		}
 		return nil, fmt.Errorf("could not start pod: %s", err)
 	}
 
 	pod := pod{
-		id:        podID,
-		config:    req.GetConfig(),
-		state:     v1alpha2.PodSandboxState_SANDBOX_READY,
-		createdAt: time.Now().Unix(),
+		id:     podID,
+		config: req.GetConfig(),
+		state:  v1alpha2.PodSandboxState_SANDBOX_READY,
 	}
 	s.pMu.Lock()
 	s.pods[podID] = pod
@@ -116,8 +118,6 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *v1alpha2.Sto
 
 		s.cMu.Lock()
 		cont := s.containers[contID] // assume containers are running
-		cont.state = v1alpha2.ContainerState_CONTAINER_EXITED
-		cont.finishedAt = time.Now().Unix()
 		s.containers[contID] = cont
 		s.cMu.Unlock()
 	}
@@ -129,7 +129,6 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *v1alpha2.Sto
 
 	pod.state = v1alpha2.PodSandboxState_SANDBOX_NOTREADY
 	s.pods[pod.id] = pod
-
 	return &v1alpha2.StopPodSandboxResponse{}, nil
 }
 
@@ -153,6 +152,10 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.R
 		if err != nil {
 			return nil, fmt.Errorf("could not kill container: %v", err)
 		}
+		err = kube.CleanupInstance(contID)
+		if err != nil {
+			return nil, fmt.Errorf("could not cleanup %q: %v", contID, err)
+		}
 		s.cMu.Lock()
 		delete(s.containers, contID)
 		s.cMu.Unlock()
@@ -162,6 +165,11 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.R
 	if err != nil {
 		return nil, fmt.Errorf("could not kill pod: %v", err)
 	}
+	err = kube.CleanupInstance(pod.id)
+	if err != nil {
+		return nil, fmt.Errorf("could not cleanup %q: %v", pod.id, err)
+	}
+
 	delete(s.pods, pod.id)
 	return &v1alpha2.RemovePodSandboxResponse{}, nil
 }
@@ -176,13 +184,17 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *v1alpha2.P
 		return nil, fmt.Errorf("not found")
 	}
 	ns := pod.config.GetLinux().GetSecurityContext().GetNamespaceOptions()
+	info, err := kube.GetInfo(req.PodSandboxId)
+	if err != nil {
+		return nil, fmt.Errorf("could not get pod's info: %v", err)
+	}
 	return &v1alpha2.PodSandboxStatusResponse{
 		Status: &v1alpha2.PodSandboxStatus{
 			Id:        pod.id,
 			Metadata:  pod.config.GetMetadata(),
 			State:     pod.state,
-			CreatedAt: pod.createdAt,
-			Network:   nil, // todo
+			CreatedAt: info.StartedAt, // for pod creation time == start time
+			Network:   nil,            // todo later
 			Linux: &v1alpha2.LinuxPodSandboxStatus{
 				Namespaces: &v1alpha2.Namespace{
 					Options: ns,
@@ -201,11 +213,15 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *v1alpha2.Lis
 	defer s.pMu.RUnlock()
 	for _, pod := range s.pods {
 		if podMatches(pod, req.Filter) {
+			info, err := kube.GetInfo(pod.id)
+			if err != nil {
+				return nil, fmt.Errorf("could not get pod's info: %v", err)
+			}
 			resp.Items = append(resp.Items, &v1alpha2.PodSandbox{
 				Id:          pod.id,
 				Metadata:    pod.config.GetMetadata(),
 				State:       pod.state,
-				CreatedAt:   pod.createdAt,
+				CreatedAt:   info.StartedAt, // for pod creation time == start time
 				Labels:      pod.config.GetLabels(),
 				Annotations: pod.config.GetAnnotations(),
 			})

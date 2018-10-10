@@ -37,6 +37,3 @@
   go-tests = true
   unused-packages = true
 
-  [[prune.project]]
- 	name = "github.com/sylabs/singularity"
- 	unused-packages = false

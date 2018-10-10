@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -28,31 +29,43 @@ import (
 	syexec "github.com/sylabs/singularity/src/pkg/util/exec"
 	"github.com/sylabs/singularity/src/runtime/engines/config"
 	"github.com/sylabs/singularity/src/runtime/engines/kube"
-	"k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
 type container struct {
-	id         string
-	podID      string
-	config     *v1alpha2.ContainerConfig
-	createdAt  int64
-	startedAt  int64
-	finishedAt int64
-	state      v1alpha2.ContainerState
-	imageID    string
-	cmd        *exec.Cmd
+	id       string
+	podID    string
+	imageID  string
+	logPath  string
+	config   *k8s.ContainerConfig
+	fifoPath string
+	cmd      *exec.Cmd
 }
 
 // CreateContainer creates a new container in specified PodSandbox.
-func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.CreateContainerRequest) (*v1alpha2.CreateContainerResponse, error) {
+func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateContainerRequest) (*k8s.CreateContainerResponse, error) {
+	// hack because of SESSIONDIR
+	type engineConfig struct {
+		CreateContainerRequest *k8s.CreateContainerRequest
+		FifoPath               string
+	}
 	meta := req.Config.Metadata
 	containerID := fmt.Sprintf("%s_%s_%d", req.PodSandboxId, meta.Name, meta.Attempt)
 	originalRef := req.Config.Image.Image
-	req.Config.Image.Image = s.registry.ImagePath(req.Config.Image.Image)
+	req.Config.Image.Image = s.registry.ImagePath(req.Config.Image.Image) // a hack for starter to work correctly
+
+	fifoPath := filepath.Join("/tmp", containerID)
+	err := syscall.Mkfifo(fifoPath, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("could not make fifo: %v", err)
+	}
 
 	engineConf := config.Common{
-		EngineName:   "kube_container",
-		EngineConfig: req,
+		EngineName: "kube_container",
+		EngineConfig: &engineConfig{
+			CreateContainerRequest: req,
+			FifoPath:               fifoPath,
+		},
 	}
 	configData, err := json.Marshal(engineConf)
 	if err != nil {
@@ -70,23 +83,31 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.Cr
 	cmd.Env = envs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	log.Println("will create container now")
-	err = cmd.Start()
-	if err != nil {
-		return nil, fmt.Errorf("could not create conatiner: %v", err)
+	if err := cmd.Start(); err != nil {
+		if err := kube.CleanupInstance(containerID); err != nil {
+			log.Printf("could not cleanup %s: %v", containerID, err)
+		}
+		if err := os.Remove(fifoPath); err != nil {
+			log.Printf("could not remove fifo: %v", err)
+		}
+		return nil, fmt.Errorf("could not schedule conatiner creation: %v", err)
 	}
-	time.Sleep(time.Second * 5)
-	log.Println("container created")
+	time.Sleep(7 * time.Second)
 
 	req.Config.Image.Image = originalRef
+	logPath := req.GetSandboxConfig().GetLogDirectory()
+	if logPath != "" {
+		logPath = filepath.Join(logPath, req.GetConfig().GetLogPath())
+	}
+
 	cont := container{
-		id:        containerID,
-		podID:     req.GetPodSandboxId(),
-		config:    req.GetConfig(),
-		createdAt: time.Now().Unix(),
-		state:     v1alpha2.ContainerState_CONTAINER_CREATED,
-		imageID:   s.registry.ImageID(originalRef),
-		cmd:       cmd,
+		id:       containerID,
+		podID:    req.GetPodSandboxId(),
+		config:   req.GetConfig(),
+		imageID:  s.registry.ImageID(originalRef),
+		cmd:      cmd,
+		fifoPath: fifoPath,
+		logPath:  logPath,
 	}
 
 	s.pMu.RLock()
@@ -100,13 +121,14 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *v1alpha2.Cr
 	s.cMu.Lock()
 	s.containers[containerID] = cont
 	s.cMu.Unlock()
-	return &v1alpha2.CreateContainerResponse{
+
+	return &k8s.CreateContainerResponse{
 		ContainerId: containerID,
 	}, nil
 }
 
 // StartContainer starts the container.
-func (s *SingularityRuntime) StartContainer(_ context.Context, req *v1alpha2.StartContainerRequest) (*v1alpha2.StartContainerResponse, error) {
+func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartContainerRequest) (*k8s.StartContainerResponse, error) {
 	s.cMu.RLock()
 	cont, ok := s.containers[req.ContainerId]
 	s.cMu.RUnlock()
@@ -114,78 +136,80 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *v1alpha2.Sta
 		return nil, fmt.Errorf("not found")
 	}
 
-	s.cMu.Lock()
-	defer s.cMu.Unlock()
-
-	contI, err := kube.GetInstance(cont.id)
+	fifo, err := os.OpenFile(cont.fifoPath, os.O_WRONLY, 0)
 	if err != nil {
-		return nil, fmt.Errorf("could not read container instance file: %v", err)
+		return nil, fmt.Errorf("could not open fifo: %v", err)
+	}
+	if err := fifo.Close(); err != nil {
+		return nil, fmt.Errorf("could not clode fifo: %v", err)
 	}
 
-	err = syscall.Kill(contI.Pid, syscall.SIGCONT)
-	if err != nil {
-		return nil, fmt.Errorf("could not start container: %v", err)
-	}
-
-	err = cont.cmd.Wait()
-	if err != nil {
+	if err = cont.cmd.Wait(); err != nil {
 		return nil, fmt.Errorf("could not wait container cmd: %v", err)
 	}
-	log.Printf("pid = %d", cont.cmd.ProcessState.Pid())
+	if err = os.Remove(cont.fifoPath); err != nil {
+		log.Printf("could not remove fifo: %v", err)
+	}
+
 	cont.cmd = nil
-	cont.state = v1alpha2.ContainerState_CONTAINER_RUNNING
-	cont.startedAt = time.Now().Unix()
+
+	s.cMu.Lock()
 	s.containers[cont.id] = cont
-	return &v1alpha2.StartContainerResponse{}, nil
+	s.cMu.Unlock()
+
+	return &k8s.StartContainerResponse{}, nil
 }
 
 // StopContainer stops a running container with a grace period (i.e., timeout).
 // This call is idempotent, and must not return an error if the container has
 // already been stopped.
 // TODO: what must the runtime do after the grace period is reached?
-func (s *SingularityRuntime) StopContainer(_ context.Context, req *v1alpha2.StopContainerRequest) (*v1alpha2.StopContainerResponse, error) {
+func (s *SingularityRuntime) StopContainer(_ context.Context, req *k8s.StopContainerRequest) (*k8s.StopContainerResponse, error) {
 	s.cMu.RLock()
 	cont, ok := s.containers[req.ContainerId]
 	s.cMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
-	if cont.state == v1alpha2.ContainerState_CONTAINER_EXITED {
-		return &v1alpha2.StopContainerResponse{}, nil
+
+	info, err := kube.GetInfo(cont.id)
+	if err != nil {
+		return nil, fmt.Errorf("could not get container info: %v", err)
+	}
+	if info.FinishedAt != 0 {
+		return &k8s.StopContainerResponse{}, nil
 	}
 
-	s.cMu.Lock()
-	defer s.cMu.Unlock()
-
-	err := killInstance(cont.id, syscall.SIGTERM)
-	if err != nil {
+	if err = killInstance(cont.id, syscall.SIGTERM); err != nil {
 		return nil, fmt.Errorf("could not terminate container: %v", err)
 	}
-
-	cont.state = v1alpha2.ContainerState_CONTAINER_EXITED
-	cont.finishedAt = time.Now().Unix()
-	s.containers[cont.id] = cont
-
-	return &v1alpha2.StopContainerResponse{}, nil
+	return &k8s.StopContainerResponse{}, nil
 }
 
 // RemoveContainer removes the container. If the container is running,
 // the container must be forcibly removed. This call is idempotent, and
 // must not return an error if the container has already been removed.
-func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *v1alpha2.RemoveContainerRequest) (*v1alpha2.RemoveContainerResponse, error) {
+func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *k8s.RemoveContainerRequest) (*k8s.RemoveContainerResponse, error) {
 	s.cMu.RLock()
 	cont, ok := s.containers[req.ContainerId]
 	s.cMu.RUnlock()
 	if !ok {
-		return &v1alpha2.RemoveContainerResponse{}, nil
+		return &k8s.RemoveContainerResponse{}, nil
 	}
 
-	s.cMu.Lock()
-	defer s.cMu.Unlock()
-
-	err := killInstance(cont.id, syscall.SIGKILL)
-	if err != nil {
-		return nil, fmt.Errorf("could not fill container: %v", err)
+	if err := killInstance(cont.id, syscall.SIGKILL); err != nil {
+		return nil, fmt.Errorf("could not kill container: %v", err)
+	}
+	if cont.cmd != nil {
+		if err := cont.cmd.Wait(); err != nil {
+			return nil, fmt.Errorf("could not wait container cmd: %v", err)
+		}
+	}
+	if err := kube.CleanupInstance(cont.id); err != nil {
+		log.Printf("could not cleanup %s: %v", cont.id, err)
+	}
+	if err := os.Remove(cont.fifoPath); err != nil && !os.IsNotExist(err) {
+		log.Printf("could not remove fifo: %v", err)
 	}
 
 	s.pMu.Lock()
@@ -194,13 +218,16 @@ func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *v1alpha2.Re
 	s.pods[cont.podID] = pod
 	s.pMu.Unlock()
 
+	s.cMu.Lock()
 	delete(s.containers, cont.id)
-	return &v1alpha2.RemoveContainerResponse{}, nil
+	s.cMu.Unlock()
+
+	return &k8s.RemoveContainerResponse{}, nil
 }
 
-// ContainerStatus returns status of the container. If the container is not
-// present, returns an error.
-func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *v1alpha2.ContainerStatusRequest) (*v1alpha2.ContainerStatusResponse, error) {
+// ContainerStatus returns status of the container.
+// If the container is not present, returns an error.
+func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.ContainerStatusRequest) (*k8s.ContainerStatusResponse, error) {
 	s.cMu.RLock()
 	cont, ok := s.containers[req.ContainerId]
 	s.cMu.RUnlock()
@@ -208,15 +235,31 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *v1alpha2.Co
 		return nil, fmt.Errorf("not found")
 	}
 
-	return &v1alpha2.ContainerStatusResponse{
-		Status: &v1alpha2.ContainerStatus{
+	info, err := kube.GetInfo(cont.id)
+	if err != nil {
+		return nil, fmt.Errorf("could not get container info: %v", err)
+	}
+
+	state := k8s.ContainerState_CONTAINER_UNKNOWN
+	if info.CreatedAt != 0 {
+		state = k8s.ContainerState_CONTAINER_CREATED
+	}
+	if info.StartedAt != 0 {
+		state = k8s.ContainerState_CONTAINER_RUNNING
+	}
+	if info.FinishedAt != 0 {
+		state = k8s.ContainerState_CONTAINER_EXITED
+	}
+
+	return &k8s.ContainerStatusResponse{
+		Status: &k8s.ContainerStatus{
 			Id:          req.ContainerId,
 			Metadata:    cont.config.GetMetadata(),
-			State:       cont.state,
-			CreatedAt:   cont.createdAt,
-			StartedAt:   cont.startedAt,
-			FinishedAt:  cont.finishedAt,
-			ExitCode:    0,
+			State:       state,
+			CreatedAt:   info.CreatedAt,
+			StartedAt:   info.StartedAt,
+			FinishedAt:  info.FinishedAt,
+			ExitCode:    int32(info.ExitCode),
 			Image:       cont.config.GetImage(),
 			ImageRef:    cont.imageID,
 			Reason:      "",
@@ -224,26 +267,42 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *v1alpha2.Co
 			Labels:      cont.config.GetLabels(),
 			Annotations: cont.config.GetAnnotations(),
 			Mounts:      cont.config.GetMounts(),
-			LogPath:     "",
+			LogPath:     cont.logPath,
 		},
 	}, nil
 }
 
 // ListContainers lists all containers by filters.
-func (s *SingularityRuntime) ListContainers(_ context.Context, req *v1alpha2.ListContainersRequest) (*v1alpha2.ListContainersResponse, error) {
-	resp := &v1alpha2.ListContainersResponse{}
+func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListContainersRequest) (*k8s.ListContainersResponse, error) {
+	resp := &k8s.ListContainersResponse{}
 	s.cMu.RLock()
 	defer s.cMu.RUnlock()
 	for _, cont := range s.containers {
-		if containerMatches(cont, req.Filter) {
-			resp.Containers = append(resp.Containers, &v1alpha2.Container{
+		info, err := kube.GetInfo(cont.id)
+		if err != nil {
+			return nil, fmt.Errorf("could not get container info: %v", err)
+		}
+
+		state := k8s.ContainerState_CONTAINER_UNKNOWN
+		if info.CreatedAt != 0 {
+			state = k8s.ContainerState_CONTAINER_CREATED
+		}
+		if info.StartedAt != 0 {
+			state = k8s.ContainerState_CONTAINER_RUNNING
+		}
+		if info.FinishedAt != 0 {
+			state = k8s.ContainerState_CONTAINER_EXITED
+		}
+
+		if containerMatches(cont, state, req.Filter) {
+			resp.Containers = append(resp.Containers, &k8s.Container{
 				Id:           cont.id,
 				PodSandboxId: cont.podID,
 				Metadata:     cont.config.GetMetadata(),
 				Image:        cont.config.GetImage(),
 				ImageRef:     cont.imageID,
-				State:        cont.state,
-				CreatedAt:    cont.createdAt,
+				State:        state,
+				CreatedAt:    info.CreatedAt,
 				Labels:       cont.config.GetLabels(),
 				Annotations:  cont.config.GetAnnotations(),
 			})
@@ -252,7 +311,7 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *v1alpha2.Lis
 	return resp, nil
 }
 
-func containerMatches(cont container, filter *v1alpha2.ContainerFilter) bool {
+func containerMatches(cont container, state k8s.ContainerState, filter *k8s.ContainerFilter) bool {
 	if filter == nil {
 		return true
 	}
@@ -263,7 +322,7 @@ func containerMatches(cont container, filter *v1alpha2.ContainerFilter) bool {
 	if filter.PodSandboxId != "" && filter.PodSandboxId != cont.podID {
 		return false
 	}
-	if filter.State != nil && filter.State.State != cont.state {
+	if filter.State != nil && filter.State.State != state {
 		return false
 	}
 

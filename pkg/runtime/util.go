@@ -17,12 +17,12 @@ package runtime
 import (
 	"fmt"
 	"log"
-	"os"
 	"syscall"
 
 	"github.com/sylabs/singularity/src/runtime/engines/kube"
 )
 
+// killInstance sends sig to instance identified by id and removes instance file is necessary.
 func killInstance(id string, sig syscall.Signal) error {
 	contInst, err := kube.GetInstance(id)
 	if err == kube.ErrNotFound {
@@ -38,8 +38,8 @@ func killInstance(id string, sig syscall.Signal) error {
 	}
 	log.Printf("%q is killed with %v", id, sig)
 
-	err = syscall.Kill(contInst.PPid, 0)
 	// todo optimize this
+	err = syscall.Kill(contInst.PPid, 0)
 	for err == nil {
 		err = syscall.Kill(contInst.PPid, 0)
 	}
@@ -47,11 +47,6 @@ func killInstance(id string, sig syscall.Signal) error {
 		return fmt.Errorf("could not kill monitor: %v", err)
 	}
 	log.Printf("monitor for %q is killed with %v", id, sig)
-
-	err = contInst.Delete()
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("could not remove %q instance file: %v", id, err)
-	}
 	return nil
 }
 
