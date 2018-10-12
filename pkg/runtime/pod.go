@@ -60,7 +60,7 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *v1alpha2.RunP
 	}
 	envs = append(envs, pipefd)
 
-	cmd := exec.Command("starter", podID)
+	cmd := exec.Command(s.starter, podID)
 	cmd.Env = envs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

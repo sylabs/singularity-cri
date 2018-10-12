@@ -45,15 +45,13 @@ Sylabs CRI
 
 ## Running and testing
 
-To build server and test client binaries you can use Makefile:
+To build server you can use Makefile:
 
 ```bash
 make build
 ```
 
-This will produce the following files:
-- sycri - CRI server
-- sycri_client - custom cli to test running CRI server
+This will produce the _sycri_ binary with CRI server implementation appear in a bin directory.
 
 To start CRI server simply run _sycri_ binary. By default CRI listens for requests on
 `unix:///var/run/singularity.sock` and stores image files at `/var/lib/singularity`. This behaviour may be configured
@@ -66,24 +64,8 @@ make test
 ```
 
 ##
-For live testing you can use `sycri_client`.
+For live testing we suggest using [`crictl`](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/crictl.md).
 
-**WARNING!**
-> This is a quickly made cli to test ImageService and is not
-for production use.
-
-To start interactive cli test tool run the executable and pass socket to connect to CRI:
-```bash
-./sycri_client unix:///var/run/singularity.sock
-```
-
-The following commands are supported:
-- `pull <image>` - pull image by tag or digest. To pull from library or shub specify `library://` or `shub://` prefix
-before image respectively.
-- `list` - list all available images
-- `remove <image>` - remove image by tag, digest or ID
-- `stat <image>` - get image info by tag, digest or ID
-- `exit` - stop interactive cli
 
 ## Project Structure
 
@@ -107,3 +89,4 @@ before image respectively.
 * [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
 * [GitHub Flow](https://guides.github.com/introduction/flow/)
 * [Standard Go Project Layout](https://github.com/golang-standards/project-layout)
+* [CRI tools](https://github.com/kubernetes-sigs/cri-tools)

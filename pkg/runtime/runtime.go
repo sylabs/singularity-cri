@@ -28,6 +28,7 @@ import (
 // SingularityRuntime implements k8s RuntimeService interface.
 type SingularityRuntime struct {
 	singularity string
+	starter     string
 	registry    *image.SingularityRegistry
 
 	pMu  sync.RWMutex
@@ -41,12 +42,17 @@ type SingularityRuntime struct {
 // Singularity must be installed on the host otherwise it will return an error.
 // SingularityRuntime depends on SingularityRegistry so it must not be nil.
 func NewSingularityRuntime(registry *image.SingularityRegistry) (*SingularityRuntime, error) {
-	s, err := exec.LookPath(singularity.RuntimeName)
+	sing, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
-		return nil, fmt.Errorf("could not find %s daemon on this machine: %v", singularity.RuntimeName, err)
+		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
+	}
+	start, err := exec.LookPath(singularity.StarterName)
+	if err != nil {
+		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.StarterName, err)
 	}
 	return &SingularityRuntime{
-		singularity: s,
+		singularity: sing,
+		starter:     start,
 		registry:    registry,
 		pods:        make(map[string]pod),
 		containers:  make(map[string]container),

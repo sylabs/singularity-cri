@@ -59,7 +59,7 @@ func main() {
 	defer logs.FlushLogs()
 
 	// Initialize user agent strings
-	useragent.InitValue("singularity", "3.0.0-alpha.1")
+	useragent.InitValue("singularity", "3.0.0")
 
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM)

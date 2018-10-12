@@ -23,7 +23,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
-	"time"
 
 	"github.com/sylabs/singularity/src/pkg/sylog"
 	syexec "github.com/sylabs/singularity/src/pkg/util/exec"
@@ -44,10 +43,11 @@ type container struct {
 
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateContainerRequest) (*k8s.CreateContainerResponse, error) {
-	// hack because of SESSIONDIR
+	// hack because of SESSIONDIR in vendor
 	type engineConfig struct {
 		CreateContainerRequest *k8s.CreateContainerRequest
 		FifoPath               string
+		PipeFD                 uintptr
 	}
 	meta := req.Config.Metadata
 	containerID := fmt.Sprintf("%s_%s_%d", req.PodSandboxId, meta.Name, meta.Attempt)
@@ -59,12 +59,25 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	if err != nil {
 		return nil, fmt.Errorf("could not make fifo: %v", err)
 	}
+	rp, wp, err := os.Pipe()
+	if err != nil {
+		return nil, fmt.Errorf("could not create pipe: %v", err)
+	}
+	wpCopy, err := syscall.Dup(int(wp.Fd()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to duplicate pipe file descriptor: %s", err)
+	}
+	log.Printf("copy: %d", wpCopy)
+	if err := wp.Close(); err != nil {
+		return nil, fmt.Errorf("could not close write pipe end: %v", err)
+	}
 
 	engineConf := config.Common{
 		EngineName: "kube_container",
 		EngineConfig: &engineConfig{
 			CreateContainerRequest: req,
 			FifoPath:               fifoPath,
+			PipeFD:                 uintptr(wpCopy),
 		},
 	}
 	configData, err := json.Marshal(engineConf)
@@ -79,20 +92,44 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	}
 	envs = append(envs, pipefd)
 
-	cmd := exec.Command("starter", containerID)
+	cmd := exec.Command(s.starter, containerID)
 	cmd.Env = envs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
+
+	cleanup := func() {
 		if err := kube.CleanupInstance(containerID); err != nil {
 			log.Printf("could not cleanup %s: %v", containerID, err)
 		}
 		if err := os.Remove(fifoPath); err != nil {
 			log.Printf("could not remove fifo: %v", err)
 		}
+		if err := cmd.Wait(); err != nil {
+			log.Printf("could not wait cmd: %v", err)
+		}
+	}
+
+	if err := cmd.Start(); err != nil {
+		cleanup()
 		return nil, fmt.Errorf("could not schedule conatiner creation: %v", err)
 	}
-	time.Sleep(7 * time.Second)
+
+	data := make([]byte, 1)
+	log.Printf("reading pipe...")
+	_, err = rp.Read(data)
+	if err := rp.Close(); err != nil {
+		return nil, fmt.Errorf("could not close pipe: %v", err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read pipe failed: %v", err)
+	}
+	log.Printf("read %v %v", data, err)
+	if data[0] == 1 {
+		log.Printf("conainter created!")
+	} else {
+		cleanup()
+		return nil, fmt.Errorf("conainter creation failed")
+	}
 
 	req.Config.Image.Image = originalRef
 	logPath := req.GetSandboxConfig().GetLogDirectory()
@@ -136,17 +173,25 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 		return nil, fmt.Errorf("not found")
 	}
 
-	fifo, err := os.OpenFile(cont.fifoPath, os.O_WRONLY, 0)
+	log.Printf("opening fifo %s", cont.fifoPath)
+	fifo, err := os.OpenFile(cont.fifoPath, os.O_WRONLY|syscall.O_SYNC, 0)
 	if err != nil {
 		return nil, fmt.Errorf("could not open fifo: %v", err)
 	}
+	log.Printf("writing fifo %s", cont.fifoPath)
+	_, err = fifo.Write([]byte{1})
+	if err != nil {
+		return nil, fmt.Errorf("could not write fifo: %v", err)
+	}
+	log.Printf("closing fifo %s", cont.fifoPath)
 	if err := fifo.Close(); err != nil {
-		return nil, fmt.Errorf("could not clode fifo: %v", err)
+		return nil, fmt.Errorf("could not close fifo: %v", err)
 	}
 
 	if err = cont.cmd.Wait(); err != nil {
 		return nil, fmt.Errorf("could not wait container cmd: %v", err)
 	}
+	log.Printf("removing fifo %s", cont.fifoPath)
 	if err = os.Remove(cont.fifoPath); err != nil {
 		log.Printf("could not remove fifo: %v", err)
 	}

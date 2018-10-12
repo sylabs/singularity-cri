@@ -220,15 +220,15 @@
   revision = "76721d167b7088b203cf9873c616b0cfec5c77bb"
 
 [[projects]]
-  digest = "1:ea02fe349079faef40ddf7896da4589af0b0a0426b8b93868961cde94d1e5625"
+  digest = "1:bade26362bf8fafb739775ab646fab8049a81b299be47351fcf6ddd1639d0d58"
   name = "k8s.io/kubernetes"
   packages = [
     "pkg/kubectl/util/logs",
     "pkg/kubelet/apis/cri/runtime/v1alpha2",
   ]
   pruneopts = "UT"
-  revision = "4ed3216f3ec431b140b1d899130a69fc671678f4"
-  version = "v1.12.1"
+  revision = "a4529464e4629c21224b3d52edfe0ea91b072862"
+  version = "v1.11.3"
 
 [solve-meta]
   analyzer-name = "dep"

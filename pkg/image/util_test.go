@@ -123,7 +123,7 @@ func TestParseImageRef(t *testing.T) {
 }
 
 func TestPullImage(t *testing.T) {
-	useragent.InitValue("singularity", "3.0.0-alpha.1-303-1f11bd5-dirty")
+	useragent.InitValue("singularity", "3.0.0")
 
 	tt := []struct {
 		name         string

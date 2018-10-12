@@ -47,7 +47,7 @@ type SingularityRegistry struct {
 func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 	_, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
-		return nil, fmt.Errorf("could not find %s executable on this machine: %v", singularity.RuntimeName, err)
+		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
 	}
 
 	storePath, err = filepath.Abs(storePath)
