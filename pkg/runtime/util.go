@@ -17,6 +17,7 @@ package runtime
 import (
 	"fmt"
 	"log"
+	"os/exec"
 	"syscall"
 
 	"github.com/sylabs/singularity/src/runtime/engines/kube"
@@ -67,4 +68,18 @@ func addElem(a []string, v string) []string {
 		}
 	}
 	return append(a, v)
+}
+
+func wait(cmd *exec.Cmd) error {
+	if cmd == nil {
+		return nil
+	}
+	err := cmd.Wait()
+	if err == nil {
+		return nil
+	}
+	if _, ok := err.(*exec.ExitError); !ok {
+		return fmt.Errorf("wait error: %v", err)
+	}
+	return nil
 }

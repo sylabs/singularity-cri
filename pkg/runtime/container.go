@@ -107,7 +107,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		if err := os.RemoveAll(filepath.Dir(fifoPath)); err != nil {
 			log.Printf("could not remove fifo: %v", err)
 		}
-		if err := cmd.Wait(); err != nil {
+		if err := wait(cmd); err != nil {
 			log.Printf("could not wait cmd: %v", err)
 		}
 	}
@@ -197,9 +197,11 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 		return nil, fmt.Errorf("could not close fifo: %v", err)
 	}
 
-	if err = cont.cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("could not wait container cmd: %v", err)
+	err = wait(cont.cmd)
+	if err != nil {
+		return nil, fmt.Errorf("could not start container: %v", err)
 	}
+
 	log.Printf("removing fifo %s", cont.fifoPath)
 	if err = os.Remove(filepath.Dir(cont.fifoPath)); err != nil {
 		log.Printf("could not remove fifo: %v", err)
@@ -311,7 +313,8 @@ func (s *SingularityRuntime) stopContainer(containerID string) error {
 	}
 
 	if err = killInstance(cont.id, syscall.SIGTERM); err != nil {
-		return fmt.Errorf("could not terminate container: %v", err)
+		return fmt.Errorf("could not terminate conta"+
+			"iner: %v", err)
 	}
 	return nil
 }
@@ -327,11 +330,9 @@ func (s *SingularityRuntime) removeContainer(containerID string) error {
 	if err := killInstance(cont.id, syscall.SIGKILL); err != nil {
 		return fmt.Errorf("could not kill container: %v", err)
 	}
-	if cont.cmd != nil {
-		err := cont.cmd.Wait()
-		if _, ok := err.(*exec.ExitError); !ok {
-			return fmt.Errorf("could not wait container cmd: %v", err)
-		}
+	err := wait(cont.cmd)
+	if err != nil {
+		return fmt.Errorf("could not wait container after kill: %v", err)
 	}
 	if err := kube.CleanupInstance(cont.id); err != nil {
 		log.Printf("could not cleanup %s: %v", cont.id, err)
