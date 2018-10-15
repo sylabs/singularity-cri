@@ -24,6 +24,8 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"net"
+
 	"github.com/sylabs/singularity/src/pkg/sylog"
 	syexec "github.com/sylabs/singularity/src/pkg/util/exec"
 	"github.com/sylabs/singularity/src/runtime/engines/config"
@@ -32,13 +34,14 @@ import (
 )
 
 type container struct {
-	id       string
-	podID    string
-	imageID  string
-	logPath  string
-	config   *k8s.ContainerConfig
-	fifoPath string
-	cmd      *exec.Cmd
+	id      string
+	podID   string
+	imageID string
+	logPath string
+	conn    net.Conn
+
+	config *k8s.ContainerConfig
+	cmd    *exec.Cmd
 }
 
 // CreateContainer creates a new container in specified PodSandbox.
@@ -46,41 +49,25 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	// hack because of SESSIONDIR in vendor
 	type engineConfig struct {
 		CreateContainerRequest *k8s.CreateContainerRequest
-		FifoPath               string
-		PipeFD                 uintptr
+		Socket                 string
 	}
 	meta := req.Config.Metadata
 	containerID := fmt.Sprintf("%s_%d", meta.Name, meta.Attempt)
 	originalRef := req.Config.Image.Image
 	req.Config.Image.Image = s.registry.ImagePath(req.Config.Image.Image) // a hack for starter to work correctly
 
-	fifoPath := filepath.Join("/tmp", containerID, containerID)
-	if err := os.MkdirAll(filepath.Dir(fifoPath), 0755); err != nil {
-		return nil, fmt.Errorf("could not cleate fifo dir: %v", err)
-	}
-	err := syscall.Mkfifo(fifoPath, 0644)
+	socket := fmt.Sprintf("/tmp/%s.sock", containerID)
+	ln, err := net.Listen("unix", socket)
 	if err != nil {
-		return nil, fmt.Errorf("could not make fifo: %v", err)
+		return nil, fmt.Errorf("could not listen socket: %v", err)
 	}
-	rp, wp, err := os.Pipe()
-	if err != nil {
-		return nil, fmt.Errorf("could not create pipe: %v", err)
-	}
-	wpCopy, err := syscall.Dup(int(wp.Fd()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to duplicate pipe file descriptor: %s", err)
-	}
-	log.Printf("copy: %d", wpCopy)
-	if err := wp.Close(); err != nil {
-		return nil, fmt.Errorf("could not close write pipe end: %v", err)
-	}
+	defer ln.Close()
 
 	engineConf := config.Common{
 		EngineName: "kube_container",
 		EngineConfig: &engineConfig{
 			CreateContainerRequest: req,
-			FifoPath:               fifoPath,
-			PipeFD:                 uintptr(wpCopy),
+			Socket:                 socket,
 		},
 	}
 	configData, err := json.Marshal(engineConf)
@@ -104,7 +91,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		if err := kube.CleanupInstance(containerID); err != nil {
 			log.Printf("could not cleanup %s: %v", containerID, err)
 		}
-		if err := os.RemoveAll(filepath.Dir(fifoPath)); err != nil {
+		if err := os.Remove(socket); err != nil {
 			log.Printf("could not remove fifo: %v", err)
 		}
 		if err := wait(cmd); err != nil {
@@ -117,27 +104,33 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		return nil, fmt.Errorf("could not schedule conatiner creation: %v", err)
 	}
 
-	data := make([]byte, 1)
-	log.Printf("reading pipe...")
-	_, err = rp.Read(data)
+	conn, err := ln.Accept()
 	if err != nil {
-		return nil, fmt.Errorf("read pipe failed: %v", err)
+		cleanup()
+		return nil, fmt.Errorf("could not accept connectiin: %v", err)
 	}
+
+	data := make([]byte, 1)
+	log.Printf("reading socket...")
+	_, err = conn.Read(data)
+	if err != nil {
+		cleanup()
+		return nil, fmt.Errorf("read socket failed: %v", err)
+	}
+
 	log.Printf("read %v %v", data, err)
 	if data[0] == 1 {
 		log.Printf("conainter created!")
 	} else {
 		reason := make([]byte, 1024)
 		log.Printf("reading reason...")
-		_, err = rp.Read(reason)
+		_, err = conn.Read(reason)
 		if err != nil {
+			cleanup()
 			return nil, fmt.Errorf("read reason failed: %v", err)
 		}
 		cleanup()
 		return nil, fmt.Errorf("conainter creation failed: %s", reason)
-	}
-	if err := rp.Close(); err != nil {
-		return nil, fmt.Errorf("could not close pipe: %v", err)
 	}
 
 	req.Config.Image.Image = originalRef
@@ -147,13 +140,13 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	}
 
 	cont := container{
-		id:       containerID,
-		podID:    req.GetPodSandboxId(),
-		config:   req.GetConfig(),
-		imageID:  s.registry.ImageID(originalRef),
-		cmd:      cmd,
-		fifoPath: fifoPath,
-		logPath:  logPath,
+		id:      containerID,
+		podID:   req.GetPodSandboxId(),
+		config:  req.GetConfig(),
+		imageID: s.registry.ImageID(originalRef),
+		cmd:     cmd,
+		conn:    conn,
+		logPath: logPath,
 	}
 
 	s.pMu.RLock()
@@ -182,19 +175,14 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 		return nil, fmt.Errorf("not found")
 	}
 
-	log.Printf("opening fifo %s", cont.fifoPath)
-	fifo, err := os.OpenFile(cont.fifoPath, os.O_WRONLY|syscall.O_SYNC, 0)
+	log.Printf("writing socket %s", cont.conn.RemoteAddr())
+	_, err := cont.conn.Write([]byte{1})
 	if err != nil {
-		return nil, fmt.Errorf("could not open fifo: %v", err)
+		return nil, fmt.Errorf("could not write socket: %v", err)
 	}
-	log.Printf("writing fifo %s", cont.fifoPath)
-	_, err = fifo.Write([]byte{1})
-	if err != nil {
-		return nil, fmt.Errorf("could not write fifo: %v", err)
-	}
-	log.Printf("closing fifo %s", cont.fifoPath)
-	if err := fifo.Close(); err != nil {
-		return nil, fmt.Errorf("could not close fifo: %v", err)
+	log.Printf("closing socket %s", cont.conn.RemoteAddr())
+	if err := cont.conn.Close(); err != nil {
+		return nil, fmt.Errorf("could not close socket: %v", err)
 	}
 
 	err = wait(cont.cmd)
@@ -202,12 +190,8 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 		return nil, fmt.Errorf("could not start container: %v", err)
 	}
 
-	log.Printf("removing fifo %s", cont.fifoPath)
-	if err = os.Remove(filepath.Dir(cont.fifoPath)); err != nil {
-		log.Printf("could not remove fifo: %v", err)
-	}
-
 	cont.cmd = nil
+	cont.conn = nil
 
 	s.cMu.Lock()
 	s.containers[cont.id] = cont
@@ -337,8 +321,10 @@ func (s *SingularityRuntime) removeContainer(containerID string) error {
 	if err := kube.CleanupInstance(cont.id); err != nil {
 		log.Printf("could not cleanup %s: %v", cont.id, err)
 	}
-	if err := os.RemoveAll(filepath.Dir(cont.fifoPath)); err != nil {
-		log.Printf("could not remove fifo: %v", err)
+	if cont.conn != nil {
+		if err := cont.conn.Close(); err != nil {
+			log.Printf("could not close socket: %v", err)
+		}
 	}
 
 	s.pMu.Lock()
