@@ -49,25 +49,32 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	// hack because of SESSIONDIR in vendor
 	type engineConfig struct {
 		CreateContainerRequest *k8s.CreateContainerRequest
-		Socket                 string
+		Socket                 int
 	}
 	meta := req.Config.Metadata
 	containerID := fmt.Sprintf("%s_%d", meta.Name, meta.Attempt)
 	originalRef := req.Config.Image.Image
 	req.Config.Image.Image = s.registry.ImagePath(req.Config.Image.Image) // a hack for starter to work correctly
 
-	socket := fmt.Sprintf("/tmp/%s.sock", containerID)
-	ln, err := net.Listen("unix", socket)
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
 	if err != nil {
-		return nil, fmt.Errorf("could not listen socket: %v", err)
+		return nil, fmt.Errorf("could not create socket pair: %v", err)
 	}
-	defer ln.Close()
+	log.Printf("sockets %v", fds)
+	comm := os.NewFile(uintptr(fds[0]), "")
+	socket, err := net.FileConn(comm)
+	if err != nil {
+		return nil, fmt.Errorf("could not create socket connection: %v", err)
+	}
+	if err := comm.Close(); err != nil {
+		log.Printf("could not close socket file: %v", err)
+	}
 
 	engineConf := config.Common{
 		EngineName: "kube_container",
 		EngineConfig: &engineConfig{
 			CreateContainerRequest: req,
-			Socket:                 socket,
+			Socket:                 fds[1],
 		},
 	}
 	configData, err := json.Marshal(engineConf)
@@ -91,8 +98,8 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		if err := kube.CleanupInstance(containerID); err != nil {
 			log.Printf("could not cleanup %s: %v", containerID, err)
 		}
-		if err := os.Remove(socket); err != nil {
-			log.Printf("could not remove fifo: %v", err)
+		if err := socket.Close(); err != nil {
+			log.Printf("could not close socket: %v", err)
 		}
 		if err := wait(cmd); err != nil {
 			log.Printf("could not wait cmd: %v", err)
@@ -104,15 +111,9 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		return nil, fmt.Errorf("could not schedule conatiner creation: %v", err)
 	}
 
-	conn, err := ln.Accept()
-	if err != nil {
-		cleanup()
-		return nil, fmt.Errorf("could not accept connectiin: %v", err)
-	}
-
 	data := make([]byte, 1)
 	log.Printf("reading socket...")
-	_, err = conn.Read(data)
+	_, err = socket.Read(data)
 	if err != nil {
 		cleanup()
 		return nil, fmt.Errorf("read socket failed: %v", err)
@@ -124,7 +125,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	} else {
 		reason := make([]byte, 1024)
 		log.Printf("reading reason...")
-		_, err = conn.Read(reason)
+		_, err = socket.Read(reason)
 		if err != nil {
 			cleanup()
 			return nil, fmt.Errorf("read reason failed: %v", err)
@@ -145,7 +146,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		config:  req.GetConfig(),
 		imageID: s.registry.ImageID(originalRef),
 		cmd:     cmd,
-		conn:    conn,
+		conn:    socket,
 		logPath: logPath,
 	}
 

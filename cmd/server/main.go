@@ -24,6 +24,8 @@ import (
 	"syscall"
 	"time"
 
+	"encoding/json"
+
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/runtime"
 	"github.com/sylabs/singularity/src/pkg/util/user-agent"
@@ -48,8 +50,10 @@ func readFlags() flags {
 func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
 	resp, err := handler(ctx, req)
-	log.Printf("%s\n\tRequest: %v\n\tResponse: %v\n\tError: %v\n\tDuration:%s\n",
-		info.FullMethod, req, resp, err, time.Since(start))
+	jsonReq, _ := json.Marshal(req)
+	jsonResp, _ := json.Marshal(resp)
+	log.Printf("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v\n\tDuration:%s\n",
+		info.FullMethod, jsonReq, jsonResp, err, time.Since(start))
 	return resp, err
 }
 
