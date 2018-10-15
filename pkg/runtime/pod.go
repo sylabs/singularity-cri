@@ -111,15 +111,10 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *v1alpha2.Sto
 	// todo reclaim resources somewhere here
 
 	for _, contID := range pod.containers {
-		err := killInstance(contID, syscall.SIGTERM)
+		err := s.stopContainer(contID)
 		if err != nil {
-			return nil, fmt.Errorf("could not terminate container: %v", err)
+			return nil, fmt.Errorf("could not stop container: %v", err)
 		}
-
-		s.cMu.Lock()
-		cont := s.containers[contID] // assume containers are running
-		s.containers[contID] = cont
-		s.cMu.Unlock()
 	}
 
 	err := killInstance(pod.id, syscall.SIGTERM)
@@ -144,21 +139,11 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.R
 		return &v1alpha2.RemovePodSandboxResponse{}, nil
 	}
 
-	s.pMu.Lock()
-	defer s.pMu.Unlock()
-
 	for _, contID := range pod.containers {
-		err := killInstance(contID, syscall.SIGKILL)
+		err := s.removeContainer(contID)
 		if err != nil {
-			return nil, fmt.Errorf("could not kill container: %v", err)
+			return nil, fmt.Errorf("could not remove container: %v", err)
 		}
-		err = kube.CleanupInstance(contID)
-		if err != nil {
-			return nil, fmt.Errorf("could not cleanup %q: %v", contID, err)
-		}
-		s.cMu.Lock()
-		delete(s.containers, contID)
-		s.cMu.Unlock()
 	}
 
 	err := killInstance(pod.id, syscall.SIGKILL)
@@ -170,7 +155,9 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *v1alpha2.R
 		return nil, fmt.Errorf("could not cleanup %q: %v", pod.id, err)
 	}
 
+	s.pMu.Lock()
 	delete(s.pods, pod.id)
+	s.pMu.Unlock()
 	return &v1alpha2.RemovePodSandboxResponse{}, nil
 }
 

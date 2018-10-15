@@ -50,11 +50,14 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		PipeFD                 uintptr
 	}
 	meta := req.Config.Metadata
-	containerID := fmt.Sprintf("%s_%s_%d", req.PodSandboxId, meta.Name, meta.Attempt)
+	containerID := fmt.Sprintf("%s_%d", meta.Name, meta.Attempt)
 	originalRef := req.Config.Image.Image
 	req.Config.Image.Image = s.registry.ImagePath(req.Config.Image.Image) // a hack for starter to work correctly
 
-	fifoPath := filepath.Join("/tmp", containerID)
+	fifoPath := filepath.Join("/tmp", containerID, containerID)
+	if err := os.MkdirAll(filepath.Dir(fifoPath), 0755); err != nil {
+		return nil, fmt.Errorf("could not cleate fifo dir: %v", err)
+	}
 	err := syscall.Mkfifo(fifoPath, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("could not make fifo: %v", err)
@@ -101,7 +104,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		if err := kube.CleanupInstance(containerID); err != nil {
 			log.Printf("could not cleanup %s: %v", containerID, err)
 		}
-		if err := os.Remove(fifoPath); err != nil {
+		if err := os.RemoveAll(filepath.Dir(fifoPath)); err != nil {
 			log.Printf("could not remove fifo: %v", err)
 		}
 		if err := cmd.Wait(); err != nil {
@@ -117,9 +120,6 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	data := make([]byte, 1)
 	log.Printf("reading pipe...")
 	_, err = rp.Read(data)
-	if err := rp.Close(); err != nil {
-		return nil, fmt.Errorf("could not close pipe: %v", err)
-	}
 	if err != nil {
 		return nil, fmt.Errorf("read pipe failed: %v", err)
 	}
@@ -127,8 +127,17 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	if data[0] == 1 {
 		log.Printf("conainter created!")
 	} else {
+		reason := make([]byte, 1024)
+		log.Printf("reading reason...")
+		_, err = rp.Read(reason)
+		if err != nil {
+			return nil, fmt.Errorf("read reason failed: %v", err)
+		}
 		cleanup()
-		return nil, fmt.Errorf("conainter creation failed")
+		return nil, fmt.Errorf("conainter creation failed: %s", reason)
+	}
+	if err := rp.Close(); err != nil {
+		return nil, fmt.Errorf("could not close pipe: %v", err)
 	}
 
 	req.Config.Image.Image = originalRef
@@ -192,7 +201,7 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 		return nil, fmt.Errorf("could not wait container cmd: %v", err)
 	}
 	log.Printf("removing fifo %s", cont.fifoPath)
-	if err = os.Remove(cont.fifoPath); err != nil {
+	if err = os.Remove(filepath.Dir(cont.fifoPath)); err != nil {
 		log.Printf("could not remove fifo: %v", err)
 	}
 
@@ -210,64 +219,14 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 // already been stopped.
 // TODO: what must the runtime do after the grace period is reached?
 func (s *SingularityRuntime) StopContainer(_ context.Context, req *k8s.StopContainerRequest) (*k8s.StopContainerResponse, error) {
-	s.cMu.RLock()
-	cont, ok := s.containers[req.ContainerId]
-	s.cMu.RUnlock()
-	if !ok {
-		return nil, fmt.Errorf("not found")
-	}
-
-	info, err := kube.GetInfo(cont.id)
-	if err != nil {
-		return nil, fmt.Errorf("could not get container info: %v", err)
-	}
-	if info.FinishedAt != 0 {
-		return &k8s.StopContainerResponse{}, nil
-	}
-
-	if err = killInstance(cont.id, syscall.SIGTERM); err != nil {
-		return nil, fmt.Errorf("could not terminate container: %v", err)
-	}
-	return &k8s.StopContainerResponse{}, nil
+	return &k8s.StopContainerResponse{}, s.stopContainer(req.ContainerId)
 }
 
 // RemoveContainer removes the container. If the container is running,
 // the container must be forcibly removed. This call is idempotent, and
 // must not return an error if the container has already been removed.
 func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *k8s.RemoveContainerRequest) (*k8s.RemoveContainerResponse, error) {
-	s.cMu.RLock()
-	cont, ok := s.containers[req.ContainerId]
-	s.cMu.RUnlock()
-	if !ok {
-		return &k8s.RemoveContainerResponse{}, nil
-	}
-
-	if err := killInstance(cont.id, syscall.SIGKILL); err != nil {
-		return nil, fmt.Errorf("could not kill container: %v", err)
-	}
-	if cont.cmd != nil {
-		if err := cont.cmd.Wait(); err != nil {
-			return nil, fmt.Errorf("could not wait container cmd: %v", err)
-		}
-	}
-	if err := kube.CleanupInstance(cont.id); err != nil {
-		log.Printf("could not cleanup %s: %v", cont.id, err)
-	}
-	if err := os.Remove(cont.fifoPath); err != nil && !os.IsNotExist(err) {
-		log.Printf("could not remove fifo: %v", err)
-	}
-
-	s.pMu.Lock()
-	pod := s.pods[cont.podID]
-	pod.containers = removeElem(pod.containers, cont.id)
-	s.pods[cont.podID] = pod
-	s.pMu.Unlock()
-
-	s.cMu.Lock()
-	delete(s.containers, cont.id)
-	s.cMu.Unlock()
-
-	return &k8s.RemoveContainerResponse{}, nil
+	return &k8s.RemoveContainerResponse{}, s.removeContainer(req.ContainerId)
 }
 
 // ContainerStatus returns status of the container.
@@ -285,17 +244,7 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 		return nil, fmt.Errorf("could not get container info: %v", err)
 	}
 
-	state := k8s.ContainerState_CONTAINER_UNKNOWN
-	if info.CreatedAt != 0 {
-		state = k8s.ContainerState_CONTAINER_CREATED
-	}
-	if info.StartedAt != 0 {
-		state = k8s.ContainerState_CONTAINER_RUNNING
-	}
-	if info.FinishedAt != 0 {
-		state = k8s.ContainerState_CONTAINER_EXITED
-	}
-
+	state := containerState(info)
 	return &k8s.ContainerStatusResponse{
 		Status: &k8s.ContainerStatus{
 			Id:          req.ContainerId,
@@ -327,18 +276,7 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 		if err != nil {
 			return nil, fmt.Errorf("could not get container info: %v", err)
 		}
-
-		state := k8s.ContainerState_CONTAINER_UNKNOWN
-		if info.CreatedAt != 0 {
-			state = k8s.ContainerState_CONTAINER_CREATED
-		}
-		if info.StartedAt != 0 {
-			state = k8s.ContainerState_CONTAINER_RUNNING
-		}
-		if info.FinishedAt != 0 {
-			state = k8s.ContainerState_CONTAINER_EXITED
-		}
-
+		state := containerState(info)
 		if containerMatches(cont, state, req.Filter) {
 			resp.Containers = append(resp.Containers, &k8s.Container{
 				Id:           cont.id,
@@ -354,6 +292,79 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 		}
 	}
 	return resp, nil
+}
+
+func (s *SingularityRuntime) stopContainer(containerID string) error {
+	s.cMu.RLock()
+	cont, ok := s.containers[containerID]
+	s.cMu.RUnlock()
+	if !ok {
+		return fmt.Errorf("not found")
+	}
+
+	info, err := kube.GetInfo(cont.id)
+	if err != nil {
+		return fmt.Errorf("could not get container info: %v", err)
+	}
+	if info.FinishedAt != 0 {
+		return nil
+	}
+
+	if err = killInstance(cont.id, syscall.SIGTERM); err != nil {
+		return fmt.Errorf("could not terminate container: %v", err)
+	}
+	return nil
+}
+
+func (s *SingularityRuntime) removeContainer(containerID string) error {
+	s.cMu.RLock()
+	cont, ok := s.containers[containerID]
+	s.cMu.RUnlock()
+	if !ok {
+		return nil
+	}
+
+	if err := killInstance(cont.id, syscall.SIGKILL); err != nil {
+		return fmt.Errorf("could not kill container: %v", err)
+	}
+	if cont.cmd != nil {
+		err := cont.cmd.Wait()
+		if _, ok := err.(*exec.ExitError); !ok {
+			return fmt.Errorf("could not wait container cmd: %v", err)
+		}
+	}
+	if err := kube.CleanupInstance(cont.id); err != nil {
+		log.Printf("could not cleanup %s: %v", cont.id, err)
+	}
+	if err := os.RemoveAll(filepath.Dir(cont.fifoPath)); err != nil {
+		log.Printf("could not remove fifo: %v", err)
+	}
+
+	s.pMu.Lock()
+	pod := s.pods[cont.podID]
+	pod.containers = removeElem(pod.containers, cont.id)
+	s.pods[cont.podID] = pod
+	s.pMu.Unlock()
+
+	s.cMu.Lock()
+	delete(s.containers, cont.id)
+	s.cMu.Unlock()
+
+	return nil
+}
+
+func containerState(info *kube.Info) k8s.ContainerState {
+	state := k8s.ContainerState_CONTAINER_UNKNOWN
+	if info.CreatedAt != 0 {
+		state = k8s.ContainerState_CONTAINER_CREATED
+	}
+	if info.StartedAt != 0 {
+		state = k8s.ContainerState_CONTAINER_RUNNING
+	}
+	if info.FinishedAt != 0 {
+		state = k8s.ContainerState_CONTAINER_EXITED
+	}
+	return state
 }
 
 func containerMatches(cont container, state k8s.ContainerState, filter *k8s.ContainerFilter) bool {
