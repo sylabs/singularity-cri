@@ -60,7 +60,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	if err != nil {
 		return nil, fmt.Errorf("could not create socket pair: %v", err)
 	}
-	log.Printf("sockets %v", fds)
+
 	comm := os.NewFile(uintptr(fds[0]), "")
 	socket, err := net.FileConn(comm)
 	if err != nil {
@@ -112,19 +112,16 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	}
 
 	data := make([]byte, 1)
-	log.Printf("reading socket...")
 	_, err = socket.Read(data)
 	if err != nil {
 		cleanup()
 		return nil, fmt.Errorf("read socket failed: %v", err)
 	}
 
-	log.Printf("read %v %v", data, err)
 	if data[0] == 1 {
 		log.Printf("conainter created!")
 	} else {
 		reason := make([]byte, 1024)
-		log.Printf("reading reason...")
 		_, err = socket.Read(reason)
 		if err != nil {
 			cleanup()
@@ -176,12 +173,10 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 		return nil, fmt.Errorf("not found")
 	}
 
-	log.Printf("writing socket %s", cont.conn.RemoteAddr())
 	_, err := cont.conn.Write([]byte{1})
 	if err != nil {
 		return nil, fmt.Errorf("could not write socket: %v", err)
 	}
-	log.Printf("closing socket %s", cont.conn.RemoteAddr())
 	if err := cont.conn.Close(); err != nil {
 		return nil, fmt.Errorf("could not close socket: %v", err)
 	}
@@ -298,8 +293,7 @@ func (s *SingularityRuntime) stopContainer(containerID string) error {
 	}
 
 	if err = killInstance(cont.id, syscall.SIGTERM); err != nil {
-		return fmt.Errorf("could not terminate conta"+
-			"iner: %v", err)
+		return fmt.Errorf("could not terminate container: %v", err)
 	}
 	return nil
 }
