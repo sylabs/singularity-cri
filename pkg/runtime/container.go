@@ -122,13 +122,13 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		log.Printf("conainter created!")
 	} else {
 		reason := make([]byte, 1024)
-		_, err = socket.Read(reason)
+		n, err := socket.Read(reason)
 		if err != nil {
 			cleanup()
 			return nil, fmt.Errorf("read reason failed: %v", err)
 		}
 		cleanup()
-		return nil, fmt.Errorf("conainter creation failed: %s", reason)
+		return nil, fmt.Errorf("conainter creation failed: %s", reason[:n])
 	}
 
 	req.Config.Image.Image = originalRef
