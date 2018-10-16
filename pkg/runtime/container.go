@@ -108,7 +108,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 
 	if err := cmd.Start(); err != nil {
 		cleanup()
-		return nil, fmt.Errorf("could not schedule conatiner creation: %v", err)
+		return nil, fmt.Errorf("could not schedule container creation: %v", err)
 	}
 
 	data := make([]byte, 1)
