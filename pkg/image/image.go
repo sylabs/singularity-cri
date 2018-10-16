@@ -47,7 +47,7 @@ type SingularityRegistry struct {
 func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 	_, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
-		return nil, fmt.Errorf("could not find %s executable on this machine: %v", singularity.RuntimeName, err)
+		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
 	}
 
 	storePath, err = filepath.Abs(storePath)
@@ -59,6 +59,10 @@ func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 		storage:  storePath,
 		refToID:  make(map[string]string),
 		idToInfo: make(map[string]imageInfo),
+	}
+
+	if err := os.MkdirAll(storePath, os.ModePerm); err != nil {
+		return nil, fmt.Errorf("could not create storage directory: %v", err)
 	}
 	registry.infoFile, err = os.OpenFile(registry.filePath(registryInfoFile), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
@@ -111,7 +115,6 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 
 // PullImage pulls an image with authentication config.
 func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageRequest) (*k8s.PullImageResponse, error) {
-	// todo pull prom private repos using auth
 	info, err := parseImageRef(req.Image.Image)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse image reference: %v", err)
@@ -220,6 +223,21 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 // ImageFsInfo returns information of the filesystem that is used to store images.
 func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoRequest) (*k8s.ImageFsInfoResponse, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+
+// ImagePath returns path to image file on host or empty string of image is not found.
+func (s *SingularityRegistry) ImagePath(ref string) string {
+	id, _ := s.find(ref)
+	if id == "" {
+		return ""
+	}
+	return s.filePath(id)
+}
+
+// ImageID returns id of an image which uniquely identifies image in registry.
+func (s *SingularityRegistry) ImageID(ref string) string {
+	id, _ := s.find(ref)
+	return id
 }
 
 // find queries registry for image that is referenced by ref and returns id of an image and imageInfo.
