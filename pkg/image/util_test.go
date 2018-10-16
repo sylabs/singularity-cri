@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	useragent "github.com/sylabs/singularity/src/pkg/util/user-agent"
+	"github.com/sylabs/singularity/src/pkg/util/user-agent"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
