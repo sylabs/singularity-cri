@@ -6,8 +6,6 @@ import (
 	"os/exec"
 	"syscall"
 
-	"log"
-
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -69,7 +67,6 @@ func UnshareAll(namespaces []specs.LinuxNamespace) error {
 	}
 	defer stdin.Close()
 
-	log.Println("starting a command...")
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("could not start process: %v", err)
 	}
@@ -80,7 +77,6 @@ func UnshareAll(namespaces []specs.LinuxNamespace) error {
 			return fmt.Errorf("could not bind namespace: %v", err)
 		}
 	}
-	log.Println("closing stdin...")
 	stdin.Close()
 	return nil
 }
@@ -99,17 +95,13 @@ func Remove(ns specs.LinuxNamespace) error {
 // bindNamespace creates namespace file at ns.Path and mounts corresponding
 // namespace of process with passed pid to it with syscall.MS_BIND flag.
 func bindNamespace(pid int, ns specs.LinuxNamespace) error {
-	log.Println("binding ns")
-	log.Println("create file")
 	f, err := os.Create(ns.Path)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", ns.Path, err)
 	}
-	log.Println("close file")
 	if err = f.Close(); err != nil {
 		return fmt.Errorf("could not close %s: %v", ns.Path, err)
 	}
-	log.Printf("mount %d", pid)
 	err = syscall.Mount(fmt.Sprintf("/proc/%d/ns/%s", pid, nsToInfo[ns.Type].procFile), ns.Path, "", syscall.MS_BIND, "")
 	if err != nil {
 		return fmt.Errorf("could not mount: %v", err)
