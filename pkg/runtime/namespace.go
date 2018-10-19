@@ -3,9 +3,8 @@ package runtime
 import (
 	"fmt"
 	"os"
-	"syscall"
-
 	"os/exec"
+	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 )

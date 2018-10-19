@@ -56,7 +56,7 @@ func NewSingularityRuntime(registry *image.SingularityRegistry) (*SingularityRun
 }
 
 // Version returns the runtime name, runtime version and runtime API version
-func (s *SingularityRuntime) Version(_ context.Context, _ *k8s.VersionRequest) (*k8s.VersionResponse, error) {
+func (s *SingularityRuntime) Version(context.Context, *k8s.VersionRequest) (*k8s.VersionResponse, error) {
 	const kubeAPIVersion = "0.1.0"
 
 	syVersion, err := exec.Command(s.singularity, "version").Output()
