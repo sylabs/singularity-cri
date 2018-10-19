@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sylabs/cri/pkg/namespace"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -70,7 +71,7 @@ func addHostname(podID, hostname string) error {
 // If noErr is true then any errors occurred during cleanup are ignored.
 func cleanupPod(pod *pod, noErr bool) error {
 	for _, ns := range pod.namespaces {
-		err := removeNamespace(ns)
+		err := namespace.Remove(ns)
 		if err != nil && !noErr {
 			return fmt.Errorf("could not remove namespace: %v", err)
 		}

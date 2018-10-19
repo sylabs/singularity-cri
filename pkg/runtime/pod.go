@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sylabs/cri/pkg/namespace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -96,7 +97,7 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 			Path: ipcPath,
 		})
 	}
-	if err := unshareNamespaces(pod.namespaces); err != nil {
+	if err := namespace.UnshareAll(pod.namespaces); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not unshare namespaces: %v", err)
 	}
 
