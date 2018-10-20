@@ -26,12 +26,13 @@
 
 [[constraint]]
   name = "k8s.io/kubernetes"
-  version = "1.11.2"
+  version = "~1.11.2"
+
+[[constraint]]
+  name = "github.com/sylabs/singularity"
+  branch = "master"
 
 [prune]
   go-tests = true
   unused-packages = true
 
-  [[prune.project]]
- 	name = "github.com/sylabs/singularity"
- 	unused-packages = false

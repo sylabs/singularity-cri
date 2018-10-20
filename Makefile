@@ -5,22 +5,17 @@ V := @
 BUILDDIR := ./vendor/github.com/singularityware/singularity/builddir
 BINDIR := ./bin
 SY_CRI := $(BINDIR)/sycri
-CRI_CLIENT := $(BINDIR)/sycri_client
 
 $(SY_CRI):
 	@echo " GO" $@
 	$(V)export GOOS=linux && go build -o $(SY_CRI) ./cmd/server
 
-$(CRI_CLIENT): 
-	@echo " GO" $@
-	$(V)export GOOS=linux && go build -o $(CRI_CLIENT) ./cmd/test
-
 .PHONY: build
-build: $(SY_CRI) $(CRI_CLIENT)
+build: $(SY_CRI)
 
 .PHONY: clean
 clean:
-	@printf " CLEAN\n"
+	@echo " CLEAN"
 	$(V)go clean
 	$(V)rm -rf $(BINDIR)
 	$(V)rm -rf $(BUILDDIR)

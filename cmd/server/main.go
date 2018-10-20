@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"log"
 	"net"
@@ -26,7 +27,7 @@ import (
 
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/runtime"
-	useragent "github.com/sylabs/singularity/src/pkg/util/user-agent"
+	"github.com/sylabs/singularity/src/pkg/util/user-agent"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -48,8 +49,10 @@ func readFlags() flags {
 func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
 	resp, err := handler(ctx, req)
-	log.Printf("Method:%s\n\tRequest: %v\n\tResponse: %v\n\tError: %v\n\tDuration:%s\n",
-		info.FullMethod, req, resp, err, time.Since(start))
+	jsonReq, _ := json.Marshal(req)
+	jsonResp, _ := json.Marshal(resp)
+	log.Printf("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v\n\tDuration:%s\n",
+		info.FullMethod, jsonReq, jsonResp, err, time.Since(start))
 	return resp, err
 }
 
@@ -59,7 +62,7 @@ func main() {
 	defer logs.FlushLogs()
 
 	// Initialize user agent strings
-	useragent.InitValue("singularity", "3.0.0-alpha.1")
+	useragent.InitValue("singularity", "3.0.0")
 
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM)
@@ -70,14 +73,14 @@ func main() {
 	}
 	defer lis.Close()
 
-	syRuntime, err := runtime.NewSingularityRuntime()
-	if err != nil {
-		log.Printf("Could not create Singularity runtime service: %v", err)
-		return
-	}
 	syImage, err := image.NewSingularityRegistry(f.storeDir)
 	if err != nil {
 		log.Printf("Could not create Singularity image service: %v", err)
+		return
+	}
+	syRuntime, err := runtime.NewSingularityRuntime(syImage)
+	if err != nil {
+		log.Printf("Could not create Singularity runtime service: %v", err)
 		return
 	}
 

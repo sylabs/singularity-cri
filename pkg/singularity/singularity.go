@@ -18,6 +18,9 @@ const (
 	// RuntimeName is the official name of Singularity runtime.
 	RuntimeName = "singularity"
 
+	// StarterName is the name of executable that is responsible for pod and container start.
+	StarterName = "starter"
+
 	// LibraryURL is a default singularity library server address.
 	LibraryURL = "https://library.sylabs.io"
 
