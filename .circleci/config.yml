@@ -67,6 +67,7 @@ jobs:
 
   unit_test:
     <<: *defaults
+    machine: true
     steps:
       - attach_workspace:
           at: /
