@@ -122,10 +122,8 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 // reclaim resources eagerly, as soon as a sandbox is not needed. Hence,
 // multiple StopPodSandbox calls are expected.
 func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodSandboxRequest) (*k8s.StopPodSandboxResponse, error) {
-	s.pMu.RLock()
-	pod, ok := s.pods[req.PodSandboxId]
-	s.pMu.RUnlock()
-	if !ok {
+	pod := s.findPod(req.PodSandboxId)
+	if pod == nil {
 		return nil, status.Error(codes.NotFound, "pod not found")
 	}
 	if pod.state == k8s.PodSandboxState_SANDBOX_NOTREADY {
@@ -151,10 +149,8 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodS
 // This call is idempotent, and must not return an error if the sandbox has
 // already been removed.
 func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *k8s.RemovePodSandboxRequest) (*k8s.RemovePodSandboxResponse, error) {
-	s.pMu.RLock()
-	pod, ok := s.pods[req.PodSandboxId]
-	s.pMu.RUnlock()
-	if !ok {
+	pod := s.findPod(req.PodSandboxId)
+	if pod == nil {
 		return &k8s.RemovePodSandboxResponse{}, nil
 	}
 
@@ -176,14 +172,11 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *k8s.Remove
 // PodSandboxStatus returns the status of the PodSandbox.
 // If the PodSandbox is not present, returns an error.
 func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *k8s.PodSandboxStatusRequest) (*k8s.PodSandboxStatusResponse, error) {
-	s.pMu.RLock()
-	pod, ok := s.pods[req.PodSandboxId]
-	s.pMu.RUnlock()
-	if !ok {
+	pod := s.findPod(req.PodSandboxId)
+	if pod == nil {
 		return nil, status.Error(codes.NotFound, "pod not found")
 	}
 
-	ns := pod.config.GetLinux().GetSecurityContext().GetNamespaceOptions()
 	return &k8s.PodSandboxStatusResponse{
 		Status: &k8s.PodSandboxStatus{
 			Id:        pod.id,
@@ -193,7 +186,7 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *k8s.PodSan
 			Network:   nil, // todo later
 			Linux: &k8s.LinuxPodSandboxStatus{
 				Namespaces: &k8s.Namespace{
-					Options: ns,
+					Options: pod.config.GetLinux().GetSecurityContext().GetNamespaceOptions(),
 				},
 			},
 			Labels:      pod.config.GetLabels(),
@@ -223,4 +216,10 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodS
 	return &k8s.ListPodSandboxResponse{
 		Items: pods,
 	}, nil
+}
+
+func (s *SingularityRuntime) findPod(id string) *pod {
+	s.pMu.RLock()
+	defer s.pMu.RUnlock()
+	return s.pods[id]
 }

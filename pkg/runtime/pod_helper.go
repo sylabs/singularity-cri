@@ -33,8 +33,16 @@ func bindNamespacePath(podID string, nsType specs.LinuxNamespaceType) string {
 	return filepath.Join(podInfoPathFormat, podID, nsStorePathFormat, string(nsType))
 }
 
+func hostnameFilePath(podID string) string {
+	return filepath.Join(podInfoPathFormat, podID, hostnamePath)
+}
+
+func resolvConfFilePath(podID string) string {
+	return filepath.Join(podInfoPathFormat, podID, resolvConfPath)
+}
+
 func addResolvConf(podID string, config *k8s.DNSConfig) error {
-	resolv, err := os.Create(filepath.Join(podInfoPathFormat, podID, resolvConfPath))
+	resolv, err := os.Create(resolvConfFilePath(podID))
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", resolvConfPath, err)
 	}
@@ -56,7 +64,7 @@ func addResolvConf(podID string, config *k8s.DNSConfig) error {
 }
 
 func addHostname(podID, hostname string) error {
-	host, err := os.Create(filepath.Join(podInfoPathFormat, podID, hostnamePath))
+	host, err := os.Create(hostnameFilePath(podID))
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", hostnamePath, err)
 	}

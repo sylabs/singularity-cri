@@ -17,13 +17,146 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-tools/generate"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
+type container struct {
+	id      string
+	config  *k8s.ContainerConfig
+	logPath string
+}
+
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateContainerRequest) (*k8s.CreateContainerResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	pod := s.findPod(req.PodSandboxId)
+	if pod == nil {
+		return nil, status.Error(codes.NotFound, "pod not found")
+	}
+	cont := &container{
+		id:     containerID(pod.id, req.GetConfig().GetMetadata()),
+		config: req.GetConfig(),
+	}
+
+	gen, err := generate.New("linux")
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not create generator: %v", err)
+	}
+	if pod.config.GetHostname() != "" {
+		gen.SetHostname(pod.config.GetHostname())
+		gen.AddMount(specs.Mount{
+			Destination: "/etc/hostname",
+			Source:      hostnameFilePath(pod.id),
+			Options:     []string{"bind", "ro"},
+		})
+		gen.AddOrReplaceLinuxNamespace(specs.UTSNamespace, bindNamespacePath(pod.id, specs.UTSNamespace))
+	}
+	if pod.config.GetDnsConfig() != nil {
+		gen.AddMount(specs.Mount{
+			Destination: "/etc/resolv.conf",
+			Source:      resolvConfFilePath(pod.id),
+			Options:     []string{"bind", "ro"},
+		})
+	}
+
+	gen.AddOrReplaceLinuxNamespace(specs.MountNamespace, "")
+	gen.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), "")
+
+	security := cont.config.GetLinux().GetSecurityContext()
+	gen.SetProcessApparmorProfile(security.GetApparmorProfile())
+	gen.SetProcessNoNewPrivileges(security.NoNewPrivs)
+	gen.SetRootReadonly(security.GetReadonlyRootfs())
+	gen.SetProcessUsername(security.GetRunAsUsername())
+	gen.SetProcessUID(uint32(security.GetRunAsUser().Value))
+	gen.SetProcessGID(uint32(security.GetRunAsGroup().Value))
+	for _, gid := range security.GetSupplementalGroups() {
+		gen.AddProcessAdditionalGid(uint32(gid))
+	}
+	for _, capb := range security.GetCapabilities().DropCapabilities {
+		gen.DropProcessCapabilityEffective(capb)
+	}
+	for _, capb := range security.GetCapabilities().AddCapabilities {
+		gen.AddProcessCapabilityEffective(capb)
+	}
+	for k, v := range pod.config.GetLinux().GetSysctls() {
+		gen.AddLinuxSysctl(k, v)
+	}
+
+	switch security.GetNamespaceOptions().GetIpc() {
+	case k8s.NamespaceMode_CONTAINER:
+		gen.AddOrReplaceLinuxNamespace(specs.IPCNamespace, "")
+	case k8s.NamespaceMode_POD:
+		gen.AddOrReplaceLinuxNamespace(specs.IPCNamespace, bindNamespacePath(pod.id, specs.IPCNamespace))
+
+	}
+	switch security.GetNamespaceOptions().GetNetwork() {
+	case k8s.NamespaceMode_CONTAINER:
+		gen.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, "")
+	case k8s.NamespaceMode_POD:
+		gen.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, bindNamespacePath(pod.id, specs.NetworkNamespace))
+	}
+
+	if cont.config.GetLogPath() != "" {
+		logPath := filepath.Join(pod.config.LogDirectory, cont.config.GetLogPath())
+		err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "could not create log directory: %v", err)
+		}
+		logs, err := os.Create(logPath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "could not create log file: %v", err)
+		}
+		logs.Close()
+		cont.logPath = logPath
+	}
+
+	for k, v := range cont.config.GetAnnotations() {
+		gen.AddAnnotation(k, v)
+	}
+	for _, env := range cont.config.GetEnvs() {
+		gen.AddProcessEnv(env.Key, env.Value)
+	}
+	for _, mount := range cont.config.GetMounts() {
+		volume := specs.Mount{
+			Destination: mount.GetContainerPath(),
+			Type:        "",
+			Source:      mount.GetHostPath(),
+			Options:     []string{"bind"},
+		}
+		if mount.GetReadonly() {
+			volume.Options = append(volume.Options, "ro")
+		}
+		switch mount.GetPropagation() {
+		case k8s.MountPropagation_PROPAGATION_PRIVATE:
+			volume.Options = append(volume.Options, "rprivate")
+		case k8s.MountPropagation_PROPAGATION_HOST_TO_CONTAINER:
+			volume.Options = append(volume.Options, "rslave")
+		case k8s.MountPropagation_PROPAGATION_BIDIRECTIONAL:
+			volume.Options = append(volume.Options, "rshared")
+		}
+		gen.AddMount(volume)
+	}
+
+	res := cont.config.GetLinux().GetResources()
+	gen.SetLinuxResourcesCPUPeriod(uint64(res.GetCpuPeriod()))
+	gen.SetLinuxResourcesCPUQuota(res.GetCpuQuota())
+	gen.SetLinuxResourcesCPUMems(res.GetCpusetMems())
+	gen.SetLinuxResourcesCPUCpus(res.GetCpusetCpus())
+	gen.SetLinuxResourcesCPUShares(uint64(res.GetCpuShares()))
+	gen.SetProcessOOMScoreAdj(int(res.GetOomScoreAdj()))
+	gen.SetLinuxResourcesMemoryLimit(res.GetMemoryLimitInBytes())
+
+	gen.SetProcessCwd(cont.config.GetWorkingDir())
+	gen.SetProcessArgs(append(cont.config.GetCommand(), cont.config.GetArgs()...))
+	gen.SetProcessTerminal(cont.config.GetTty())
+
+	return nil, nil
 }
 
 // StartContainer starts the container.
