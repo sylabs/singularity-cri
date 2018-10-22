@@ -15,11 +15,11 @@ jobs:
           paths:
             - vendor
       - run:
-          name: install dep tool
+          name: Install dep tool
           command: |-
             curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
-          name: Set Up Vendor Directory
+          name: Set up vendor directory
           command: |-
             if [ ! -d vendor ]; then
               dep ensure -vendor-only
@@ -39,10 +39,14 @@ jobs:
     - attach_workspace:
         at: /
     - run:
-        name: Check Formatting
+        name: Install gometalinter
         command: |-
-          cd / && curl -L https://git.io/vp6lP | sh
-          cd /go/src/github.com/sylabs/cri
+          cd /
+          curl -L https://git.io/vp6lP | sh
+    - run:
+        name: Check formatting
+        working_directory: /go/src/github.com/sylabs/cri
+        command: |-
           make lint
 
   build_source:
@@ -51,14 +55,14 @@ jobs:
       - attach_workspace:
           at: /
       - run:
-          name: singularity 3.0 dependencies
+          name: Singularity 3.0 dependencies
           command: |-
             apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
             curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
-          name: Build Source
-          command: |-
-            cd /go/src/github.com/sylabs/cri
+          name: Build source
+          working_directory: /go/src/github.com/sylabs/cri
+          command:
             make build
 
   unit_test:
@@ -71,12 +75,12 @@ jobs:
           command: |-
             echo 'export PATH=$PATH:/usr/local/bin:/usr/local/libexec/singularity/bin/' >> $BASH_ENV
       - run:
-          name: singularity 3.0 dependencies
+          name: Singularity 3.0 dependencies
           command: |-
             apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
             curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
-          name: singularity 3.0
+          name: Singularity 3.0
           command: |-
             git clone https://github.com/sylabs/singularity.git /go/src/github.com/sylabs/singularity
             cd /go/src/github.com/sylabs/singularity
@@ -84,10 +88,9 @@ jobs:
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
       - run:
-          name: Run Tests
+          name: Run tests
           working_directory: /go/src/github.com/sylabs/cri
-          command: |-
-            cd /go/src/github.com/sylabs/cri
+          command: |
             echo $PATH
             make test
 
@@ -99,9 +102,9 @@ workflows:
       - gometalinter_check:
           requires:
             - get_source
-      - build_source:
+      - unit_test:
           requires:
             - get_source
-      - unit_test:
+      - build_source:
           requires:
             - get_source
