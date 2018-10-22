@@ -3,29 +3,9 @@ version: 2.0
 defaults: &defaults
   working_directory: /go/src/github.com/sylabs/cri
   docker:
-    - image: golang:latest
+    - image: sylabsio/golang:1.11-stretch
 
 jobs:
-  build:
-    <<: *defaults
-    steps:
-      - checkout
-      - run:
-          name: install dependencies
-          command: apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
-      - run:
-          name: Build Source
-          command: make build
-      - run:
-          name: Gometalinter Check
-          command: |-
-            cd / && curl -L https://git.io/vp6lP | sh
-            cd /go/src/github.com/sylabs/cri
-            make lint
-      - run:
-          name: Run Tests
-          command: make test
-
   get_source:
     <<: *defaults
     steps:
@@ -53,6 +33,18 @@ jobs:
           paths:
             - go/src/github.com/sylabs/cri/*
 
+  gometalinter_check:
+    <<: *defaults
+    steps:
+    - attach_workspace:
+        at: /
+    - run:
+        name: Check Formatting
+        command: |-
+          cd / && curl -L https://git.io/vp6lP | sh
+          cd /go/src/github.com/sylabs/cri
+          make lint
+
   build_source:
     <<: *defaults
     steps:
@@ -69,23 +61,15 @@ jobs:
             cd /go/src/github.com/sylabs/cri
             make build
 
-  gometalinter_check:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: /
-      - run:
-          name: Check Formatting
-          command: |-
-            cd / && curl -L https://git.io/vp6lP | sh
-            cd /go/src/github.com/sylabs/cri
-            make lint
-
   unit_test:
     <<: *defaults
     steps:
       - attach_workspace:
           at: /
+      - run:
+          name: Setup environment
+          command: |-
+            echo 'export PATH=$PATH:/usr/local/bin:/usr/local/libexec/singularity/bin/' >> $BASH_ENV
       - run:
           name: singularity 3.0 dependencies
           command: |-
@@ -96,7 +80,6 @@ jobs:
           command: |-
             git clone https://github.com/sylabs/singularity.git /go/src/github.com/sylabs/singularity
             cd /go/src/github.com/sylabs/singularity
-            dep ensure --vendor-only
             ./mconfig
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
@@ -105,18 +88,18 @@ jobs:
           working_directory: /go/src/github.com/sylabs/cri
           command: |-
             cd /go/src/github.com/sylabs/cri
+            echo $PATH
             make test
 
 workflows:
   version: 2
-
   build_and_test:
     jobs:
       - get_source
-      - build_source:
+      - gometalinter_check:
           requires:
             - get_source
-      - gometalinter_check:
+      - build_source:
           requires:
             - get_source
       - unit_test:
