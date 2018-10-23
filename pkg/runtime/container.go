@@ -31,10 +31,16 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	if pod == nil {
 		return nil, status.Error(codes.NotFound, "pod not found")
 	}
+
+	originalRef := req.Config.Image.Image
+	req.Config.Image.Image = s.registry.ImagePath(req.Config.Image.Image) // a hack for starter to work correctly
+
 	ociConfig, err := translate.KubeToOCI(req.Config, pod)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not generate OCI config: %v", err)
 	}
+
+	req.Config.Image.Image = originalRef
 
 	ociBytes, err := json.Marshal(ociConfig)
 	if err != nil {
