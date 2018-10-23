@@ -21,7 +21,10 @@ import (
 	"sync"
 
 	"github.com/sylabs/cri/pkg/image"
+	"github.com/sylabs/cri/pkg/kube"
 	"github.com/sylabs/cri/pkg/singularity"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -32,7 +35,7 @@ type SingularityRuntime struct {
 	registry    *image.SingularityRegistry
 
 	pMu  sync.RWMutex
-	pods map[string]*pod
+	pods map[string]*kube.Pod
 }
 
 // NewSingularityRuntime initializes and returns SingularityRuntime.
@@ -51,7 +54,7 @@ func NewSingularityRuntime(registry *image.SingularityRegistry) (*SingularityRun
 		singularity: sing,
 		starter:     start,
 		registry:    registry,
-		pods:        make(map[string]*pod),
+		pods:        make(map[string]*kube.Pod),
 	}, nil
 }
 
@@ -74,7 +77,7 @@ func (s *SingularityRuntime) Version(context.Context, *k8s.VersionRequest) (*k8s
 
 // UpdateContainerResources updates ContainerConfig of the container.
 func (s *SingularityRuntime) UpdateContainerResources(context.Context, *k8s.UpdateContainerResourcesRequest) (*k8s.UpdateContainerResourcesResponse, error) {
-	return &k8s.UpdateContainerResourcesResponse{}, fmt.Errorf("not implemented")
+	return &k8s.UpdateContainerResourcesResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // ReopenContainerLog asks runtime to reopen the stdout/stderr log file
@@ -83,43 +86,43 @@ func (s *SingularityRuntime) UpdateContainerResources(context.Context, *k8s.Upda
 // to either create a new log file and return nil, or return an error.
 // Once it returns error, new container log file MUST NOT be created.
 func (s *SingularityRuntime) ReopenContainerLog(context.Context, *k8s.ReopenContainerLogRequest) (*k8s.ReopenContainerLogResponse, error) {
-	return &k8s.ReopenContainerLogResponse{}, fmt.Errorf("not implemented")
+	return &k8s.ReopenContainerLogResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // ExecSync runs a command in a container synchronously.
 func (s *SingularityRuntime) ExecSync(context.Context, *k8s.ExecSyncRequest) (*k8s.ExecSyncResponse, error) {
-	return &k8s.ExecSyncResponse{}, fmt.Errorf("EXEC SYNC not implemented")
+	return &k8s.ExecSyncResponse{}, status.Errorf(codes.Unimplemented, "EXEC SYNC not implemented")
 }
 
 // Exec prepares a streaming endpoint to execute a command in the container.
 func (s *SingularityRuntime) Exec(context.Context, *k8s.ExecRequest) (*k8s.ExecResponse, error) {
-	return &k8s.ExecResponse{}, fmt.Errorf("not implemented")
+	return &k8s.ExecResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // Attach prepares a streaming endpoint to attach to a running container.
 func (s *SingularityRuntime) Attach(context.Context, *k8s.AttachRequest) (*k8s.AttachResponse, error) {
-	return &k8s.AttachResponse{}, fmt.Errorf("not implemented")
+	return &k8s.AttachResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // PortForward prepares a streaming endpoint to forward ports from a PodSandbox.
 func (s *SingularityRuntime) PortForward(context.Context, *k8s.PortForwardRequest) (*k8s.PortForwardResponse, error) {
-	return &k8s.PortForwardResponse{}, fmt.Errorf("not implemented")
+	return &k8s.PortForwardResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // ContainerStats returns stats of the container. If the container does not
 // exist, the call returns an error.
 func (s *SingularityRuntime) ContainerStats(context.Context, *k8s.ContainerStatsRequest) (*k8s.ContainerStatsResponse, error) {
-	return &k8s.ContainerStatsResponse{}, fmt.Errorf("not implemented")
+	return &k8s.ContainerStatsResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // ListContainerStats returns stats of all running containers.
 func (s *SingularityRuntime) ListContainerStats(context.Context, *k8s.ListContainerStatsRequest) (*k8s.ListContainerStatsResponse, error) {
-	return &k8s.ListContainerStatsResponse{}, fmt.Errorf("not implemented")
+	return &k8s.ListContainerStatsResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // UpdateRuntimeConfig updates the runtime configuration based on the given request.
 func (s *SingularityRuntime) UpdateRuntimeConfig(context.Context, *k8s.UpdateRuntimeConfigRequest) (*k8s.UpdateRuntimeConfigResponse, error) {
-	return &k8s.UpdateRuntimeConfigResponse{}, fmt.Errorf("not implemented")
+	return &k8s.UpdateRuntimeConfigResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
 }
 
 // Status returns the status of the runtime.
@@ -134,6 +137,9 @@ func (s *SingularityRuntime) Status(ctx context.Context, req *k8s.StatusRequest)
 	}
 	conditions := []*k8s.RuntimeCondition{runtimeReady, networkReady}
 
-	status := &k8s.RuntimeStatus{Conditions: conditions}
-	return &k8s.StatusResponse{Status: status}, nil
+	return &k8s.StatusResponse{
+		Status: &k8s.RuntimeStatus{
+			Conditions: conditions,
+		},
+	}, nil
 }
