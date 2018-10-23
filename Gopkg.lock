@@ -339,6 +339,7 @@
     "github.com/sylabs/singularity/src/pkg/client/library",
     "github.com/sylabs/singularity/src/pkg/client/shub",
     "github.com/sylabs/singularity/src/pkg/util/user-agent",
+    "golang.org/x/sys/unix",
     "google.golang.org/grpc",
     "google.golang.org/grpc/codes",
     "google.golang.org/grpc/status",
