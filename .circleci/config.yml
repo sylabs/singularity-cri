@@ -3,29 +3,9 @@ version: 2.0
 defaults: &defaults
   working_directory: /go/src/github.com/sylabs/cri
   docker:
-    - image: golang:latest
+    - image: sylabsio/golang:1.11-stretch
 
 jobs:
-  build:
-    <<: *defaults
-    steps:
-      - checkout
-      - run:
-          name: install dependencies
-          command: apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
-      - run:
-          name: Build Source
-          command: make build
-      - run:
-          name: Gometalinter Check
-          command: |-
-            cd / && curl -L https://git.io/vp6lP | sh
-            cd /go/src/github.com/sylabs/cri
-            make lint
-      - run:
-          name: Run Tests
-          command: make test
-
   get_source:
     <<: *defaults
     steps:
@@ -35,11 +15,11 @@ jobs:
           paths:
             - vendor
       - run:
-          name: install dep tool
+          name: Install dep tool
           command: |-
             curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
-          name: Set Up Vendor Directory
+          name: Set up vendor directory
           command: |-
             if [ ! -d vendor ]; then
               dep ensure -vendor-only
@@ -53,70 +33,92 @@ jobs:
           paths:
             - go/src/github.com/sylabs/cri/*
 
+  gometalinter_check:
+    <<: *defaults
+    steps:
+    - attach_workspace:
+        at: /
+    - run:
+        name: Install gometalinter
+        command: |-
+          cd /
+          curl -L https://git.io/vp6lP | sh
+    - run:
+        name: Check formatting
+        working_directory: /go/src/github.com/sylabs/cri
+        command: |-
+          make lint
+
   build_source:
     <<: *defaults
     steps:
       - attach_workspace:
           at: /
       - run:
-          name: singularity 3.0 dependencies
+          name: Singularity 3.0 dependencies
           command: |-
             apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
             curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
-          name: Build Source
-          command: |-
-            cd /go/src/github.com/sylabs/cri
+          name: Build source
+          working_directory: /go/src/github.com/sylabs/cri
+          command:
             make build
 
-  gometalinter_check:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: /
-      - run:
-          name: Check Formatting
-          command: |-
-            cd / && curl -L https://git.io/vp6lP | sh
-            cd /go/src/github.com/sylabs/cri
-            make lint
-
   unit_test:
-    <<: *defaults
+    machine: true
     steps:
       - attach_workspace:
-          at: /
+          at: ~/
       - run:
-          name: singularity 3.0 dependencies
+          name: Setup environment
           command: |-
-            apt-get update && apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools
-            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            echo 'export  GOPATH=$HOME/go' >> $BASH_ENV
+            echo 'export  GOROOT=/usr/local/go' >> $BASH_ENV
+            echo 'export  GOBIN=$HOME/go/bin' >> $BASH_ENV
+            echo 'export  GOCACHE=off' >> $BASH_ENV
+            echo 'export PATH=$GOPATH/bin:$GOBIN:$GOROOT/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin' >> $BASH_ENV
+            echo 'export PATH=/usr/local/libexec/singularity/bin/:$PATH' >> $BASH_ENV
       - run:
-          name: singularity 3.0
+          name: Update Go to 1.11
+          working_directory: /tmp
           command: |-
-            git clone https://github.com/sylabs/singularity.git /go/src/github.com/sylabs/singularity
-            cd /go/src/github.com/sylabs/singularity && \
-            dep ensure --vendor-only
-            ./mconfig && make -C builddir/ -j$(nproc) && make -C builddir/ install
+            wget https://dl.google.com/go/go1.11.linux-amd64.tar.gz
+            sudo rm -rf /usr/local/go
+            sudo tar -C /usr/local -xzf go1.11.linux-amd64.tar.gz
+            sudo chown -R circleci:circleci ~/go
       - run:
-          name: Run Tests
-          working_directory: /go/src/github.com/sylabs/cri
+          name: Singularity 3.0 dependencies
+          working_directory: /tmp
           command: |-
-            cd /go/src/github.com/sylabs/cri
+            mkdir -p ${GOBIN}
+            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            sudo apt-get update -y && sudo apt-get install -y build-essential libssl-dev uuid-dev libgpgme11-dev squashfs-tools libseccomp-dev
+      - run:
+          name: Singularity 3.0
+          command: |-
+            git clone https://github.com/sylabs/singularity.git $HOME/go/src/github.com/sylabs/singularity
+            cd $HOME/go/src/github.com/sylabs/singularity
+            ./mconfig -p /usr/local
+            make -j$(nproc) -C ./builddir all
+            sudo make -C ./builddir install
+      - run:
+          name: Run tests
+          command: |-
+            cd $HOME/go/src/github.com/sylabs/cri
             make test
 
 workflows:
   version: 2
-
   build_and_test:
     jobs:
       - get_source
-      - build_source:
-          requires:
-            - get_source
       - gometalinter_check:
           requires:
             - get_source
       - unit_test:
+          requires:
+            - get_source
+      - build_source:
           requires:
             - get_source
