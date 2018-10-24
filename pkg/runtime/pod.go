@@ -16,99 +16,23 @@ package runtime
 
 import (
 	"context"
-	"log"
-	"os"
-	"time"
 
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sylabs/cri/pkg/namespace"
+	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-type pod struct {
-	id         string
-	config     *k8s.PodSandboxConfig
-	state      k8s.PodSandboxState
-	createdAt  int64 // unix nano
-	namespaces []specs.LinuxNamespace
-	containers []string
-}
-
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
 // the sandbox is in the ready state on success.
 func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSandboxRequest) (r *k8s.RunPodSandboxResponse, err error) {
-	pod := &pod{
-		id:     podID(req.GetConfig().GetMetadata()),
-		config: req.GetConfig(),
+	pod := kube.NewPod(req.Config)
+	if err := pod.Run(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not run pod: %v", err)
 	}
-	defer func() {
-		if err != nil {
-			cleanupPod(pod, true)
-		}
-	}()
-
-	if err := ensurePodDirectories(pod.id); err != nil {
-		return nil, status.Errorf(codes.Internal, "could not ensure pod directories: %v", err)
-	}
-
-	if pod.config.GetLogDirectory() != "" {
-		log.Printf("creating log directory %s", pod.config.GetLogDirectory())
-		err := os.MkdirAll(pod.config.GetLogDirectory(), os.ModePerm)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "could not create log directory: %v", err)
-		}
-	}
-
-	if pod.config.GetDnsConfig() != nil {
-		err := addResolvConf(pod.id, pod.config.GetDnsConfig())
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "could not configure dns: %v", err)
-		}
-	}
-
-	if pod.config.GetHostname() != "" {
-		err := addHostname(pod.id, pod.config.GetHostname())
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "could not configure hostname: %v", err)
-		}
-		utsPath := bindNamespacePath(pod.id, specs.UTSNamespace)
-		log.Printf("unsharing uts namespace at %s", utsPath)
-		pod.namespaces = append(pod.namespaces, specs.LinuxNamespace{
-			Type: specs.UTSNamespace,
-			Path: utsPath,
-		})
-	}
-	security := pod.config.GetLinux().GetSecurityContext()
-	if security.GetNamespaceOptions().GetNetwork() == k8s.NamespaceMode_POD {
-		netPath := bindNamespacePath(pod.id, specs.NetworkNamespace)
-		log.Printf("unsharing net namespace at %s", netPath)
-		pod.namespaces = append(pod.namespaces, specs.LinuxNamespace{
-			Type: specs.NetworkNamespace,
-			Path: netPath,
-		})
-	}
-	if security.GetNamespaceOptions().GetIpc() == k8s.NamespaceMode_POD {
-		ipcPath := bindNamespacePath(pod.id, specs.IPCNamespace)
-		log.Printf("unsharing ipc namespace at %s", ipcPath)
-		pod.namespaces = append(pod.namespaces, specs.LinuxNamespace{
-			Type: specs.IPCNamespace,
-			Path: ipcPath,
-		})
-	}
-	if err := namespace.UnshareAll(pod.namespaces); err != nil {
-		return nil, status.Errorf(codes.Internal, "could not unshare namespaces: %v", err)
-	}
-
-	pod.state = k8s.PodSandboxState_SANDBOX_READY
-	pod.createdAt = time.Now().UnixNano()
-	s.pMu.Lock()
-	s.pods[pod.id] = pod
-	s.pMu.Unlock()
-
+	s.savePod(pod)
 	return &k8s.RunPodSandboxResponse{
-		PodSandboxId: pod.id,
+		PodSandboxId: pod.ID(),
 	}, nil
 }
 
@@ -122,27 +46,14 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 // reclaim resources eagerly, as soon as a sandbox is not needed. Hence,
 // multiple StopPodSandbox calls are expected.
 func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodSandboxRequest) (*k8s.StopPodSandboxResponse, error) {
-	s.pMu.RLock()
-	pod, ok := s.pods[req.PodSandboxId]
-	s.pMu.RUnlock()
-	if !ok {
+	pod := s.findPod(req.PodSandboxId)
+	if pod == nil {
 		return nil, status.Error(codes.NotFound, "pod not found")
 	}
-	if pod.state == k8s.PodSandboxState_SANDBOX_NOTREADY {
-		return &k8s.StopPodSandboxResponse{}, nil
+	if err := pod.Stop(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not stop pod: %v", err)
 	}
-
-	for _, contID := range pod.containers {
-		log.Printf("stopping container %s", contID)
-		// todo stop container
-	}
-
-	// todo reclaim resources somewhere here
-
-	pod.state = k8s.PodSandboxState_SANDBOX_NOTREADY
-	s.pMu.Lock()
-	s.pods[pod.id] = pod
-	s.pMu.Unlock()
+	s.savePod(pod)
 	return &k8s.StopPodSandboxResponse{}, nil
 }
 
@@ -151,53 +62,39 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodS
 // This call is idempotent, and must not return an error if the sandbox has
 // already been removed.
 func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *k8s.RemovePodSandboxRequest) (*k8s.RemovePodSandboxResponse, error) {
-	s.pMu.RLock()
-	pod, ok := s.pods[req.PodSandboxId]
-	s.pMu.RUnlock()
-	if !ok {
+	pod := s.findPod(req.PodSandboxId)
+	if pod == nil {
 		return &k8s.RemovePodSandboxResponse{}, nil
 	}
-
-	for _, contID := range pod.containers {
-		log.Printf("removing container %s", contID)
-		// todo remove container
+	if err := pod.Remove(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not remove pod: %v", err)
 	}
-
-	if err := cleanupPod(pod, false); err != nil {
-		return nil, status.Errorf(codes.Internal, "could not cleanup pod: %v", err)
-	}
-
-	s.pMu.Lock()
-	delete(s.pods, pod.id)
-	s.pMu.Unlock()
+	s.removePod(pod.ID())
 	return &k8s.RemovePodSandboxResponse{}, nil
 }
 
 // PodSandboxStatus returns the status of the PodSandbox.
 // If the PodSandbox is not present, returns an error.
 func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *k8s.PodSandboxStatusRequest) (*k8s.PodSandboxStatusResponse, error) {
-	s.pMu.RLock()
-	pod, ok := s.pods[req.PodSandboxId]
-	s.pMu.RUnlock()
-	if !ok {
+	pod := s.findPod(req.PodSandboxId)
+	if pod == nil {
 		return nil, status.Error(codes.NotFound, "pod not found")
 	}
 
-	ns := pod.config.GetLinux().GetSecurityContext().GetNamespaceOptions()
 	return &k8s.PodSandboxStatusResponse{
 		Status: &k8s.PodSandboxStatus{
-			Id:        pod.id,
-			Metadata:  pod.config.GetMetadata(),
-			State:     pod.state,
-			CreatedAt: pod.createdAt,
+			Id:        pod.ID(),
+			Metadata:  pod.GetMetadata(),
+			State:     pod.State(),
+			CreatedAt: pod.CreatedAt(),
 			Network:   nil, // todo later
 			Linux: &k8s.LinuxPodSandboxStatus{
 				Namespaces: &k8s.Namespace{
-					Options: ns,
+					Options: pod.GetLinux().GetSecurityContext().GetNamespaceOptions(),
 				},
 			},
-			Labels:      pod.config.GetLabels(),
-			Annotations: pod.config.GetAnnotations(),
+			Labels:      pod.GetLabels(),
+			Annotations: pod.GetAnnotations(),
 		},
 	}, nil
 }
@@ -209,18 +106,36 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodS
 	s.pMu.RLock()
 	defer s.pMu.RUnlock()
 	for _, pod := range s.pods {
-		if podMatches(pod, req.Filter) {
+		if pod.MatchesFilter(req.Filter) {
 			pods = append(pods, &k8s.PodSandbox{
-				Id:          pod.id,
-				Metadata:    pod.config.GetMetadata(),
-				State:       pod.state,
-				CreatedAt:   pod.createdAt,
-				Labels:      pod.config.GetLabels(),
-				Annotations: pod.config.GetAnnotations(),
+				Id:          pod.ID(),
+				Metadata:    pod.GetMetadata(),
+				State:       pod.State(),
+				CreatedAt:   pod.CreatedAt(),
+				Labels:      pod.GetLabels(),
+				Annotations: pod.GetAnnotations(),
 			})
 		}
 	}
 	return &k8s.ListPodSandboxResponse{
 		Items: pods,
 	}, nil
+}
+
+func (s *SingularityRuntime) findPod(id string) *kube.Pod {
+	s.pMu.RLock()
+	defer s.pMu.RUnlock()
+	return s.pods[id]
+}
+
+func (s *SingularityRuntime) removePod(id string) {
+	s.pMu.Lock()
+	defer s.pMu.Unlock()
+	delete(s.pods, id)
+}
+
+func (s *SingularityRuntime) savePod(pod *kube.Pod) {
+	s.pMu.Lock()
+	defer s.pMu.Unlock()
+	s.pods[pod.ID()] = pod
 }
