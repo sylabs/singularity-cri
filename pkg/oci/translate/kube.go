@@ -120,11 +120,8 @@ func (t *kubeT) configureDevices() error {
 		if mode&syscall.S_IFCHR == syscall.S_IFCHR {
 			devType = "c"
 		}
-		if mode&syscall.S_IFIFO == syscall.S_IFIFO {
-			devType = "p"
-		}
-		if mode&syscall.S_IFSOCK == syscall.S_IFSOCK {
-			devType = "u"
+		if devType == "" {
+			return fmt.Errorf("unsupported device type")
 		}
 		major := int64(unix.Major(sys.Rdev))
 		minor := int64(unix.Minor(sys.Rdev))
