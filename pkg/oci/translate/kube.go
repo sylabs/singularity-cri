@@ -3,6 +3,7 @@ package translate
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -71,16 +72,9 @@ func (t *kubeT) configureMounts() error {
 	}
 
 	for _, mount := range t.contConfig.GetMounts() {
-		source := mount.GetHostPath()
-		mi, err := os.Lstat(source)
+		source, err := filepath.EvalSymlinks(mount.GetHostPath())
 		if err != nil {
 			return fmt.Errorf("invalid bind mount source: %v", err)
-		}
-		if mi.Mode()&os.ModeSymlink == os.ModeSymlink {
-			source, err = os.Readlink(source)
-			if err != nil {
-				return fmt.Errorf("could follow mount source symlink: %v", err)
-			}
 		}
 
 		volume := specs.Mount{
