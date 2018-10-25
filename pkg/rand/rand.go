@@ -2,12 +2,12 @@ package rand
 
 import (
 	"crypto/rand"
-	"fmt"
+	"encoding/hex"
 )
 
-// ID returns unique random id of passed length generated with crypto/rand.
-func ID(len int) string {
+// GenerateID returns unique random id of passed length generated with crypto/rand.
+func GenerateID(len int) string {
 	buf := make([]byte, len/2+1)
 	rand.Read(buf)
-	return fmt.Sprintf("%x", buf)[:len]
+	return hex.EncodeToString(buf[:len])
 }

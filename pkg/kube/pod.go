@@ -53,7 +53,7 @@ type Pod struct {
 
 // NewPod constructs Pod instance. Pod is thread safe to use.
 func NewPod(config *k8s.PodSandboxConfig) *Pod {
-	podID := rand.ID(podIDLen)
+	podID := rand.GenerateID(podIDLen)
 	return &Pod{
 		PodSandboxConfig: config,
 		id:               podID,

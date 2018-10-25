@@ -121,7 +121,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 		return nil, fmt.Errorf("could not parse image reference: %v", err)
 	}
 
-	randID := rand.ID(64)
+	randID := rand.GenerateID(64)
 	pullPath := s.pullPath(randID)
 	err = pullImage(req.Auth, pullPath, info)
 	if err != nil {
