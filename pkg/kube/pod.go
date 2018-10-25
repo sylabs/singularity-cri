@@ -33,8 +33,6 @@ const (
 	resolvConfPath    = "resolv.conf"
 	hostnamePath      = "hostname"
 
-	podInfraImage = "k8s.gcr.io/pause:3.1"
-
 	podIDLen = 64
 )
 
