@@ -16,6 +16,7 @@ package runtime
 
 import (
 	"context"
+	"log"
 
 	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
@@ -27,12 +28,16 @@ import (
 // the sandbox is in the ready state on success.
 func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSandboxRequest) (*k8s.RunPodSandboxResponse, error) {
 	pod := kube.NewPod(req.Config)
-	if err := pod.Run(); err != nil {
-		return nil, status.Errorf(codes.Internal, "could not run pod: %v", err)
-	}
+	// add to trunc index first not to cleanup if it fails later
 	err := s.pods.Add(pod)
 	if err != nil {
 		return nil, err
+	}
+	if err := pod.Run(); err != nil {
+		if err := s.pods.Remove(pod.ID()); err != nil {
+			log.Printf("could not remove pod from index: %v", err)
+		}
+		return nil, status.Errorf(codes.Internal, "could not run pod: %v", err)
 	}
 	return &k8s.RunPodSandboxResponse{
 		PodSandboxId: pod.ID(),
