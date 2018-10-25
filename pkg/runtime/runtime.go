@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"sync"
 
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/kube"
@@ -33,9 +32,7 @@ type SingularityRuntime struct {
 	singularity string
 	starter     string
 	registry    *image.SingularityRegistry
-
-	pMu  sync.RWMutex
-	pods map[string]*kube.Pod
+	pods        *kube.PodIndex
 }
 
 // NewSingularityRuntime initializes and returns SingularityRuntime.
@@ -54,7 +51,7 @@ func NewSingularityRuntime(registry *image.SingularityRegistry) (*SingularityRun
 		singularity: sing,
 		starter:     start,
 		registry:    registry,
-		pods:        make(map[string]*kube.Pod),
+		pods:        kube.NewPodIndex(),
 	}, nil
 }
 

@@ -175,6 +175,14 @@
   revision = "d98352740cb2c55f81556b63d4a1ec64c5a319c2"
 
 [[projects]]
+  digest = "1:d9eb1d964a449cf51455fdac2ec3451c664af8e8b93c23d9c31d22b84ea82fde"
+  name = "github.com/tchap/go-patricia"
+  packages = ["patricia"]
+  pruneopts = "UT"
+  revision = "666120de432aea38ab06bd5c818f04f4129882c9"
+  version = "v2.2.6"
+
+[[projects]]
   branch = "master"
   digest = "1:f4e5276a3b356f4692107047fd2890f2fe534f4feeb6b1fd2f6dfbd87f1ccf54"
   name = "github.com/xeipuuv/gojsonpointer"
@@ -339,6 +347,7 @@
     "github.com/sylabs/singularity/src/pkg/client/library",
     "github.com/sylabs/singularity/src/pkg/client/shub",
     "github.com/sylabs/singularity/src/pkg/util/user-agent",
+    "github.com/tchap/go-patricia/patricia",
     "golang.org/x/sys/unix",
     "google.golang.org/grpc",
     "google.golang.org/grpc/codes",

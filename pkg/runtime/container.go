@@ -27,9 +27,9 @@ import (
 
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateContainerRequest) (*k8s.CreateContainerResponse, error) {
-	pod := s.findPod(req.PodSandboxId)
-	if pod == nil {
-		return nil, status.Error(codes.NotFound, "pod not found")
+	pod, err := s.findPod(req.PodSandboxId)
+	if err != nil {
+		return nil, err
 	}
 
 	originalRef := req.Config.Image.Image
