@@ -23,6 +23,7 @@ import (
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
+	"github.com/sylabs/cri/pkg/rand"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -31,6 +32,8 @@ const (
 	nsStorePathFormat = "namespaces/"
 	resolvConfPath    = "resolv.conf"
 	hostnamePath      = "hostname"
+
+	podIDLen = 64
 )
 
 // Pod represents kubernetes pod. It encapsulates all pod-specific
@@ -50,8 +53,7 @@ type Pod struct {
 
 // NewPod constructs Pod instance. Pod is thread safe to use.
 func NewPod(config *k8s.PodSandboxConfig) *Pod {
-	meta := config.GetMetadata()
-	podID := fmt.Sprintf("%s_%s_%s_%d", meta.GetName(), meta.GetNamespace(), meta.GetUid(), meta.GetAttempt())
+	podID := rand.GenerateID(podIDLen)
 	return &Pod{
 		PodSandboxConfig: config,
 		id:               podID,

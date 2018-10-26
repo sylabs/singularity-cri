@@ -16,6 +16,7 @@ package runtime
 
 import (
 	"context"
+	"log"
 
 	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
@@ -25,12 +26,19 @@ import (
 
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
 // the sandbox is in the ready state on success.
-func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSandboxRequest) (r *k8s.RunPodSandboxResponse, err error) {
+func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSandboxRequest) (*k8s.RunPodSandboxResponse, error) {
 	pod := kube.NewPod(req.Config)
+	// add to trunc index first not to cleanup if it fails later
+	err := s.pods.Add(pod)
+	if err != nil {
+		return nil, err
+	}
 	if err := pod.Run(); err != nil {
+		if err := s.pods.Remove(pod.ID()); err != nil {
+			log.Printf("could not remove pod from index: %v", err)
+		}
 		return nil, status.Errorf(codes.Internal, "could not run pod: %v", err)
 	}
-	s.savePod(pod)
 	return &k8s.RunPodSandboxResponse{
 		PodSandboxId: pod.ID(),
 	}, nil
@@ -46,14 +54,13 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 // reclaim resources eagerly, as soon as a sandbox is not needed. Hence,
 // multiple StopPodSandbox calls are expected.
 func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodSandboxRequest) (*k8s.StopPodSandboxResponse, error) {
-	pod := s.findPod(req.PodSandboxId)
-	if pod == nil {
-		return nil, status.Error(codes.NotFound, "pod not found")
+	pod, err := s.findPod(req.PodSandboxId)
+	if err != nil {
+		return nil, err
 	}
 	if err := pod.Stop(); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not stop pod: %v", err)
 	}
-	s.savePod(pod)
 	return &k8s.StopPodSandboxResponse{}, nil
 }
 
@@ -62,25 +69,29 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodS
 // This call is idempotent, and must not return an error if the sandbox has
 // already been removed.
 func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *k8s.RemovePodSandboxRequest) (*k8s.RemovePodSandboxResponse, error) {
-	pod := s.findPod(req.PodSandboxId)
-	if pod == nil {
+	pod, err := s.pods.Find(req.PodSandboxId)
+	if err == kube.ErrPodNotFound || pod == nil {
 		return &k8s.RemovePodSandboxResponse{}, nil
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if err := pod.Remove(); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove pod: %v", err)
 	}
-	s.removePod(pod.ID())
+	if err := s.pods.Remove(pod.ID()); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not remove pod from index: %v", err)
+	}
 	return &k8s.RemovePodSandboxResponse{}, nil
 }
 
 // PodSandboxStatus returns the status of the PodSandbox.
 // If the PodSandbox is not present, returns an error.
 func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *k8s.PodSandboxStatusRequest) (*k8s.PodSandboxStatusResponse, error) {
-	pod := s.findPod(req.PodSandboxId)
-	if pod == nil {
-		return nil, status.Error(codes.NotFound, "pod not found")
+	pod, err := s.findPod(req.PodSandboxId)
+	if err != nil {
+		return nil, err
 	}
-
 	return &k8s.PodSandboxStatusResponse{
 		Status: &k8s.PodSandboxStatus{
 			Id:        pod.ID(),
@@ -103,9 +114,7 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *k8s.PodSan
 func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodSandboxRequest) (*k8s.ListPodSandboxResponse, error) {
 	var pods []*k8s.PodSandbox
 
-	s.pMu.RLock()
-	defer s.pMu.RUnlock()
-	for _, pod := range s.pods {
+	appendPodToResult := func(pod *kube.Pod) {
 		if pod.MatchesFilter(req.Filter) {
 			pods = append(pods, &k8s.PodSandbox{
 				Id:          pod.ID(),
@@ -117,25 +126,19 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodS
 			})
 		}
 	}
+	s.pods.Iterate(appendPodToResult)
 	return &k8s.ListPodSandboxResponse{
 		Items: pods,
 	}, nil
 }
 
-func (s *SingularityRuntime) findPod(id string) *kube.Pod {
-	s.pMu.RLock()
-	defer s.pMu.RUnlock()
-	return s.pods[id]
-}
-
-func (s *SingularityRuntime) removePod(id string) {
-	s.pMu.Lock()
-	defer s.pMu.Unlock()
-	delete(s.pods, id)
-}
-
-func (s *SingularityRuntime) savePod(pod *kube.Pod) {
-	s.pMu.Lock()
-	defer s.pMu.Unlock()
-	s.pods[pod.ID()] = pod
+func (s *SingularityRuntime) findPod(id string) (*kube.Pod, error) {
+	pod, err := s.pods.Find(id)
+	if err == kube.ErrPodNotFound || pod == nil {
+		return nil, status.Errorf(codes.NotFound, "pod not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	return pod, nil
 }

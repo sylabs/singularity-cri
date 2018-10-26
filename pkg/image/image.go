@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -120,7 +121,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 		return nil, fmt.Errorf("could not parse image reference: %v", err)
 	}
 
-	randID := randomString()
+	randID := rand.GenerateID(64)
 	pullPath := s.pullPath(randID)
 	err = pullImage(req.Auth, pullPath, info)
 	if err != nil {

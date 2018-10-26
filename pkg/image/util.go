@@ -17,7 +17,6 @@ package image
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"strings"
@@ -90,13 +89,6 @@ func pullImage(_ *k8s.AuthConfig, path string, image imageInfo) error {
 	default:
 		return fmt.Errorf("unknown image registry: %s", uri)
 	}
-}
-
-// randomString returns random string of length 64 generated with math/rand.Read.
-func randomString() string {
-	buf := make([]byte, 32)
-	rand.Read(buf)
-	return fmt.Sprintf("%x", buf)
 }
 
 func removeOrLog(path string) {
