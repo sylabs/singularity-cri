@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -84,7 +85,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 		return nil, status.Errorf(codes.InvalidArgument, "could not parse image reference: %v", err)
 	}
 
-	randID := randomString()
+	randID := rand.GenerateID(64)
 	pullPath := s.pullPath(randID)
 	err = pullImage(req.Auth, pullPath, info)
 	if err != nil {

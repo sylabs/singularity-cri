@@ -3,6 +3,7 @@ package image
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/sylabs/cri/pkg/rand"
@@ -59,8 +60,7 @@ func ParseRef(ref string) (Reference, error) {
 }
 
 func Pull(location string, ref Reference) (*Image, error) {
-	//randID := randomString()
-	//pullPath := s.pullPath(randID)
+	location = filepath.Join(location, rand.GenerateID(64))
 
 	var pullURL string
 	if len(ref.tags) > 0 {

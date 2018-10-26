@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/kube"
+	"github.com/sylabs/cri/pkg/server/image"
 	"github.com/sylabs/cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
