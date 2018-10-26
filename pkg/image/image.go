@@ -28,6 +28,8 @@ import (
 
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -76,49 +78,11 @@ func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 	return &registry, nil
 }
 
-// ListImages lists existing images.
-func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImagesRequest) (*k8s.ListImagesResponse, error) {
-	imgs := make([]*k8s.Image, 0, len(s.idToInfo))
-	s.m.RLock()
-	defer s.m.RUnlock()
-	for id, info := range s.idToInfo {
-		img := &k8s.Image{
-			Id:          id,
-			RepoTags:    info.Tags,
-			RepoDigests: info.Digests,
-			Size_:       info.Size,
-		}
-		if matches(img, req.Filter) {
-			imgs = append(imgs, img)
-		}
-	}
-	return &k8s.ListImagesResponse{
-		Images: imgs,
-	}, nil
-}
-
-// ImageStatus returns the status of the image. If the image is not
-// present, returns a response with ImageStatusResponse.Image set to nil.
-func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
-	id, info := s.find(req.Image.Image)
-	if id == "" {
-		return &k8s.ImageStatusResponse{}, nil
-	}
-	return &k8s.ImageStatusResponse{
-		Image: &k8s.Image{
-			Id:          id,
-			RepoTags:    info.Tags,
-			RepoDigests: info.Digests,
-			Size_:       info.Size,
-		},
-	}, nil
-}
-
 // PullImage pulls an image with authentication config.
 func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageRequest) (*k8s.PullImageResponse, error) {
 	info, err := parseImageRef(req.Image.Image)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse image reference: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "could not parse image reference: %v", err)
 	}
 
 	randID := rand.GenerateID(64)
@@ -126,19 +90,24 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 	err = pullImage(req.Auth, pullPath, info)
 	if err != nil {
 		removeOrLog(pullPath)
-		return nil, fmt.Errorf("could not pull image: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "could not pull image: %v", err)
+	}
+
+	if err := verify(pullPath); err != nil {
+		removeOrLog(pullPath)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid sif image: %v", err)
 	}
 
 	pulled, err := os.Open(pullPath)
 	if err != nil {
 		removeOrLog(pullPath)
-		return nil, fmt.Errorf("could not open pulled image: %v", err)
+		return nil, status.Errorf(codes.Internal, "could not open pulled image: %v", err)
 	}
 
 	fi, err := pulled.Stat()
 	if err != nil {
 		removeOrLog(pullPath)
-		return nil, fmt.Errorf("could not fetch file info: %v", err)
+		return nil, status.Errorf(codes.Internal, "could not fetch file info: %v", err)
 	}
 	info.Size = uint64(fi.Size())
 
@@ -146,7 +115,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 	_, err = io.Copy(h, pulled)
 	if err != nil {
 		removeOrLog(pullPath)
-		return nil, fmt.Errorf("could not get pulled image digest: %v", err)
+		return nil, status.Errorf(codes.Internal, "could not get pulled image digest: %v", err)
 	}
 
 	id := fmt.Sprintf("%x", h.Sum(nil))
@@ -159,7 +128,8 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 
 	err = os.Rename(pullPath, s.filePath(id))
 	if err != nil {
-		return nil, fmt.Errorf("could not save pulled image: %v", err)
+		removeOrLog(pullPath)
+		return nil, status.Errorf(codes.Internal, "could not save pulled image: %v", err)
 	}
 
 	s.m.Lock()
@@ -221,9 +191,47 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 	return &k8s.RemoveImageResponse{}, nil
 }
 
+// ImageStatus returns the status of the image. If the image is not
+// present, returns a response with ImageStatusResponse.Image set to nil.
+func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
+	id, info := s.find(req.Image.Image)
+	if id == "" {
+		return &k8s.ImageStatusResponse{}, nil
+	}
+	return &k8s.ImageStatusResponse{
+		Image: &k8s.Image{
+			Id:          id,
+			RepoTags:    info.Tags,
+			RepoDigests: info.Digests,
+			Size_:       info.Size,
+		},
+	}, nil
+}
+
+// ListImages lists existing images.
+func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImagesRequest) (*k8s.ListImagesResponse, error) {
+	imgs := make([]*k8s.Image, 0, len(s.idToInfo))
+	s.m.RLock()
+	defer s.m.RUnlock()
+	for id, info := range s.idToInfo {
+		img := &k8s.Image{
+			Id:          id,
+			RepoTags:    info.Tags,
+			RepoDigests: info.Digests,
+			Size_:       info.Size,
+		}
+		if matches(img, req.Filter) {
+			imgs = append(imgs, img)
+		}
+	}
+	return &k8s.ListImagesResponse{
+		Images: imgs,
+	}, nil
+}
+
 // ImageFsInfo returns information of the filesystem that is used to store images.
 func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoRequest) (*k8s.ImageFsInfoResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // ImagePath returns path to image file on host or empty string of image is not found.

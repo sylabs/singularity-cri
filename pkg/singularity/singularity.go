@@ -34,4 +34,7 @@ const (
 
 	// DockerProtocol holds docker hub base URI.
 	DockerProtocol = "docker"
+
+	// KeysServer is a default singularity key management and verification server.
+	KeysServer = "https://keys.sylabs.io"
 )

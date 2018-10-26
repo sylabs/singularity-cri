@@ -32,7 +32,11 @@
   name = "github.com/sylabs/singularity"
   branch = "master"
 
+
+[[constraint]]
+  name = "github.com/sylabs/sif"
+  version = "1.0.1"
+
 [prune]
   go-tests = true
   unused-packages = true
-
