@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The original implementation of truncindex allowed string identifiers
+// storing only. That is why a couple of changes were made to satisfy
+// Singularity needs. One major change is that not only strings but any
+// arbitrary data can be stored and fetched from TruncIndex now. Also the
+// way prefix is tested against spaces content is optimised.
+
 package truncindex
 
 import (
