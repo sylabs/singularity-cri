@@ -1,66 +1,76 @@
 package image
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
+	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"bytes"
+	"io/ioutil"
+
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
+	"github.com/sylabs/sif/pkg/sif"
 	library "github.com/sylabs/singularity/src/pkg/client/library"
 	shub "github.com/sylabs/singularity/src/pkg/client/shub"
+	"github.com/sylabs/singularity/src/pkg/signing"
+	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-type Reference struct {
-	uri     string
-	tags    []string
-	digests []string
+const (
+	imageIDLen = 64
+)
+
+// Info represents image stored on host filesystem.
+type Info struct {
+	id     string
+	sha256 string
+	size   uint64
+	path   string
+	ref    *Reference
 }
 
-type Image struct {
-	checksum string
-	size     uint64
-	ref      Reference
+// Path returns path to image file.
+func (i *Info) Path() string {
+	if i == nil {
+		return ""
+	}
+	return i.path
 }
 
-func ParseRef(ref string) (Reference, error) {
-	uri := singularity.DockerProtocol
-	image := ref
-	indx := strings.Index(ref, "://")
-	if indx != -1 {
-		uri = image[:indx]
-		image = image[indx+3:]
-	}
+// Size returns image size in bytes.
+func (i *Info) Size() uint64 {
+	return i.size
+}
 
-	info := Reference{
-		uri: uri,
-	}
+// Ref returns associated image reference.,
+func (i *Info) Ref() *Reference {
+	return i.ref
+}
 
-	switch uri {
-	case singularity.ShubProtocol:
-		fallthrough
-	case singularity.LibraryProtocol:
-		if strings.Contains(image, "sha256.") {
-			info.digests = append(info.digests, ref)
-		} else {
-			info.tags = append(info.tags, normalizedImageRef(ref))
+// ID returns id of an image.
+func (i *Info) ID() string {
+	if i == nil {
+		return ""
+	}
+	return i.id
+}
+
+// Pull pulls image referenced by ref and saves it to the passed location.
+func Pull(location string, ref *Reference) (img *Info, err error) {
+	pullPath := filepath.Join(location, "."+rand.GenerateID(64))
+	defer func() {
+		if err != nil {
+			if err := os.Remove(pullPath); err != nil {
+				log.Printf("could not remove temparary image file: %v", err)
+			}
 		}
-	case singularity.DockerProtocol:
-		if strings.IndexByte(image, '@') != -1 {
-			info.digests = append(info.digests, image)
-		} else {
-			info.tags = append(info.tags, normalizedImageRef(image))
-		}
-	default:
-		return Reference{}, fmt.Errorf("unknown image registry: %s", uri)
-	}
-
-	return info, nil
-}
-
-func Pull(location string, ref Reference) (*Image, error) {
-	location = filepath.Join(location, rand.GenerateID(64))
+	}()
 
 	var pullURL string
 	if len(ref.tags) > 0 {
@@ -69,16 +79,21 @@ func Pull(location string, ref Reference) (*Image, error) {
 		pullURL = ref.digests[0]
 	}
 
-	var err error
 	switch ref.uri {
 	case singularity.LibraryProtocol:
-		err = library.DownloadImage(location, pullURL, singularity.LibraryURL, true, "")
+		err = library.DownloadImage(pullPath, pullURL, singularity.LibraryURL, true, "")
 	case singularity.ShubProtocol:
-		err = shub.DownloadImage(location, pullURL, true)
+		err = shub.DownloadImage(pullPath, pullURL, true)
 	case singularity.DockerProtocol:
-		remote := fmt.Sprintf("%s://%s", ref.uri, ref)
-		buildCmd := exec.Command(singularity.RuntimeName, "build", "-F", location, remote)
+		remote := fmt.Sprintf("%s://%s", ref.uri, pullURL)
+		var errMsg bytes.Buffer
+		buildCmd := exec.Command(singularity.RuntimeName, "build", "-F", pullPath, remote)
+		buildCmd.Stderr = &errMsg
+		buildCmd.Stdout = ioutil.Discard
 		err = buildCmd.Run()
+		if err != nil {
+			err = fmt.Errorf("could not build image: %s", &errMsg)
+		}
 	default:
 		err = fmt.Errorf("unknown image registry: %s", ref.uri)
 	}
@@ -86,24 +101,82 @@ func Pull(location string, ref Reference) (*Image, error) {
 		return nil, fmt.Errorf("could not pull image: %v", err)
 	}
 
-	return &Image{
-		checksum: "",
-		size:     0,
-		ref:      ref,
+	pulled, err := os.Open(pullPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not open pulled image: %v", err)
+	}
+
+	fi, err := pulled.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch file info: %v", err)
+	}
+
+	h := sha256.New()
+	_, err = io.Copy(h, pulled)
+	if err != nil {
+		return nil, fmt.Errorf("could not get pulled image digest: %v", err)
+	}
+	checksum := fmt.Sprintf("%x", h.Sum(nil))
+
+	path := filepath.Join(location, checksum)
+	err = os.Rename(pullPath, path)
+	if err != nil {
+		return nil, fmt.Errorf("could not save pulled image: %v", err)
+	}
+
+	return &Info{
+		id:     checksum,
+		sha256: checksum,
+		size:   uint64(fi.Size()),
+		path:   path,
+		ref:    ref,
 	}, err
 }
 
-// normalizedImageRef appends tag 'latest' if the passed ref
-// does not have any tag or digest already.
-func normalizedImageRef(ref string) string {
-	image := ref
-	indx := strings.Index(ref, "://")
-	if indx != -1 {
-		image = ref[indx+3:]
+// Remove removes image from the host filesystem.
+func (i *Info) Remove() error {
+	err := os.Remove(i.path)
+	if err != nil {
+		return fmt.Errorf("could not remove image: %v", err)
 	}
-	i := strings.LastIndexByte(image, ':')
-	if i == -1 {
-		return ref + ":latest"
+	return nil
+}
+
+// Verify versifies image signatures.
+func (i *Info) Verify() error {
+	fimg, err := sif.LoadContainer(i.path, true)
+	if err != nil {
+		return fmt.Errorf("failed to load SIF image: %v", err)
 	}
-	return ref
+	defer fimg.UnloadContainer()
+
+	for _, desc := range fimg.DescrArr {
+		err := signing.Verify(i.path, singularity.KeysServer, desc.ID, false, "")
+		if err != nil {
+			return fmt.Errorf("SIF verification failed: %v", err)
+		}
+	}
+	return nil
+}
+
+// Matches tests image against passed filter and returns true if it matches.
+func (i *Info) Matches(filter *k8s.ImageFilter) bool {
+	if filter == nil || filter.Image == nil {
+		return true
+	}
+	ref := filter.Image.Image
+	if strings.HasPrefix(i.ID(), ref) {
+		return true
+	}
+	for _, tag := range i.ref.tags {
+		if strings.HasPrefix(tag, ref) {
+			return true
+		}
+	}
+	for _, digest := range i.ref.digests {
+		if strings.HasPrefix(digest, ref) {
+			return true
+		}
+	}
+	return false
 }

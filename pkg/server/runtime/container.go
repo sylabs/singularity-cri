@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/oci/translate"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,18 +33,17 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		return nil, err
 	}
 
-	originalRef := req.Config.Image.Image
-	imagePath := s.registry.ImagePath(originalRef)
-	if imagePath == "" {
+	// todo oci bundle here
+	info, err := s.imageIndex.Find(req.Config.Image.Image)
+	if err == image.ErrNotFound {
 		return nil, status.Error(codes.NotFound, "image not found")
 	}
 
-	req.Config.Image.Image = imagePath // a hack for starter to work correctly
+	req.Config.Image.Image = info.Path() // a hack for starter to work correctly
 	ociConfig, err := translate.KubeToOCI(req.Config, pod)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not generate OCI config: %v", err)
 	}
-	req.Config.Image.Image = originalRef
 
 	ociBytes, err := json.Marshal(ociConfig)
 	if err != nil {

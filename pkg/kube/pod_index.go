@@ -23,7 +23,7 @@ func NewPodIndex() *PodIndex {
 	}
 }
 
-// Find searches for pod by its ID of prefix. This method may return error if
+// Find searches for pod by its ID or prefix. This method may return error if
 // prefix is not long enough to identify pod uniquely.
 func (i *PodIndex) Find(id string) (*Pod, error) {
 	item, err := i.indx.Get(id)

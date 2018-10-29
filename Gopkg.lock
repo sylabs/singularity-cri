@@ -227,7 +227,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ff57f51d9422f0eae589b7091aa99024b96d556e1604523a359648dc8bc288e7"
+  digest = "1:38a6ed00cbcb6b2a674637db12af42a3d47e5577f0a6ec1a5a469b511da43b54"
   name = "golang.org/x/crypto"
   packages = [
     "cast5",
@@ -241,7 +241,8 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
+  revision = "4bce89e8e9a9f84a4cf02b9842c3eaff2af0a856"
+  source = "github.com/sylabs/golang-x-crypto"
 
 [[projects]]
   branch = "master"
