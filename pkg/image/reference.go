@@ -35,12 +35,12 @@ func (r *Reference) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals a valid Reference JSON into an object.
 func (r *Reference) UnmarshalJSON(data []byte) error {
 	jsonRef := struct {
-		Uri     string   `json:"uri"`
+		URI     string   `json:"uri"`
 		Tags    []string `json:"tags"`
 		Digests []string `json:"digests"`
 	}{}
 	err := json.Unmarshal(data, &jsonRef)
-	r.uri = jsonRef.Uri
+	r.uri = jsonRef.URI
 	r.tags = jsonRef.Tags
 	r.digests = jsonRef.Digests
 	return err
