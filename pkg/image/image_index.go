@@ -33,7 +33,11 @@ func NewIndex() *Index {
 func (i *Index) Find(id string) (*Info, error) {
 	info, err := i.find(id)
 	if err == ErrNotFound {
-		info, err = i.find(i.readRef(id))
+		id = i.readRef(normalizedImageRef(id))
+		if id == "" {
+			return nil, ErrNotFound
+		}
+		info, err = i.find(id)
 	}
 	return info, err
 }
@@ -61,15 +65,8 @@ func (i *Index) Remove(id string) error {
 		return fmt.Errorf("could not remove image: %v", err)
 	}
 
-	i.mu.Lock()
-	for _, tag := range image.Ref().Tags() {
-		delete(i.refToID, tag)
-	}
-	for _, digest := range image.Ref().Digests() {
-		delete(i.refToID, digest)
-	}
-	i.mu.Unlock()
-
+	i.removeRefs(image.Ref().Tags()...)
+	i.removeRefs(image.Ref().Digests()...)
 	return nil
 }
 
@@ -78,7 +75,7 @@ func (i *Index) Remove(id string) error {
 func (i *Index) Add(image *Info) error {
 	oldImage, err := i.Find(image.ID())
 	if err != nil && err != ErrNotFound {
-		return fmt.Errorf("could not filnd old image: %v", err)
+		return fmt.Errorf("could not find old image: %v", err)
 	}
 	if err == ErrNotFound {
 		return i.add(image)
@@ -91,13 +88,11 @@ func (i *Index) add(image *Info) error {
 	if err != nil {
 		return fmt.Errorf("could not add image: %v", err)
 	}
-	i.mu.Lock()
-	defer i.mu.Unlock()
 	for _, tag := range image.Ref().Tags() {
-		i.refToID[tag] = image.ID()
+		i.setRef(tag, image.ID())
 	}
 	for _, digest := range image.Ref().Digests() {
-		i.refToID[digest] = image.ID()
+		i.setRef(digest, image.ID())
 	}
 	return nil
 }
@@ -106,25 +101,23 @@ func (i *Index) merge(oldImage, image *Info) error {
 	oldImage.Ref().AddTags(image.Ref().Tags())
 	oldImage.Ref().AddDigests(image.Ref().Digests())
 
-	i.mu.Lock()
-	defer i.mu.Unlock()
 	for _, tag := range image.Ref().Tags() {
-		oldID := i.refToID[tag]
+		oldID := i.readRef(tag)
 		if oldID == image.ID() {
 			continue
 		}
 		oldInfo, _ := i.Find(image.ID())
 		oldInfo.Ref().RemoveTag(tag)
-		i.refToID[tag] = image.ID()
+		i.setRef(tag, image.ID())
 	}
 	for _, digest := range image.Ref().Digests() {
-		oldDigest := i.refToID[digest]
-		if oldDigest == image.ID() {
+		oldID := i.readRef(digest)
+		if oldID == image.ID() {
 			continue
 		}
 		oldInfo, _ := i.Find(image.ID())
 		oldInfo.Ref().RemoveDigest(digest)
-		i.refToID[digest] = image.ID()
+		i.setRef(digest, image.ID())
 	}
 	return nil
 }
@@ -147,4 +140,12 @@ func (i *Index) setRef(ref, id string) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	i.refToID[ref] = id
+}
+
+func (i *Index) removeRefs(refs ...string) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	for _, ref := range refs {
+		delete(i.refToID, ref)
+	}
 }

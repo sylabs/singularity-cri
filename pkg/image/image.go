@@ -1,17 +1,17 @@
 package image
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"bytes"
-	"io/ioutil"
 
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
@@ -35,11 +35,13 @@ type Info struct {
 	ref    *Reference
 }
 
+// ID returns id of an image.
+func (i *Info) ID() string {
+	return i.id
+}
+
 // Path returns path to image file.
 func (i *Info) Path() string {
-	if i == nil {
-		return ""
-	}
 	return i.path
 }
 
@@ -53,12 +55,40 @@ func (i *Info) Ref() *Reference {
 	return i.ref
 }
 
-// ID returns id of an image.
-func (i *Info) ID() string {
-	if i == nil {
-		return ""
+// MarshalJSON marshals Info into a valid JSON.
+func (i *Info) MarshalJSON() ([]byte, error) {
+	jsonInfo := struct {
+		ID     string     `json:"id"`
+		Sha256 string     `json:"sha256"`
+		Size   uint64     `json:"size"`
+		Path   string     `json:"path"`
+		Ref    *Reference `json:"ref"`
+	}{
+		ID:     i.id,
+		Sha256: i.sha256,
+		Size:   i.size,
+		Path:   i.path,
+		Ref:    i.ref,
 	}
-	return i.id
+	return json.Marshal(jsonInfo)
+}
+
+// UnmarshalJSON unmarshals a valid Info JSON into an object.
+func (i *Info) UnmarshalJSON(data []byte) error {
+	jsonInfo := struct {
+		ID     string     `json:"id"`
+		Sha256 string     `json:"sha256"`
+		Size   uint64     `json:"size"`
+		Path   string     `json:"path"`
+		Ref    *Reference `json:"ref"`
+	}{}
+	err := json.Unmarshal(data, &jsonInfo)
+	i.id = jsonInfo.ID
+	i.sha256 = jsonInfo.Sha256
+	i.size = jsonInfo.Size
+	i.path = jsonInfo.Path
+	i.ref = jsonInfo.Ref
+	return err
 }
 
 // Pull pulls image referenced by ref and saves it to the passed location.
@@ -130,7 +160,7 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 		size:   uint64(fi.Size()),
 		path:   path,
 		ref:    ref,
-	}, err
+	}, nil
 }
 
 // Remove removes image from the host filesystem.
@@ -150,11 +180,9 @@ func (i *Info) Verify() error {
 	}
 	defer fimg.UnloadContainer()
 
-	for _, desc := range fimg.DescrArr {
-		err := signing.Verify(i.path, singularity.KeysServer, desc.ID, false, "")
-		if err != nil {
-			return fmt.Errorf("SIF verification failed: %v", err)
-		}
+	err = signing.Verify(i.path, singularity.KeysServer, 0, false, "")
+	if err != nil && !strings.Contains(err.Error(), "no signatures found") {
+		return fmt.Errorf("SIF verification failed: %v", err)
 	}
 	return nil
 }

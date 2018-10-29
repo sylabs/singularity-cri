@@ -1,6 +1,7 @@
 package image
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -15,6 +16,34 @@ type Reference struct {
 	mu      sync.Mutex
 	tags    []string
 	digests []string
+}
+
+// MarshalJSON marshals Reference into a valid JSON.
+func (r *Reference) MarshalJSON() ([]byte, error) {
+	jsonRef := struct {
+		Uri     string   `json:"uri"`
+		Tags    []string `json:"tags"`
+		Digests []string `json:"digests"`
+	}{
+		Uri:     r.uri,
+		Tags:    r.tags,
+		Digests: r.digests,
+	}
+	return json.Marshal(jsonRef)
+}
+
+// UnmarshalJSON unmarshals a valid Reference JSON into an object.
+func (r *Reference) UnmarshalJSON(data []byte) error {
+	jsonRef := struct {
+		Uri     string   `json:"uri"`
+		Tags    []string `json:"tags"`
+		Digests []string `json:"digests"`
+	}{}
+	err := json.Unmarshal(data, &jsonRef)
+	r.uri = jsonRef.Uri
+	r.tags = jsonRef.Tags
+	r.digests = jsonRef.Digests
+	return err
 }
 
 // ParseRef constructs image reference based on imgRef.

@@ -210,11 +210,11 @@ func (s *SingularityRegistry) dumpInfo() error {
 	}
 	enc := json.NewEncoder(s.infoFile)
 	encodeToFile := func(info *image.Info) {
-		err = enc.Encode(enc)
+		err = enc.Encode(info)
 	}
 	s.images.Iterate(encodeToFile)
 	if err != nil {
-		return fmt.Errorf("could not encode image : %v", err)
+		return fmt.Errorf("could not encode image  %v", err)
 	}
 	return nil
 }
