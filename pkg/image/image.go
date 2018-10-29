@@ -172,8 +172,11 @@ func (i *Info) Remove() error {
 	return nil
 }
 
-// Verify versifies image signatures.
+// Verify verifies image signatures.
 func (i *Info) Verify() error {
+	if i.ref.Uri() == singularity.DockerProtocol {
+		return nil
+	}
 	fimg, err := sif.LoadContainer(i.path, true)
 	if err != nil {
 		return fmt.Errorf("failed to load SIF image: %v", err)

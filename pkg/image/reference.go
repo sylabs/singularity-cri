@@ -82,6 +82,11 @@ func ParseRef(imgRef string) (*Reference, error) {
 	return &ref, nil
 }
 
+// Uri returns uri from which image was originally pulled
+func (r *Reference) Uri() string {
+	return r.uri
+}
+
 // Digests returns all digests referencing the image.
 func (r *Reference) Digests() []string {
 	digestsCopy := make([]string, len(r.digests))
