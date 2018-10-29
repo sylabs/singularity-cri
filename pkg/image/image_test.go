@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/singularity/src/pkg/util/user-agent"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -44,7 +45,7 @@ func TestPullImage(t *testing.T) {
 			expectImage: &Info{
 				id:     "",
 				sha256: "",
-				size:   0,
+				size:   741376,
 				path:   "",
 				ref: &Reference{
 					uri:     "docker",
@@ -110,10 +111,15 @@ func TestPullImage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			image, err := Pull(os.TempDir(), tc.ref)
 			require.Equal(t, tc.expectError, err, "could not pull image")
-			require.Equal(t, tc.expectImage, image, "image mismatch")
 			if image != nil {
 				require.NoError(t, image.Remove(), "could not remove image")
 			}
+			if tc.ref.uri == singularity.DockerProtocol {
+				image.id = ""
+				image.sha256 = ""
+				image.path = ""
+			}
+			require.Equal(t, tc.expectImage, image, "image mismatch")
 		})
 	}
 }
