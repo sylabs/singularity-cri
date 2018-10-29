@@ -21,11 +21,11 @@ type Reference struct {
 // MarshalJSON marshals Reference into a valid JSON.
 func (r *Reference) MarshalJSON() ([]byte, error) {
 	jsonRef := struct {
-		Uri     string   `json:"uri"`
+		URI     string   `json:"uri"`
 		Tags    []string `json:"tags"`
 		Digests []string `json:"digests"`
 	}{
-		Uri:     r.uri,
+		URI:     r.uri,
 		Tags:    r.tags,
 		Digests: r.digests,
 	}
@@ -82,8 +82,8 @@ func ParseRef(imgRef string) (*Reference, error) {
 	return &ref, nil
 }
 
-// Uri returns uri from which image was originally pulled
-func (r *Reference) Uri() string {
+// URI returns uri from which image was originally pulled
+func (r *Reference) URI() string {
 	return r.uri
 }
 

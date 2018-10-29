@@ -174,7 +174,7 @@ func (i *Info) Remove() error {
 
 // Verify verifies image signatures.
 func (i *Info) Verify() error {
-	if i.ref.Uri() == singularity.DockerProtocol {
+	if i.ref.URI() == singularity.DockerProtocol {
 		return nil
 	}
 	fimg, err := sif.LoadContainer(i.path, true)
