@@ -1,307 +1,213 @@
-// Copyright (c) 2018 Sylabs, Inc. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package image
 
 import (
-	"context"
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sync"
+	"strings"
 
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
+	"github.com/sylabs/sif/pkg/sif"
+	library "github.com/sylabs/singularity/src/pkg/client/library"
+	shub "github.com/sylabs/singularity/src/pkg/client/shub"
+	"github.com/sylabs/singularity/src/pkg/signing"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-const registryInfoFile = "registry.json"
+const (
+	imageIDLen = 64
+)
 
-// SingularityRegistry implements k8s ImageService interface.
-type SingularityRegistry struct {
-	storage string // path to image storage without trailing slash
-
-	m        sync.RWMutex
-	refToID  map[string]string
-	idToInfo map[string]imageInfo
-	infoFile *os.File
+// Info represents image stored on host filesystem.
+type Info struct {
+	id     string
+	sha256 string
+	size   uint64
+	path   string
+	ref    *Reference
 }
 
-// NewSingularityRegistry initializes and returns SingularityRuntime.
-// Singularity must be installed on the host otherwise it will return an error.
-func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
-	_, err := exec.LookPath(singularity.RuntimeName)
-	if err != nil {
-		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
-	}
-
-	storePath, err = filepath.Abs(storePath)
-	if err != nil {
-		return nil, fmt.Errorf("could not get absolute storage directory path: %v", err)
-	}
-
-	registry := SingularityRegistry{
-		storage:  storePath,
-		refToID:  make(map[string]string),
-		idToInfo: make(map[string]imageInfo),
-	}
-
-	if err := os.MkdirAll(storePath, os.ModePerm); err != nil {
-		return nil, fmt.Errorf("could not create storage directory: %v", err)
-	}
-	registry.infoFile, err = os.OpenFile(registry.filePath(registryInfoFile), os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("could not open registry backup file: %v", err)
-	}
-	err = registry.loadInfo()
-	if err != nil {
-		return nil, err
-	}
-	return &registry, nil
+// ID returns id of an image.
+func (i *Info) ID() string {
+	return i.id
 }
 
-// ListImages lists existing images.
-func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImagesRequest) (*k8s.ListImagesResponse, error) {
-	imgs := make([]*k8s.Image, 0, len(s.idToInfo))
-	s.m.RLock()
-	defer s.m.RUnlock()
-	for id, info := range s.idToInfo {
-		img := &k8s.Image{
-			Id:          id,
-			RepoTags:    info.Tags,
-			RepoDigests: info.Digests,
-			Size_:       info.Size,
+// Path returns path to image file.
+func (i *Info) Path() string {
+	return i.path
+}
+
+// Size returns image size in bytes.
+func (i *Info) Size() uint64 {
+	return i.size
+}
+
+// Ref returns associated image reference.,
+func (i *Info) Ref() *Reference {
+	return i.ref
+}
+
+// MarshalJSON marshals Info into a valid JSON.
+func (i *Info) MarshalJSON() ([]byte, error) {
+	jsonInfo := struct {
+		ID     string     `json:"id"`
+		Sha256 string     `json:"sha256"`
+		Size   uint64     `json:"size"`
+		Path   string     `json:"path"`
+		Ref    *Reference `json:"ref"`
+	}{
+		ID:     i.id,
+		Sha256: i.sha256,
+		Size:   i.size,
+		Path:   i.path,
+		Ref:    i.ref,
+	}
+	return json.Marshal(jsonInfo)
+}
+
+// UnmarshalJSON unmarshals a valid Info JSON into an object.
+func (i *Info) UnmarshalJSON(data []byte) error {
+	jsonInfo := struct {
+		ID     string     `json:"id"`
+		Sha256 string     `json:"sha256"`
+		Size   uint64     `json:"size"`
+		Path   string     `json:"path"`
+		Ref    *Reference `json:"ref"`
+	}{}
+	err := json.Unmarshal(data, &jsonInfo)
+	i.id = jsonInfo.ID
+	i.sha256 = jsonInfo.Sha256
+	i.size = jsonInfo.Size
+	i.path = jsonInfo.Path
+	i.ref = jsonInfo.Ref
+	return err
+}
+
+// Pull pulls image referenced by ref and saves it to the passed location.
+func Pull(location string, ref *Reference) (img *Info, err error) {
+	pullPath := filepath.Join(location, "."+rand.GenerateID(64))
+	defer func() {
+		if err != nil {
+			if err := os.Remove(pullPath); err != nil {
+				log.Printf("could not remove temparary image file: %v", err)
+			}
 		}
-		if matches(img, req.Filter) {
-			imgs = append(imgs, img)
+	}()
+
+	var pullURL string
+	if len(ref.tags) > 0 {
+		pullURL = ref.tags[0]
+	} else {
+		pullURL = ref.digests[0]
+	}
+
+	switch ref.uri {
+	case singularity.LibraryProtocol:
+		err = library.DownloadImage(pullPath, pullURL, singularity.LibraryURL, true, "")
+	case singularity.ShubProtocol:
+		err = shub.DownloadImage(pullPath, pullURL, true)
+	case singularity.DockerProtocol:
+		remote := fmt.Sprintf("%s://%s", ref.uri, pullURL)
+		var errMsg bytes.Buffer
+		buildCmd := exec.Command(singularity.RuntimeName, "build", "-F", pullPath, remote)
+		buildCmd.Stderr = &errMsg
+		buildCmd.Stdout = ioutil.Discard
+		err = buildCmd.Run()
+		if err != nil {
+			err = fmt.Errorf("could not build image: %s", &errMsg)
 		}
+	default:
+		err = fmt.Errorf("unknown image registry: %s", ref.uri)
 	}
-	return &k8s.ListImagesResponse{
-		Images: imgs,
-	}, nil
-}
-
-// ImageStatus returns the status of the image. If the image is not
-// present, returns a response with ImageStatusResponse.Image set to nil.
-func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
-	id, info := s.find(req.Image.Image)
-	if id == "" {
-		return &k8s.ImageStatusResponse{}, nil
-	}
-	return &k8s.ImageStatusResponse{
-		Image: &k8s.Image{
-			Id:          id,
-			RepoTags:    info.Tags,
-			RepoDigests: info.Digests,
-			Size_:       info.Size,
-		},
-	}, nil
-}
-
-// PullImage pulls an image with authentication config.
-func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageRequest) (*k8s.PullImageResponse, error) {
-	info, err := parseImageRef(req.Image.Image)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse image reference: %v", err)
-	}
-
-	randID := rand.GenerateID(64)
-	pullPath := s.pullPath(randID)
-	err = pullImage(req.Auth, pullPath, info)
-	if err != nil {
-		removeOrLog(pullPath)
 		return nil, fmt.Errorf("could not pull image: %v", err)
 	}
 
 	pulled, err := os.Open(pullPath)
 	if err != nil {
-		removeOrLog(pullPath)
 		return nil, fmt.Errorf("could not open pulled image: %v", err)
 	}
 
 	fi, err := pulled.Stat()
 	if err != nil {
-		removeOrLog(pullPath)
 		return nil, fmt.Errorf("could not fetch file info: %v", err)
 	}
-	info.Size = uint64(fi.Size())
 
 	h := sha256.New()
 	_, err = io.Copy(h, pulled)
 	if err != nil {
-		removeOrLog(pullPath)
 		return nil, fmt.Errorf("could not get pulled image digest: %v", err)
 	}
+	checksum := fmt.Sprintf("%x", h.Sum(nil))
 
-	id := fmt.Sprintf("%x", h.Sum(nil))
-	s.m.RLock()
-	oldInfo := s.idToInfo[id]
-	s.m.RUnlock()
-
-	info.Tags = mergeStrSlice(oldInfo.Tags, info.Tags)
-	info.Digests = mergeStrSlice(oldInfo.Digests, info.Digests)
-
-	err = os.Rename(pullPath, s.filePath(id))
+	path := filepath.Join(location, checksum)
+	err = os.Rename(pullPath, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not save pulled image: %v", err)
 	}
 
-	s.m.Lock()
-	for _, tag := range info.Tags {
-		oldID := s.refToID[tag]
-		if oldID != "" && oldID != id {
-			oldInfo = s.idToInfo[oldID]
-			oldInfo.Tags = removeFromSlice(oldInfo.Tags, tag)
-			s.idToInfo[oldID] = oldInfo
-		}
-		s.refToID[tag] = id
-	}
-	for _, digest := range info.Digests {
-		oldDigest := s.refToID[digest]
-		if oldDigest != "" && oldDigest != id {
-			oldInfo = s.idToInfo[oldDigest]
-			oldInfo.Digests = removeFromSlice(oldInfo.Digests, digest)
-			s.idToInfo[oldDigest] = oldInfo
-		}
-		s.refToID[digest] = id
-	}
-	s.idToInfo[id] = info
-	err = s.dumpInfo()
-	s.m.Unlock()
-
-	if err != nil {
-		log.Printf("could not dump registry info: %v", err)
-	}
-	return &k8s.PullImageResponse{
-		ImageRef: id,
+	return &Info{
+		id:     checksum,
+		sha256: checksum,
+		size:   uint64(fi.Size()),
+		path:   path,
+		ref:    ref,
 	}, nil
 }
 
-// RemoveImage removes the image.
-// This call is idempotent, and does not return an error if the image has already been removed.
-func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveImageRequest) (*k8s.RemoveImageResponse, error) {
-	id, info := s.find(req.Image.Image)
-	if id != "" {
-		s.m.Lock()
-		err := os.Remove(s.filePath(id))
-		if err != nil {
-			s.m.Unlock()
-			return nil, err
-		}
-		for _, tag := range info.Tags {
-			delete(s.refToID, tag)
-		}
-		for _, digest := range info.Digests {
-			delete(s.refToID, digest)
-		}
-		delete(s.idToInfo, id)
-		err = s.dumpInfo()
-		s.m.Unlock()
-
-		if err != nil {
-			log.Printf("could not dump registry info: %v", err)
-		}
-	}
-	return &k8s.RemoveImageResponse{}, nil
-}
-
-// ImageFsInfo returns information of the filesystem that is used to store images.
-func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoRequest) (*k8s.ImageFsInfoResponse, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-// ImagePath returns path to image file on host or empty string of image is not found.
-func (s *SingularityRegistry) ImagePath(ref string) string {
-	id, _ := s.find(ref)
-	if id == "" {
-		return ""
-	}
-	return s.filePath(id)
-}
-
-// ImageID returns id of an image which uniquely identifies image in registry.
-func (s *SingularityRegistry) ImageID(ref string) string {
-	id, _ := s.find(ref)
-	return id
-}
-
-// find queries registry for image that is referenced by ref and returns id of an image and imageInfo.
-// Passed ref may be either image id or repo tag or digest, find handles it correctly.
-// When no image is found the returned id is an empty string. This method is safe for concurrent use.
-func (s *SingularityRegistry) find(ref string) (string, imageInfo) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-	info, ok := s.idToInfo[ref]
-	if ok {
-		return ref, info
-	}
-	id := s.refToID[normalizedImageRef(ref)]
-	info = s.idToInfo[id]
-	return id, info
-}
-
-// loadInfo reads backup file and restores registry according to it.
-func (s *SingularityRegistry) loadInfo() error {
-	_, err := s.infoFile.Seek(0, io.SeekStart)
+// Remove removes image from the host filesystem.
+func (i *Info) Remove() error {
+	err := os.Remove(i.path)
 	if err != nil {
-		return fmt.Errorf("could not seek registry info file: %v", err)
+		return fmt.Errorf("could not remove image: %v", err)
 	}
-	err = json.NewDecoder(s.infoFile).Decode(&s.idToInfo)
-	if err == io.EOF {
+	return nil
+}
+
+// Verify verifies image signatures.
+func (i *Info) Verify() error {
+	if i.ref.URI() == singularity.DockerProtocol {
 		return nil
 	}
+	fimg, err := sif.LoadContainer(i.path, true)
 	if err != nil {
-		return fmt.Errorf("could not decode backup file: %v", err)
+		return fmt.Errorf("failed to load SIF image: %v", err)
 	}
+	defer fimg.UnloadContainer()
 
-	for id, info := range s.idToInfo {
-		for _, tag := range info.Tags {
-			s.refToID[tag] = id
-		}
-		for _, digest := range info.Digests {
-			s.refToID[digest] = id
-		}
+	err = signing.Verify(i.path, singularity.KeysServer, 0, false, "")
+	if err != nil && !strings.Contains(err.Error(), "no signatures found") {
+		return fmt.Errorf("SIF verification failed: %v", err)
 	}
 	return nil
 }
 
-// dumpInfo dumps registry into backup file.
-func (s *SingularityRegistry) dumpInfo() error {
-	_, err := s.infoFile.Seek(0, io.SeekStart)
-	if err != nil {
-		return fmt.Errorf("could not seek registry info file: %v", err)
+// Matches tests image against passed filter and returns true if it matches.
+func (i *Info) Matches(filter *k8s.ImageFilter) bool {
+	if filter == nil || filter.Image == nil {
+		return true
 	}
-	err = s.infoFile.Truncate(0)
-	if err != nil {
-		return fmt.Errorf("could not reset file: %v", err)
+	ref := filter.Image.Image
+	if strings.HasPrefix(i.ID(), ref) {
+		return true
 	}
-	err = json.NewEncoder(s.infoFile).Encode(s.idToInfo)
-	if err != nil {
-		return fmt.Errorf("could not encode backup file: %v", err)
+	for _, tag := range i.ref.tags {
+		if strings.HasPrefix(tag, ref) {
+			return true
+		}
 	}
-	return nil
-}
-
-func (s *SingularityRegistry) filePath(id string) string {
-	return filepath.Join(s.storage, id)
-}
-
-func (s *SingularityRegistry) pullPath(id string) string {
-	return filepath.Join(s.storage, "."+id)
+	for _, digest := range i.ref.digests {
+		if strings.HasPrefix(digest, ref) {
+			return true
+		}
+	}
+	return false
 }

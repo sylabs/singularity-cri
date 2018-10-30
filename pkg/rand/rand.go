@@ -7,7 +7,7 @@ import (
 
 // GenerateID returns unique random id of passed length generated with crypto/rand.
 func GenerateID(len int) string {
-	buf := make([]byte, len/2+1)
+	buf := make([]byte, (len-1)/2+1)
 	rand.Read(buf)
-	return hex.EncodeToString(buf[:len])
+	return hex.EncodeToString(buf)[:len]
 }

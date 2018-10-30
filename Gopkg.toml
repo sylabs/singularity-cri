@@ -32,7 +32,17 @@
   name = "github.com/sylabs/singularity"
   branch = "master"
 
+
+[[constraint]]
+  name = "github.com/sylabs/sif"
+  version = "1.0.1"
+
+# patched fork from github.com/golang/crypto
+[[override]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+  source = "github.com/sylabs/golang-x-crypto"
+
 [prune]
   go-tests = true
   unused-packages = true
-

@@ -25,8 +25,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sylabs/cri/pkg/image"
-	"github.com/sylabs/cri/pkg/runtime"
+	imageIndx "github.com/sylabs/cri/pkg/image"
+	"github.com/sylabs/cri/pkg/server/image"
+	"github.com/sylabs/cri/pkg/server/runtime"
 	"github.com/sylabs/singularity/src/pkg/util/user-agent"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
@@ -73,12 +74,13 @@ func main() {
 	}
 	defer lis.Close()
 
-	syImage, err := image.NewSingularityRegistry(f.storeDir)
+	imageIndex := imageIndx.NewIndex()
+	syImage, err := image.NewSingularityRegistry(f.storeDir, imageIndex)
 	if err != nil {
 		log.Printf("Could not create Singularity image service: %v", err)
 		return
 	}
-	syRuntime, err := runtime.NewSingularityRuntime(syImage)
+	syRuntime, err := runtime.NewSingularityRuntime(imageIndex)
 	if err != nil {
 		log.Printf("Could not create Singularity runtime service: %v", err)
 		return

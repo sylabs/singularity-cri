@@ -31,14 +31,14 @@ import (
 type SingularityRuntime struct {
 	singularity string
 	starter     string
-	registry    *image.SingularityRegistry
+	imageIndex  *image.Index
 	pods        *kube.PodIndex
 }
 
 // NewSingularityRuntime initializes and returns SingularityRuntime.
 // Singularity must be installed on the host otherwise it will return an error.
 // SingularityRuntime depends on SingularityRegistry so it must not be nil.
-func NewSingularityRuntime(registry *image.SingularityRegistry) (*SingularityRuntime, error) {
+func NewSingularityRuntime(index *image.Index) (*SingularityRuntime, error) {
 	sing, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
@@ -50,7 +50,7 @@ func NewSingularityRuntime(registry *image.SingularityRegistry) (*SingularityRun
 	return &SingularityRuntime{
 		singularity: sing,
 		starter:     start,
-		registry:    registry,
+		imageIndex:  index,
 		pods:        kube.NewPodIndex(),
 	}, nil
 }

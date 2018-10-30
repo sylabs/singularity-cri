@@ -127,6 +127,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
+  version = "v1.2.0"
+
+[[projects]]
   digest = "1:3f53e9e4dfbb664cd62940c9c4b65a2171c66acd0b7621a1a6b8e78513525a52"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
@@ -154,13 +162,24 @@
   version = "v1.2.2"
 
 [[projects]]
+  digest = "1:09e7bb03b8a2f75d03f3674f528330e1f937e76faf14f58042cb7376b153d849"
+  name = "github.com/sylabs/sif"
+  packages = ["pkg/sif"]
+  pruneopts = "UT"
+  revision = "177b9338f1ab9123be5b6217740be1f0ce924206"
+  version = "v1.0.1"
+
+[[projects]]
   branch = "master"
-  digest = "1:e884682624f900e28b944bce9dd4b01dad8abd052b7ed6e68cc8763375f29796"
+  digest = "1:48dc01ed9217dffb28c2cc353edb627fb0c606e86c00d93e926cd1ad6a983a66"
   name = "github.com/sylabs/singularity"
   packages = [
     "src/pkg/client/library",
     "src/pkg/client/shub",
+    "src/pkg/signing",
     "src/pkg/sylog",
+    "src/pkg/sypgp",
+    "src/pkg/util/user",
     "src/pkg/util/user-agent",
   ]
   pruneopts = "UT"
@@ -208,11 +227,22 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3f3a05ae0b95893d90b9b3b5afdb79a9b3d96e4e36e099d841ae602e4aca0da8"
+  digest = "1:38a6ed00cbcb6b2a674637db12af42a3d47e5577f0a6ec1a5a469b511da43b54"
   name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
+  packages = [
+    "cast5",
+    "openpgp",
+    "openpgp/armor",
+    "openpgp/clearsign",
+    "openpgp/elgamal",
+    "openpgp/errors",
+    "openpgp/packet",
+    "openpgp/s2k",
+    "ssh/terminal",
+  ]
   pruneopts = "UT"
-  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
+  revision = "4bce89e8e9a9f84a4cf02b9842c3eaff2af0a856"
+  source = "github.com/sylabs/golang-x-crypto"
 
 [[projects]]
   branch = "master"
@@ -344,8 +374,10 @@
     "github.com/opencontainers/runtime-spec/specs-go",
     "github.com/opencontainers/runtime-tools/generate",
     "github.com/stretchr/testify/require",
+    "github.com/sylabs/sif/pkg/sif",
     "github.com/sylabs/singularity/src/pkg/client/library",
     "github.com/sylabs/singularity/src/pkg/client/shub",
+    "github.com/sylabs/singularity/src/pkg/signing",
     "github.com/sylabs/singularity/src/pkg/util/user-agent",
     "github.com/tchap/go-patricia/patricia",
     "golang.org/x/sys/unix",
