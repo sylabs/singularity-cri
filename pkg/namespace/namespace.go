@@ -81,12 +81,15 @@ func UnshareAll(namespaces []specs.LinuxNamespace) error {
 	return nil
 }
 
-// Remove unmounts and removes namespace file at ns.Path.
+// Remove unmounts and removes namespace file at ns.Path. Remove doesn't
+// return an error if namespace is not mounted or file doesn't exist.
 func Remove(ns specs.LinuxNamespace) error {
-	if err := syscall.Unmount(ns.Path, syscall.MNT_DETACH); err != nil {
+	err := syscall.Unmount(ns.Path, syscall.MNT_DETACH)
+	if err != nil && err != syscall.ENOENT && err != syscall.EINVAL {
 		return fmt.Errorf("could not umount: %v", err)
 	}
-	if err := os.Remove(ns.Path); err != nil {
+	err = os.Remove(ns.Path)
+	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("could not remove %s: %v", ns.Path, err)
 	}
 	return nil
@@ -102,9 +105,10 @@ func Bind(pid int, ns specs.LinuxNamespace) error {
 	if err = f.Close(); err != nil {
 		return fmt.Errorf("could not close %s: %v", ns.Path, err)
 	}
-	err = syscall.Mount(fmt.Sprintf("/proc/%d/ns/%s", pid, nsToInfo[ns.Type].procFile), ns.Path, "", syscall.MS_BIND, "")
+	source := fmt.Sprintf("/proc/%d/ns/%s", pid, nsToInfo[ns.Type].procFile)
+	err = syscall.Mount(source, ns.Path, "", syscall.MS_BIND, "")
 	if err != nil {
-		return fmt.Errorf("could not mount: %v", err)
+		return fmt.Errorf("could not mount %s: %v", source, err)
 	}
 	return nil
 }
