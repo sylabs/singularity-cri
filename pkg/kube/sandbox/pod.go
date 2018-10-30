@@ -246,10 +246,6 @@ func (p *Pod) terminate(force bool) error {
 }
 
 func (p *Pod) unshareNamespaces() error {
-	p.namespaces = append(p.namespaces, specs.LinuxNamespace{
-		Type: specs.MountNamespace,
-		Path: p.bindNamespacePath(specs.MountNamespace),
-	})
 	if p.GetHostname() != "" {
 		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
 			Type: specs.UTSNamespace,

@@ -39,6 +39,7 @@ func (t *ociTranslator) translate() (*specs.Spec, error) {
 	for _, ns := range t.pod.namespaces {
 		t.g.AddOrReplaceLinuxNamespace(string(ns.Type), ns.Path)
 	}
+	t.g.AddOrReplaceLinuxNamespace(string(specs.MountNamespace), "")
 
 	for k, v := range t.pod.GetAnnotations() {
 		t.g.AddAnnotation(k, v)
