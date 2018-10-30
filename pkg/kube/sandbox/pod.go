@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kube
+package sandbox
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"os"
-	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -28,11 +30,6 @@ import (
 )
 
 const (
-	podInfoPathFormat = "/var/run/singularity/pods/"
-	nsStorePathFormat = "namespaces/"
-	resolvConfPath    = "resolv.conf"
-	hostnamePath      = "hostname"
-
 	podIDLen = 64
 )
 
@@ -49,10 +46,11 @@ type Pod struct {
 	state      k8s.PodSandboxState
 	createdAt  int64 // unix nano
 	namespaces []specs.LinuxNamespace
+	pid        int
 }
 
-// NewPod constructs Pod instance. Pod is thread safe to use.
-func NewPod(config *k8s.PodSandboxConfig) *Pod {
+// New constructs Pod instance. Pod is thread safe to use.
+func New(config *k8s.PodSandboxConfig) *Pod {
 	podID := rand.GenerateID(podIDLen)
 	return &Pod{
 		PodSandboxConfig: config,
@@ -71,29 +69,26 @@ func (p *Pod) Run() error {
 	var err error
 	defer func() {
 		if err != nil {
-			p.cleanup(true)
+			if err := p.terminate(true); err != nil {
+				log.Printf("could not kill pod failed run: %v", err)
+			}
+			if err := p.cleanup(true); err != nil {
+				log.Printf("could not cleanup pod after failed run: %v", err)
+			}
 		}
 	}()
 
 	p.runOnce.Do(func() {
-		if err = p.ensureDirectories(); err != nil {
-			err = fmt.Errorf("could not create log directory: %v", err)
-			return
-		}
-		if err = p.addLogDirectory(); err != nil {
-			err = fmt.Errorf("could not create log directory: %v", err)
-			return
-		}
-		if err = p.addResolvConf(); err != nil {
-			err = fmt.Errorf("could not configure dns: %v", err)
-			return
-		}
-		if err = p.addHostname(); err != nil {
-			err = fmt.Errorf("could not configure hostname: %v", err)
+		if err = p.prepareFiles(); err != nil {
+			err = fmt.Errorf("could not create pod directories: %v", err)
 			return
 		}
 		if err = p.unshareNamespaces(); err != nil {
 			err = fmt.Errorf("could not unshare namespaces: %v", err)
+			return
+		}
+		if err = p.spawnOCIPod(); err != nil {
+			err = fmt.Errorf("could not spawn pod: %v", err)
 			return
 		}
 		p.state = k8s.PodSandboxState_SANDBOX_READY
@@ -112,17 +107,28 @@ func (p *Pod) Stop() error {
 	p.stopOnce.Do(func() {
 		// todo stop containers
 		// todo reclaim resources somewhere here
+		err = p.terminate(false)
+		if err != nil {
+			err = fmt.Errorf("could not stop pod process: %v", err)
+			return
+		}
 		p.state = k8s.PodSandboxState_SANDBOX_NOTREADY
 	})
 	return err
 }
 
 // Remove removes pod and all its containers, making sure nothing
-// of it left on the host filesystem.
+// of it left on the host filesystem. When no Stop() is called before
+// Remove forcibly kills all containers and pod itself.
 func (p *Pod) Remove() error {
 	var err error
 	p.removeOnce.Do(func() {
 		// todo remove containers
+		err = p.terminate(true)
+		if err != nil {
+			err = fmt.Errorf("could not kill pod process: %v", err)
+			return
+		}
 		if err = p.cleanup(false); err != nil {
 			err = fmt.Errorf("could not cleanup pod: %v", err)
 		}
@@ -138,21 +144,6 @@ func (p *Pod) State() k8s.PodSandboxState {
 // CreatedAt returns pod creation time in Unix nano.
 func (p *Pod) CreatedAt() int64 {
 	return p.createdAt
-}
-
-// BindNamespacePath returns path to pod's namespace file of the passed type.
-func (p *Pod) BindNamespacePath(nsType specs.LinuxNamespaceType) string {
-	return filepath.Join(podInfoPathFormat, p.id, nsStorePathFormat, string(nsType))
-}
-
-// HostnameFilePath returns path to pod's hostname file.
-func (p *Pod) HostnameFilePath() string {
-	return filepath.Join(podInfoPathFormat, p.id, hostnamePath)
-}
-
-// ResolvConfFilePath returns path to pod's resolv.conf file.
-func (p *Pod) ResolvConfFilePath() string {
-	return filepath.Join(podInfoPathFormat, p.id, resolvConfPath)
 }
 
 // MatchesFilter tests Pod against passed filter and returns true if it matches.
@@ -181,113 +172,111 @@ func (p *Pod) MatchesFilter(filter *k8s.PodSandboxFilter) bool {
 	return true
 }
 
-// cleanup is responsible for cleaning any files that were created by pod.
-// If noErr is true then any errors occurred during cleanup are ignored.
-func (p *Pod) cleanup(noErr bool) error {
-	for _, ns := range p.namespaces {
-		err := namespace.Remove(ns)
-		if err != nil && !noErr {
-			return fmt.Errorf("could not remove namespace: %v", err)
-		}
+func (p *Pod) spawnOCIPod() error {
+	spec, err := generateOCI(p)
+	if err != nil {
+		return fmt.Errorf("could not generate OCI spec for pod")
 	}
-	err := os.RemoveAll(filepath.Join(podInfoPathFormat, p.id))
-	if err != nil && !noErr {
-		return fmt.Errorf("could not cleanup pod: %v", err)
+	config, err := os.OpenFile(p.ociConfigPath(), os.O_WRONLY, 0)
+	if err != nil {
+		return fmt.Errorf("could not create OCI config file: %v", err)
 	}
-	if p.GetLogDirectory() != "" {
-		err := os.RemoveAll(p.GetLogDirectory())
-		if err != nil && !noErr {
-			return fmt.Errorf("could not remove log directory: %v", err)
-		}
+	defer config.Close()
+	err = json.NewEncoder(config).Encode(spec)
+	if err != nil {
+		return fmt.Errorf("could not encode OCI config into json: %v", err)
 	}
+
+	//var errMsg bytes.Buffer
+	//runCmd := exec.Command(singularity.RuntimeName, "oci", "create", p.bundlePath())
+	//runCmd.Stderr = &errMsg
+	//runCmd.Stdout = ioutil.Discard
+	//err = runCmd.Run()
+	//if err != nil {
+	//	err = fmt.Errorf("could not spawn pod: %s", &errMsg)
+	//}
+	//// todo wait postStart hook here and get pid
+	//
+	//for i, ns := range p.namespaces {
+	//	if ns.Type != specs.PIDNamespace {
+	//		continue
+	//	}
+	//	p.namespaces[i].Path = p.bindNamespacePath(ns.Type)
+	//	err := namespace.Bind(p.pid, p.namespaces[i])
+	//	if err != nil {
+	//		return fmt.Errorf("could not bind PID namespace: %v", err)
+	//	}
+	//}
+
 	return nil
 }
 
-func (p *Pod) addResolvConf() error {
-	config := p.GetDnsConfig()
-	if config == nil {
+// terminate stops pod process if such exists with either SIGTERM
+// or with SIGKIILL when force is true. It checks for process termination
+// and in case signal was ignored it returns an error.
+func (p *Pod) terminate(force bool) error {
+	if p.pid == 0 {
 		return nil
 	}
 
-	resolv, err := os.Create(p.ResolvConfFilePath())
+	sig := syscall.SIGTERM
+	if force {
+		sig = syscall.SIGKILL
+	}
+	err := syscall.Kill(p.pid, sig)
 	if err != nil {
-		return fmt.Errorf("could not create %s: %v", resolvConfPath, err)
-	}
-	for _, s := range config.GetServers() {
-		fmt.Fprintf(resolv, "nameserver %s\n", s)
-	}
-	for _, s := range config.GetSearches() {
-		fmt.Fprintf(resolv, "search %s\n", s)
-	}
-	for _, o := range config.GetOptions() {
-		fmt.Fprintf(resolv, "options %s\n", o)
-	}
-	if err = resolv.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", resolvConfPath, err)
-	}
-	return nil
-}
-
-func (p *Pod) addHostname() error {
-	hostname := p.GetHostname()
-	if hostname == "" {
-		return nil
+		return fmt.Errorf("could not signal: %v", err)
 	}
 
-	host, err := os.Create(p.HostnameFilePath())
-	if err != nil {
-		return fmt.Errorf("could not create %s: %v", hostnamePath, err)
+	var attempt int
+	err = syscall.Kill(p.pid, 0)
+	for err == nil && attempt < 10 {
+		time.Sleep(time.Millisecond)
+		err = syscall.Kill(p.pid, 0)
+		attempt++
 	}
-	fmt.Fprintln(host, hostname)
-	if err = host.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", hostnamePath, err)
+	if err != nil && err != syscall.ESRCH {
+		return fmt.Errorf("signaling failed: %v", err)
 	}
-	return nil
-}
-
-func (p *Pod) addLogDirectory() error {
-	logDir := p.GetLogDirectory()
-	if logDir == "" {
-		return nil
+	if attempt == 10 {
+		return fmt.Errorf("signal ignored: %v", err)
 	}
-
-	err := os.MkdirAll(logDir, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("could not create %s: %v", logDir, err)
-	}
+	p.pid = 0
 	return nil
 }
 
 func (p *Pod) unshareNamespaces() error {
+	p.namespaces = append(p.namespaces, specs.LinuxNamespace{
+		Type: specs.MountNamespace,
+		Path: p.bindNamespacePath(specs.MountNamespace),
+	})
 	if p.GetHostname() != "" {
 		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
 			Type: specs.UTSNamespace,
-			Path: p.BindNamespacePath(specs.UTSNamespace),
+			Path: p.bindNamespacePath(specs.UTSNamespace),
 		})
 	}
 	security := p.GetLinux().GetSecurityContext()
 	if security.GetNamespaceOptions().GetNetwork() == k8s.NamespaceMode_POD {
 		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
 			Type: specs.NetworkNamespace,
-			Path: p.BindNamespacePath(specs.NetworkNamespace),
+			Path: p.bindNamespacePath(specs.NetworkNamespace),
 		})
 	}
 	if security.GetNamespaceOptions().GetIpc() == k8s.NamespaceMode_POD {
 		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
 			Type: specs.IPCNamespace,
-			Path: p.BindNamespacePath(specs.IPCNamespace),
+			Path: p.bindNamespacePath(specs.IPCNamespace),
 		})
 	}
 	if err := namespace.UnshareAll(p.namespaces); err != nil {
 		return fmt.Errorf("unsahre all failed: %v", err)
 	}
-	return nil
-}
-
-func (p *Pod) ensureDirectories() error {
-	err := os.MkdirAll(filepath.Join(podInfoPathFormat, p.id, nsStorePathFormat), os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("could not create directory for pod: %v", err)
+	// PID namespace is a special case, to create it pod process should be run
+	if security.GetNamespaceOptions().GetPid() == k8s.NamespaceMode_POD {
+		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
+			Type: specs.PIDNamespace,
+		})
 	}
 	return nil
 }

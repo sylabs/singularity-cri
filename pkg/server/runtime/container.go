@@ -40,7 +40,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	}
 
 	req.Config.Image.Image = info.Path() // a hack for starter to work correctly
-	ociConfig, err := translate.KubeToOCI(req.Config, pod)
+	ociConfig, err := translate.KubeToOCI(pod, req.Config)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not generate OCI config: %v", err)
 	}

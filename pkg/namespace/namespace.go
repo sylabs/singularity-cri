@@ -73,7 +73,7 @@ func UnshareAll(namespaces []specs.LinuxNamespace) error {
 	defer cmd.Wait()
 
 	for _, ns := range namespaces {
-		if err := bindNamespace(cmd.Process.Pid, ns); err != nil {
+		if err := Bind(cmd.Process.Pid, ns); err != nil {
 			return fmt.Errorf("could not bind namespace: %v", err)
 		}
 	}
@@ -92,9 +92,9 @@ func Remove(ns specs.LinuxNamespace) error {
 	return nil
 }
 
-// bindNamespace creates namespace file at ns.Path and mounts corresponding
+// Bind creates namespace file at ns.Path and mounts corresponding
 // namespace of process with passed pid to it with syscall.MS_BIND flag.
-func bindNamespace(pid int, ns specs.LinuxNamespace) error {
+func Bind(pid int, ns specs.LinuxNamespace) error {
 	f, err := os.Create(ns.Path)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", ns.Path, err)

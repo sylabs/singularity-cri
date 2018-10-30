@@ -18,7 +18,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/sylabs/cri/pkg/kube"
+	"github.com/sylabs/cri/pkg/kube/sandbox"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -27,7 +27,7 @@ import (
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
 // the sandbox is in the ready state on success.
 func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSandboxRequest) (*k8s.RunPodSandboxResponse, error) {
-	pod := kube.NewPod(req.Config)
+	pod := sandbox.New(req.Config)
 	// add to trunc index first not to cleanup if it fails later
 	err := s.pods.Add(pod)
 	if err != nil {
@@ -70,7 +70,7 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodS
 // already been removed.
 func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *k8s.RemovePodSandboxRequest) (*k8s.RemovePodSandboxResponse, error) {
 	pod, err := s.pods.Find(req.PodSandboxId)
-	if err == kube.ErrPodNotFound || pod == nil {
+	if err == sandbox.ErrNotFound || pod == nil {
 		return &k8s.RemovePodSandboxResponse{}, nil
 	}
 	if err != nil {
@@ -114,7 +114,7 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *k8s.PodSan
 func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodSandboxRequest) (*k8s.ListPodSandboxResponse, error) {
 	var pods []*k8s.PodSandbox
 
-	appendPodToResult := func(pod *kube.Pod) {
+	appendPodToResult := func(pod *sandbox.Pod) {
 		if pod.MatchesFilter(req.Filter) {
 			pods = append(pods, &k8s.PodSandbox{
 				Id:          pod.ID(),
@@ -132,9 +132,9 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodS
 	}, nil
 }
 
-func (s *SingularityRuntime) findPod(id string) (*kube.Pod, error) {
+func (s *SingularityRuntime) findPod(id string) (*sandbox.Pod, error) {
 	pod, err := s.pods.Find(id)
-	if err == kube.ErrPodNotFound || pod == nil {
+	if err == sandbox.ErrNotFound || pod == nil {
 		return nil, status.Errorf(codes.NotFound, "pod not found")
 	}
 	if err != nil {
