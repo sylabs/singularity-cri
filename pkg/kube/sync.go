@@ -48,34 +48,34 @@ func SyncWithRuntime(ctx context.Context, socket string) <-chan State {
 			log.Printf("could not accept sync socket connection: %v", err)
 			return
 		}
-
 		defer conn.Close()
 
 		dec := json.NewDecoder(conn)
 		var status statusInfo
-
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case dec.More():
-				err := dec.Decode(&status)
-				if err != nil {
-					log.Printf("could not read state: %v", err)
-					return
-				}
-				switch status.Status {
-				case "creating":
-					syncChan <- StateCreating
-				case "created":
-					syncChan <- StateCreated
-				case "running":
-					syncChan <- StateRunning
-				case "stopped":
-					syncChan <- StateExited
-					return
-				default:
-					log.Printf("unknown status received on %s: %s", socket, status.Status)
+			default:
+				if dec.More() {
+					err := dec.Decode(&status)
+					if err != nil {
+						log.Printf("could not read state: %v", err)
+						return
+					}
+					switch status.Status {
+					case "creating":
+						syncChan <- StateCreating
+					case "created":
+						syncChan <- StateCreated
+					case "running":
+						syncChan <- StateRunning
+					case "stopped":
+						syncChan <- StateExited
+						return
+					default:
+						log.Printf("unknown status received on %s: %s", socket, status.Status)
+					}
 				}
 			}
 		}
