@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
@@ -92,9 +91,6 @@ func (p *Pod) prepareFiles() error {
 	if err = p.addOCIConfig(); err != nil {
 		return fmt.Errorf("could not create config.json: %v", err)
 	}
-	if err = p.addSocketFile(); err != nil {
-		return fmt.Errorf("could not create sync socket: %v", err)
-	}
 	return nil
 }
 
@@ -160,17 +156,6 @@ func (p *Pod) addOCIConfig() error {
 	}
 	if err = config.Close(); err != nil {
 		return fmt.Errorf("could not close %s: %v", ociConfigPath, err)
-	}
-	return nil
-}
-
-func (p *Pod) addSocketFile() error {
-	sock, err := os.OpenFile(p.socketPath(), os.O_RDWR|os.O_CREATE|syscall.AF_UNIX|syscall.SOCK_STREAM, 0644)
-	if err != nil {
-		return fmt.Errorf("could not create unix socket: %v", err)
-	}
-	if err = sock.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", socketPath, err)
 	}
 	return nil
 }
