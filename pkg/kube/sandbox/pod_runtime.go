@@ -87,6 +87,7 @@ func (p *Pod) spawnOCIPod() error {
 	return nil
 }
 
+// nolint:unused
 func (p *Pod) queryState() (*specs.State, error) {
 	var state bytes.Buffer
 	stateCmd := exec.Command(singularity.RuntimeName, "oci", "state", "--json", p.ID())

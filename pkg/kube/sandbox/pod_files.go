@@ -44,6 +44,7 @@ func (p *Pod) ResolvConfFilePath() string {
 	return filepath.Join(podInfoPath, p.id, resolvConfPath)
 }
 
+// nolint:unused
 // bundlePath returns path to pod's filesystem bundle directory.
 func (p *Pod) bundlePath() string {
 	return filepath.Join(podInfoPath, p.id, bundleStorePath)

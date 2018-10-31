@@ -46,7 +46,8 @@ type Pod struct {
 	createdAt  int64 // unix nano
 	namespaces []specs.LinuxNamespace
 
-	pid        int
+	pid int
+	// nolint:unused
 	syncChan   <-chan kube.State
 	syncCancel context.CancelFunc
 }
