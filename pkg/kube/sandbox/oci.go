@@ -48,13 +48,8 @@ func (t *ociTranslator) translate() (*specs.Spec, error) {
 		t.g.AddLinuxSysctl(k, v)
 	}
 
-	// todo add hook
-	t.g.AddPostStartHook(specs.Hook{
-		Path:    "",
-		Args:    nil,
-		Env:     nil,
-		Timeout: nil,
-	})
+	t.g.AddAnnotation("io.sylabs.oci.runtime.cri-sync-socket", t.pod.socketPath())
+	t.g.AddAnnotation("io.sylabs.oci.runtime.type", "pod")
 
 	security := t.pod.GetLinux().GetSecurityContext()
 	t.g.SetupPrivileged(security.GetPrivileged())

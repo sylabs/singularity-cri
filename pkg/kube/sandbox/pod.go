@@ -15,15 +15,14 @@
 package sandbox
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"log"
-	"os"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sylabs/cri/pkg/kube"
 	"github.com/sylabs/cri/pkg/namespace"
 	"github.com/sylabs/cri/pkg/rand"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -46,7 +45,10 @@ type Pod struct {
 	state      k8s.PodSandboxState
 	createdAt  int64 // unix nano
 	namespaces []specs.LinuxNamespace
+
 	pid        int
+	syncChan   <-chan kube.State
+	syncCancel context.CancelFunc
 }
 
 // New constructs Pod instance. Pod is thread safe to use.
@@ -69,7 +71,7 @@ func (p *Pod) Run() error {
 	var err error
 	defer func() {
 		if err != nil {
-			if err := p.terminate(true); err != nil {
+			if err := p.cleanupRuntime(true); err != nil {
 				log.Printf("could not kill pod failed run: %v", err)
 			}
 			if err := p.cleanup(true); err != nil {
@@ -107,7 +109,7 @@ func (p *Pod) Stop() error {
 	p.stopOnce.Do(func() {
 		// todo stop containers
 		// todo reclaim resources somewhere here
-		err = p.terminate(false)
+		err = p.cleanupRuntime(false)
 		if err != nil {
 			err = fmt.Errorf("could not stop pod process: %v", err)
 			return
@@ -124,7 +126,7 @@ func (p *Pod) Remove() error {
 	var err error
 	p.removeOnce.Do(func() {
 		// todo remove containers
-		err = p.terminate(true)
+		err = p.cleanupRuntime(true)
 		if err != nil {
 			err = fmt.Errorf("could not kill pod process: %v", err)
 			return
@@ -172,79 +174,6 @@ func (p *Pod) MatchesFilter(filter *k8s.PodSandboxFilter) bool {
 	return true
 }
 
-func (p *Pod) spawnOCIPod() error {
-	spec, err := generateOCI(p)
-	if err != nil {
-		return fmt.Errorf("could not generate OCI spec for pod")
-	}
-	config, err := os.OpenFile(p.ociConfigPath(), os.O_WRONLY, 0)
-	if err != nil {
-		return fmt.Errorf("could not create OCI config file: %v", err)
-	}
-	defer config.Close()
-	err = json.NewEncoder(config).Encode(spec)
-	if err != nil {
-		return fmt.Errorf("could not encode OCI config into json: %v", err)
-	}
-
-	//var errMsg bytes.Buffer
-	//runCmd := exec.Command(singularity.RuntimeName, "oci", "create", p.bundlePath())
-	//runCmd.Stderr = &errMsg
-	//runCmd.Stdout = ioutil.Discard
-	//err = runCmd.Run()
-	//if err != nil {
-	//	err = fmt.Errorf("could not spawn pod: %s", &errMsg)
-	//}
-	//// todo wait postStart hook here and get pid
-	//
-	//for i, ns := range p.namespaces {
-	//	if ns.Type != specs.PIDNamespace {
-	//		continue
-	//	}
-	//	p.namespaces[i].Path = p.bindNamespacePath(ns.Type)
-	//	err := namespace.Bind(p.pid, p.namespaces[i])
-	//	if err != nil {
-	//		return fmt.Errorf("could not bind PID namespace: %v", err)
-	//	}
-	//}
-
-	return nil
-}
-
-// terminate stops pod process if such exists with either SIGTERM
-// or with SIGKIILL when force is true. It checks for process termination
-// and in case signal was ignored it returns an error.
-func (p *Pod) terminate(force bool) error {
-	if p.pid == 0 {
-		return nil
-	}
-
-	sig := syscall.SIGTERM
-	if force {
-		sig = syscall.SIGKILL
-	}
-	err := syscall.Kill(p.pid, sig)
-	if err != nil {
-		return fmt.Errorf("could not signal: %v", err)
-	}
-
-	var attempt int
-	err = syscall.Kill(p.pid, 0)
-	for err == nil && attempt < 10 {
-		time.Sleep(time.Millisecond)
-		err = syscall.Kill(p.pid, 0)
-		attempt++
-	}
-	if err != nil && err != syscall.ESRCH {
-		return fmt.Errorf("signaling failed: %v", err)
-	}
-	if attempt == 10 {
-		return fmt.Errorf("signal ignored: %v", err)
-	}
-	p.pid = 0
-	return nil
-}
-
 func (p *Pod) unshareNamespaces() error {
 	if p.GetHostname() != "" {
 		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
@@ -267,12 +196,6 @@ func (p *Pod) unshareNamespaces() error {
 	}
 	if err := namespace.UnshareAll(p.namespaces); err != nil {
 		return fmt.Errorf("unsahre all failed: %v", err)
-	}
-	// PID namespace is a special case, to create it pod process should be run
-	if security.GetNamespaceOptions().GetPid() == k8s.NamespaceMode_POD {
-		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
-			Type: specs.PIDNamespace,
-		})
 	}
 	return nil
 }

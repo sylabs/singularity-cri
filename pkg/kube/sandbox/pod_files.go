@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
@@ -15,6 +16,7 @@ const (
 	nsStorePath    = "namespaces/"
 	resolvConfPath = "resolv.conf"
 	hostnamePath   = "hostname"
+	socketPath     = "sync.sock"
 
 	bundleStorePath = "bundle/"
 	rootfsStorePath = "rootfs/"
@@ -58,6 +60,11 @@ func (p *Pod) ociConfigPath() string {
 	return filepath.Join(podInfoPath, p.id, bundleStorePath, ociConfigPath)
 }
 
+// socketPath returns path to pod's sync socket.
+func (p *Pod) socketPath() string {
+	return filepath.Join(podInfoPath, p.id, socketPath)
+}
+
 // bindNamespacePath returns path to pod's namespace file of the passed type.
 func (p *Pod) bindNamespacePath(nsType specs.LinuxNamespaceType) string {
 	return filepath.Join(podInfoPath, p.id, nsStorePath, string(nsType))
@@ -84,6 +91,9 @@ func (p *Pod) prepareFiles() error {
 	}
 	if err = p.addOCIConfig(); err != nil {
 		return fmt.Errorf("could not create config.json: %v", err)
+	}
+	if err = p.addSocketFile(); err != nil {
+		return fmt.Errorf("could not create sync socket: %v", err)
 	}
 	return nil
 }
@@ -150,6 +160,17 @@ func (p *Pod) addOCIConfig() error {
 	}
 	if err = config.Close(); err != nil {
 		return fmt.Errorf("could not close %s: %v", ociConfigPath, err)
+	}
+	return nil
+}
+
+func (p *Pod) addSocketFile() error {
+	sock, err := os.OpenFile(p.socketPath(), os.O_RDWR|os.O_CREATE|syscall.AF_UNIX|syscall.SOCK_STREAM, 0644)
+	if err != nil {
+		return fmt.Errorf("could not create unix socket: %v", err)
+	}
+	if err = sock.Close(); err != nil {
+		return fmt.Errorf("could not close %s: %v", socketPath, err)
 	}
 	return nil
 }
