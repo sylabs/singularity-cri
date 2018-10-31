@@ -2,7 +2,6 @@ package sandbox
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/kube"
-	"github.com/sylabs/cri/pkg/namespace"
 	"github.com/sylabs/cri/pkg/singularity"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -38,53 +36,53 @@ func (p *Pod) spawnOCIPod() error {
 		return fmt.Errorf("could not encode OCI config into json: %v", err)
 	}
 
-	syncCtx, cancel := context.WithCancel(context.Background())
-	p.syncCancel = cancel
-	p.syncChan = kube.SyncWithRuntime(syncCtx, p.socketPath())
-
-	var errMsg bytes.Buffer
-	runCmd := exec.Command(singularity.RuntimeName, "oci", "create", p.ID(), p.bundlePath())
-	runCmd.Stderr = &errMsg
-	runCmd.Stdout = ioutil.Discard
-	err = runCmd.Start()
-	if err != nil {
-		return fmt.Errorf("could not run pod: %s", &errMsg)
-	}
-	defer runCmd.Wait()
-
-	state := <-p.syncChan
-	if state != kube.StateCreating {
-		return fmt.Errorf("unexpected pod state: %v", state)
-	}
-	state = <-p.syncChan
-	if state != kube.StateCreated {
-		return fmt.Errorf("unexpected pod state: %v", state)
-	}
-	state = <-p.syncChan
-	if state != kube.StateRunning {
-		return fmt.Errorf("unexpected pod state: %v", state)
-	}
-
-	if err := runCmd.Wait(); err != nil {
-		return fmt.Errorf("could not wait pod creation: %s", &errMsg)
-	}
-
-	podState, err := p.queryState()
-	if err != nil {
-		return fmt.Errorf("could not get pod pid: %v", err)
-	}
-	p.pid = podState.Pid
-
-	for i, ns := range p.namespaces {
-		if ns.Type != specs.PIDNamespace {
-			continue
-		}
-		p.namespaces[i].Path = p.bindNamespacePath(ns.Type)
-		err := namespace.Bind(p.pid, p.namespaces[i])
-		if err != nil {
-			return fmt.Errorf("could not bind PID namespace: %v", err)
-		}
-	}
+	//syncCtx, cancel := context.WithCancel(context.Background())
+	//p.syncCancel = cancel
+	//p.syncChan = kube.SyncWithRuntime(syncCtx, p.socketPath())
+	//
+	//var errMsg bytes.Buffer
+	//runCmd := exec.Command(singularity.RuntimeName, "oci", "create", p.ID(), p.bundlePath())
+	//runCmd.Stderr = &errMsg
+	//runCmd.Stdout = ioutil.Discard
+	//err = runCmd.Start()
+	//if err != nil {
+	//	return fmt.Errorf("could not run pod: %s", &errMsg)
+	//}
+	//defer runCmd.Wait()
+	//
+	//state := <-p.syncChan
+	//if state != kube.StateCreating {
+	//	return fmt.Errorf("unexpected pod state: %v", state)
+	//}
+	//state = <-p.syncChan
+	//if state != kube.StateCreated {
+	//	return fmt.Errorf("unexpected pod state: %v", state)
+	//}
+	//state = <-p.syncChan
+	//if state != kube.StateRunning {
+	//	return fmt.Errorf("unexpected pod state: %v", state)
+	//}
+	//
+	//if err := runCmd.Wait(); err != nil {
+	//	return fmt.Errorf("could not wait pod creation: %s", &errMsg)
+	//}
+	//
+	//podState, err := p.queryState()
+	//if err != nil {
+	//	return fmt.Errorf("could not get pod pid: %v", err)
+	//}
+	//p.pid = podState.Pid
+	//
+	//for i, ns := range p.namespaces {
+	//	if ns.Type != specs.PIDNamespace {
+	//		continue
+	//	}
+	//	p.namespaces[i].Path = p.bindNamespacePath(ns.Type)
+	//	err := namespace.Bind(p.pid, p.namespaces[i])
+	//	if err != nil {
+	//		return fmt.Errorf("could not bind PID namespace: %v", err)
+	//	}
+	//}
 
 	return nil
 }

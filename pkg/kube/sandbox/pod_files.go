@@ -175,9 +175,9 @@ func (p *Pod) addSocketFile() error {
 	return nil
 }
 
-// cleanup is responsible for cleaning any files that were created by pod.
-// If silent is true then any errors occurred during cleanup are ignored.
-func (p *Pod) cleanup(silent bool) error {
+// cleanupFiles is responsible for cleaning any files that were created by pod.
+// If silent is true then any errors occurred during cleanupFiles are ignored.
+func (p *Pod) cleanupFiles(silent bool) error {
 	for _, ns := range p.namespaces {
 		err := namespace.Remove(ns)
 		if err != nil && !silent {
@@ -186,7 +186,7 @@ func (p *Pod) cleanup(silent bool) error {
 	}
 	err := os.RemoveAll(filepath.Join(podInfoPath, p.id))
 	if err != nil && !silent {
-		return fmt.Errorf("could not cleanup pod: %v", err)
+		return fmt.Errorf("could not cleanupFiles pod: %v", err)
 	}
 	if p.GetLogDirectory() != "" {
 		err := os.RemoveAll(p.GetLogDirectory())
