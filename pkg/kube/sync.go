@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 )
@@ -27,58 +28,69 @@ const (
 // returned channel is unbuffered. The channel will be closed if either
 // any error during decoding receiving state occurs or container has transmitted into StateExited.
 // This function blocks until runtime connects to socket for writing.
-func SyncWithRuntime(ctx context.Context, socket string) <-chan State {
-	type statusInfo struct {
-		Status string `json:"status"`
+func SyncWithRuntime(ctx context.Context, socket string) (<-chan State, error) {
+	ln, err := net.Listen("unix", socket)
+	if err != nil {
+		return nil, fmt.Errorf("could not listen sync socket: %v", err)
 	}
 
 	syncChan := make(chan State)
 	go func() {
 		defer close(syncChan)
-
-		ln, err := net.Listen("unix", socket)
-		if err != nil {
-			log.Printf("could not listen sync socket: %v", err)
-			return
-
-		}
 		defer ln.Close()
-		conn, err := ln.Accept()
-		if err != nil {
-			log.Printf("could not accept sync socket connection: %v", err)
-			return
-		}
-		defer conn.Close()
 
-		dec := json.NewDecoder(conn)
-		var status statusInfo
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			default:
-				if dec.More() {
-					err := dec.Decode(&status)
-					if err != nil {
-						log.Printf("could not read state: %v", err)
-						return
-					}
-					switch status.Status {
-					case "creating":
-						syncChan <- StateCreating
-					case "created":
-						syncChan <- StateCreated
-					case "running":
-						syncChan <- StateRunning
-					case "stopped":
-						syncChan <- StateExited
-						return
-					default:
-						log.Printf("unknown status received on %s: %s", socket, status.Status)
-					}
+				conn, err := ln.Accept()
+				if err != nil {
+					log.Printf("could not accept sync socket connection: %v", err)
+					return
 				}
+				syncOnConn(ctx, conn, syncChan)
 			}
 		}
 	}()
-	return syncChan
+	return syncChan, nil
+}
+
+func syncOnConn(ctx context.Context, conn net.Conn, syncChan chan<- State) {
+	type statusInfo struct {
+		Status string `json:"status"`
+	}
+
+	defer conn.Close()
+	dec := json.NewDecoder(conn)
+	var status statusInfo
+	for {
+		select {
+		case <-ctx.Done():
+			log.Printf("sync %s: context cancelled", conn.RemoteAddr())
+			return
+		default:
+			if dec.More() {
+				err := dec.Decode(&status)
+				if err != nil {
+					log.Printf("could not read state from %s: %v", conn.RemoteAddr(), err)
+					return
+				}
+				switch status.Status {
+				case "creating":
+					syncChan <- StateCreating
+				case "created":
+					syncChan <- StateCreated
+				case "running":
+					syncChan <- StateRunning
+				case "stopped":
+					syncChan <- StateExited
+					log.Printf("received stopped from %s", conn.RemoteAddr())
+					return
+				default:
+					log.Printf("unknown status received on %s: %s", conn.RemoteAddr(), status.Status)
+				}
+			}
+		}
+	}
 }
