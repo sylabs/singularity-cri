@@ -1,4 +1,4 @@
-package kube
+package runtime
 
 const (
 	// AnnotationType is used to notify runtime that it should run a pod.

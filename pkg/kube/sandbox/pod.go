@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sylabs/cri/pkg/kube"
 	"github.com/sylabs/cri/pkg/namespace"
 	"github.com/sylabs/cri/pkg/rand"
+	"github.com/sylabs/cri/pkg/singularity/runtime"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -46,9 +46,8 @@ type Pod struct {
 	createdAt  int64 // unix nano
 	namespaces []specs.LinuxNamespace
 
-	pid int
-	// nolint:unused
-	syncChan   <-chan kube.State
+	cli        *runtime.CLIClient
+	syncChan   <-chan runtime.State
 	syncCancel context.CancelFunc
 }
 
@@ -59,6 +58,7 @@ func New(config *k8s.PodSandboxConfig) *Pod {
 		PodSandboxConfig: config,
 		id:               podID,
 		state:            k8s.PodSandboxState_SANDBOX_NOTREADY,
+		cli:              runtime.NewCLIClient(),
 	}
 }
 
@@ -130,6 +130,11 @@ func (p *Pod) Remove() error {
 		err = p.cleanupRuntime(true)
 		if err != nil {
 			err = fmt.Errorf("could not kill pod process: %v", err)
+			return
+		}
+		err = p.cli.Delete(p.id)
+		if err != nil {
+			err = fmt.Errorf("could not remove pod: %v", err)
 			return
 		}
 		if err = p.cleanupFiles(false); err != nil {

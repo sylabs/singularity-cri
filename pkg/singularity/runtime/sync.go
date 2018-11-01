@@ -1,4 +1,4 @@
-package kube
+package runtime
 
 import (
 	"context"
@@ -13,7 +13,7 @@ type State int
 
 const (
 	// StateCreating means container is being created at the moment.
-	StateCreating = State(1 + iota)
+	StateCreating State = 1 + iota
 	// StateCreated means container is created without any errors.
 	StateCreated
 	// StateRunning means container is running at the moment.
@@ -22,13 +22,13 @@ const (
 	StateExited
 )
 
-// SyncWithRuntime listens on passed socket for container state changes
-// and passes them to the channel. SyncWithRuntime creates socket
+// ObserveState listens on passed socket for container state changes
+// and passes them to the channel. ObserveState creates socket
 // if necessary. Since this function is used to sync with runtime the
 // returned channel is unbuffered. The channel will be closed if either
 // any error during decoding receiving state occurs or container has transmitted into StateExited.
 // This function blocks until runtime connects to socket for writing.
-func SyncWithRuntime(ctx context.Context, socket string) (<-chan State, error) {
+func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 	ln, err := net.Listen("unix", socket)
 	if err != nil {
 		return nil, fmt.Errorf("could not listen sync socket: %v", err)
@@ -42,6 +42,7 @@ func SyncWithRuntime(ctx context.Context, socket string) (<-chan State, error) {
 		for {
 			select {
 			case <-ctx.Done():
+				log.Printf("context is done")
 				return
 			default:
 				conn, err := ln.Accept()
@@ -49,6 +50,7 @@ func SyncWithRuntime(ctx context.Context, socket string) (<-chan State, error) {
 					log.Printf("could not accept sync socket connection: %v", err)
 					return
 				}
+				log.Printf("new connection!")
 				syncOnConn(ctx, conn, syncChan)
 			}
 		}
@@ -67,10 +69,11 @@ func syncOnConn(ctx context.Context, conn net.Conn, syncChan chan<- State) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("sync %s: context cancelled", conn.RemoteAddr())
+			log.Printf("sync %s: context is done", conn.RemoteAddr())
 			return
 		default:
 			if dec.More() {
+				log.Printf("got some data!")
 				err := dec.Decode(&status)
 				if err != nil {
 					log.Printf("could not read state from %s: %v", conn.RemoteAddr(), err)

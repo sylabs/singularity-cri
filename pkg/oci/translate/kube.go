@@ -136,7 +136,7 @@ func (t *kubeT) configureDevices() error {
 
 func (t *kubeT) configureNamespaces() {
 	if t.pod.GetHostname() != "" {
-		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.PathToNamespace(specs.UTSNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.NamespacePath(specs.UTSNamespace))
 	}
 	t.g.AddOrReplaceLinuxNamespace(specs.MountNamespace, "")
 
@@ -145,19 +145,19 @@ func (t *kubeT) configureNamespaces() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, t.pod.PathToNamespace(specs.IPCNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, t.pod.NamespacePath(specs.IPCNamespace))
 	}
 	switch security.GetNamespaceOptions().GetNetwork() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, t.pod.PathToNamespace(specs.NetworkNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, t.pod.NamespacePath(specs.NetworkNamespace))
 	}
 	switch security.GetNamespaceOptions().GetPid() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), t.pod.PathToNamespace(specs.PIDNamespace))
+		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), t.pod.NamespacePath(specs.PIDNamespace))
 	}
 }
 
