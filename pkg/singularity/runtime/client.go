@@ -61,7 +61,7 @@ func (c *CLIClient) Kill(id string, force bool) error {
 	if force {
 		sig = "SIGKILL"
 	}
-	cmd := append(c.baseCmd, "kill", id, sig)
+	cmd := append(c.baseCmd, "kill", "-s", sig, id)
 	return silentRun(cmd)
 }
 
