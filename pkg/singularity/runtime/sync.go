@@ -44,14 +44,19 @@ func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 			case <-ctx.Done():
 				log.Printf("context is done")
 				return
-			default:
-				conn, err := ln.Accept()
-				if err != nil {
-					log.Printf("could not accept sync socket connection: %v", err)
+			case conn := <-nextConn(ln):
+				if conn == nil {
+					log.Printf("could not accept sync socket connection")
 					return
 				}
-				shouldExit := syncOnConn(ctx, conn, syncChan)
-				if shouldExit {
+				state, err := readState(conn)
+				if err != nil {
+					log.Printf("could not read state at %s: %v", socket, err)
+					return
+				}
+				log.Printf("received state %d at %s", state, socket)
+				syncChan <- state
+				if state == StateExited {
 					return
 				}
 			}
@@ -60,7 +65,7 @@ func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 	return syncChan, nil
 }
 
-func syncOnConn(ctx context.Context, conn net.Conn, syncChan chan<- State) bool {
+func readState(conn net.Conn) (State, error) {
 	type statusInfo struct {
 		Status string `json:"status"`
 	}
@@ -68,34 +73,38 @@ func syncOnConn(ctx context.Context, conn net.Conn, syncChan chan<- State) bool 
 	defer conn.Close()
 	dec := json.NewDecoder(conn)
 	var status statusInfo
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("sync %s: context is done", conn.RemoteAddr())
-			return false
-		default:
-			if dec.More() {
-				log.Printf("got some data!")
-				err := dec.Decode(&status)
-				if err != nil {
-					log.Printf("could not read state from %s: %v", conn.RemoteAddr(), err)
-					return true
-				}
-				switch status.Status {
-				case "creating":
-					syncChan <- StateCreating
-				case "created":
-					syncChan <- StateCreated
-				case "running":
-					syncChan <- StateRunning
-				case "stopped":
-					syncChan <- StateExited
-					log.Printf("received stopped from %s", conn.RemoteAddr())
-					return true
-				default:
-					log.Printf("unknown status received on %s: %s", conn.RemoteAddr(), status.Status)
-				}
-			}
-		}
+	err := dec.Decode(&status)
+	if err != nil {
+		return 0, fmt.Errorf("could not read state: %v", err)
 	}
+
+	var state State
+	switch status.Status {
+	case "creating":
+		state = StateCreating
+	case "created":
+		state = StateCreated
+	case "running":
+		state = StateRunning
+	case "stopped":
+		state = StateExited
+	default:
+		return 0, fmt.Errorf("received unknown status: %s", status.Status)
+	}
+	return state, nil
+}
+
+func nextConn(ln net.Listener) <-chan net.Conn {
+	next := make(chan net.Conn)
+
+	go func() {
+		defer close(next)
+		conn, err := ln.Accept()
+		if err != nil {
+			log.Printf("accept failed: %v", err)
+			return
+		}
+		next <- conn
+	}()
+	return next
 }
