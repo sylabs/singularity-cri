@@ -26,8 +26,8 @@ const (
 // and passes them to the channel. ObserveState creates socket
 // if necessary. Since this function is used to sync with runtime the
 // returned channel is unbuffered. The channel will be closed if either
-// any error during decoding receiving state occurs or container has transmitted into StateExited.
-// This function blocks until runtime connects to socket for writing.
+// container has transmitted into StateExited or any error during networking occurred.
+// ObserveState returns error only if it fails to start listener on the passed socket.
 func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 	ln, err := net.Listen("unix", socket)
 	if err != nil {
@@ -50,15 +50,17 @@ func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 					log.Printf("could not accept sync socket connection: %v", err)
 					return
 				}
-				log.Printf("new connection!")
-				syncOnConn(ctx, conn, syncChan)
+				shouldExit := syncOnConn(ctx, conn, syncChan)
+				if shouldExit {
+					return
+				}
 			}
 		}
 	}()
 	return syncChan, nil
 }
 
-func syncOnConn(ctx context.Context, conn net.Conn, syncChan chan<- State) {
+func syncOnConn(ctx context.Context, conn net.Conn, syncChan chan<- State) bool {
 	type statusInfo struct {
 		Status string `json:"status"`
 	}
@@ -70,14 +72,14 @@ func syncOnConn(ctx context.Context, conn net.Conn, syncChan chan<- State) {
 		select {
 		case <-ctx.Done():
 			log.Printf("sync %s: context is done", conn.RemoteAddr())
-			return
+			return false
 		default:
 			if dec.More() {
 				log.Printf("got some data!")
 				err := dec.Decode(&status)
 				if err != nil {
 					log.Printf("could not read state from %s: %v", conn.RemoteAddr(), err)
-					return
+					return true
 				}
 				switch status.Status {
 				case "creating":
@@ -89,7 +91,7 @@ func syncOnConn(ctx context.Context, conn net.Conn, syncChan chan<- State) {
 				case "stopped":
 					syncChan <- StateExited
 					log.Printf("received stopped from %s", conn.RemoteAddr())
-					return
+					return true
 				default:
 					log.Printf("unknown status received on %s: %s", conn.RemoteAddr(), status.Status)
 				}
