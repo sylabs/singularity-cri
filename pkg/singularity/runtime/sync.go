@@ -12,8 +12,10 @@ import (
 type State int
 
 const (
+	// StateUnknown means current state is unknown (perhaps, something went wrong)
+	StateUnknown State = iota
 	// StateCreating means container is being created at the moment.
-	StateCreating State = 1 + iota
+	StateCreating
 	// StateCreated means container is created without any errors.
 	StateCreated
 	// StateRunning means container is running at the moment.
