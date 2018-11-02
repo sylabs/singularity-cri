@@ -2,6 +2,7 @@ package translate
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -70,6 +71,16 @@ func (t *kubeT) configureMounts() error {
 		})
 	}
 
+	if t.contConfig.GetLinux().GetSecurityContext().GetPrivileged() {
+		mounts := t.g.Mounts()
+		for i := range mounts {
+			switch mounts[i].Type {
+			case "sysfs", "procfs", "proc":
+				mounts[i].Options = []string{"nosuid", "noexec", "nodev", "rw"}
+			}
+		}
+	}
+
 	for _, mount := range t.contConfig.GetMounts() {
 		source, err := filepath.EvalSymlinks(mount.GetHostPath())
 		if err != nil {
@@ -94,44 +105,87 @@ func (t *kubeT) configureMounts() error {
 		}
 		t.g.AddMount(volume)
 	}
+
 	return nil
 }
 
 func (t *kubeT) configureDevices() error {
-	for _, dev := range t.contConfig.GetDevices() {
-		stat, err := os.Stat(dev.GetHostPath())
+	if t.contConfig.GetLinux().GetSecurityContext().GetPrivileged() {
+		err := t.addAllDevices("/dev")
 		if err != nil {
-			return fmt.Errorf("invalid device source: %v", err)
+			return err
 		}
-		sys := stat.Sys().(*syscall.Stat_t)
+		t.g.Config.Linux.Resources.Devices = []specs.LinuxDeviceCgroup{{Allow: true, Access: "rwm"}}
+		return nil
+	}
 
-		mode := stat.Mode()
-		var devType string
-		if mode&syscall.S_IFBLK == syscall.S_IFBLK {
-			devType = "b"
+	for _, dev := range t.contConfig.GetDevices() {
+		device, err := t.device(dev.GetHostPath(), dev.GetContainerPath())
+		if err != nil {
+			return err
 		}
-		if mode&syscall.S_IFCHR == syscall.S_IFCHR {
-			devType = "c"
-		}
-		if devType == "" {
-			return fmt.Errorf("unsupported device type")
-		}
-		major := int64(unix.Major(sys.Rdev))
-		minor := int64(unix.Minor(sys.Rdev))
-
-		device := specs.LinuxDevice{
-			Path:     dev.GetContainerPath(),
-			Type:     devType,
-			Major:    major,
-			Minor:    minor,
-			FileMode: &mode,
-			UID:      &sys.Uid,
-			GID:      &sys.Gid,
-		}
-		t.g.AddDevice(device)
-		t.g.AddLinuxResourcesDevice(true, devType, &major, &minor, dev.GetPermissions())
+		t.g.AddDevice(*device)
+		t.g.AddLinuxResourcesDevice(true, device.Type, &device.Major, &device.Minor, dev.GetPermissions())
 	}
 	return nil
+}
+
+func (t *kubeT) addAllDevices(dir string) error {
+	devices, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("could not read /dev: %v", err)
+	}
+	for _, dev := range devices {
+		devPath := filepath.Join(dir, dev.Name())
+		if dev.IsDir() {
+			switch dev.Name() {
+			case "pts", "shm", "fd", "mqueue":
+				continue
+			}
+			if err := t.addAllDevices(devPath); err != nil {
+				return err
+			}
+			continue
+		}
+		device, err := t.device(devPath, devPath)
+		if err != nil {
+			return err
+		}
+		t.g.AddDevice(*device)
+	}
+	return nil
+}
+
+func (t *kubeT) device(from, to string) (*specs.LinuxDevice, error) {
+	stat, err := os.Stat(from)
+	if err != nil {
+		return nil, fmt.Errorf("invalid device source: %v", err)
+	}
+	sys := stat.Sys().(*syscall.Stat_t)
+
+	mode := stat.Mode()
+	var devType string
+	if mode&syscall.S_IFBLK == syscall.S_IFBLK {
+		devType = "b"
+	}
+	if mode&syscall.S_IFCHR == syscall.S_IFCHR {
+		devType = "c"
+	}
+	if devType == "" {
+		return nil, fmt.Errorf("unsupported device type")
+	}
+	major := int64(unix.Major(sys.Rdev))
+	minor := int64(unix.Minor(sys.Rdev))
+
+	return &specs.LinuxDevice{
+		Path:     to,
+		Type:     devType,
+		Major:    major,
+		Minor:    minor,
+		FileMode: &mode,
+		UID:      &sys.Uid,
+		GID:      &sys.Gid,
+	}, nil
 }
 
 func (t *kubeT) configureNamespaces() {
@@ -181,7 +235,6 @@ func (t *kubeT) configureProcess() {
 	t.g.SetProcessTerminal(t.contConfig.GetTty())
 
 	security := t.contConfig.GetLinux().GetSecurityContext()
-	t.g.SetProcessApparmorProfile(security.GetApparmorProfile())
 	t.g.SetProcessNoNewPrivileges(security.GetNoNewPrivs())
 	t.g.SetProcessUsername(security.GetRunAsUsername())
 	t.g.SetProcessUID(uint32(security.GetRunAsUser().GetValue()))
@@ -189,11 +242,24 @@ func (t *kubeT) configureProcess() {
 	for _, gid := range security.GetSupplementalGroups() {
 		t.g.AddProcessAdditionalGid(uint32(gid))
 	}
-	for _, capb := range security.GetCapabilities().GetDropCapabilities() {
-		t.g.DropProcessCapabilityEffective(capb)
-	}
-	for _, capb := range security.GetCapabilities().GetAddCapabilities() {
-		t.g.AddProcessCapabilityEffective(capb)
+	if security.GetPrivileged() {
+		t.g.SetupPrivileged(true)
+	} else {
+		t.g.SetProcessApparmorProfile(security.GetApparmorProfile())
+		for _, capb := range security.GetCapabilities().GetDropCapabilities() {
+			t.g.DropProcessCapabilityEffective(capb)
+			t.g.DropProcessCapabilityAmbient(capb)
+			t.g.DropProcessCapabilityBounding(capb)
+			t.g.DropProcessCapabilityInheritable(capb)
+			t.g.DropProcessCapabilityPermitted(capb)
+		}
+		for _, capb := range security.GetCapabilities().GetAddCapabilities() {
+			t.g.AddProcessCapabilityEffective(capb)
+			t.g.AddProcessCapabilityAmbient(capb)
+			t.g.AddProcessCapabilityBounding(capb)
+			t.g.AddProcessCapabilityInheritable(capb)
+			t.g.AddProcessCapabilityPermitted(capb)
+		}
 	}
 }
 
