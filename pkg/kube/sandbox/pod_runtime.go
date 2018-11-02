@@ -2,10 +2,8 @@ package sandbox
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
@@ -15,26 +13,14 @@ import (
 
 func (p *Pod) spawnOCIPod() error {
 	// PID namespace is a special case, to create it pod process should be run
-	if p.GetLinux().GetSecurityContext().GetNamespaceOptions().GetPid() == k8s.NamespaceMode_POD {
+	podPID := p.GetLinux().GetSecurityContext().GetNamespaceOptions().GetPid() == k8s.NamespaceMode_POD
+	if podPID {
 		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
 			Type: specs.PIDNamespace,
 		})
 	}
 
-	spec, err := generateOCI(p)
-	if err != nil {
-		return fmt.Errorf("could not generate OCI spec for pod")
-	}
-	config, err := os.OpenFile(p.ociConfigPath(), os.O_WRONLY, 0)
-	if err != nil {
-		return fmt.Errorf("could not create OCI config file: %v", err)
-	}
-	defer config.Close()
-	err = json.NewEncoder(config).Encode(spec)
-	if err != nil {
-		return fmt.Errorf("could not encode OCI config into json: %v", err)
-	}
-
+	var err error
 	log.Printf("launching observe server...")
 	syncCtx, cancel := context.WithCancel(context.Background())
 	p.syncCancel = cancel
@@ -67,14 +53,16 @@ func (p *Pod) spawnOCIPod() error {
 		return fmt.Errorf("could not get pod pid: %v", err)
 	}
 
-	for i, ns := range p.namespaces {
-		if ns.Type != specs.PIDNamespace {
-			continue
-		}
-		p.namespaces[i].Path = p.bindNamespacePath(ns.Type)
-		err := namespace.Bind(podState.Pid, p.namespaces[i])
-		if err != nil {
-			return fmt.Errorf("could not bind PID namespace: %v", err)
+	if podPID {
+		for i, ns := range p.namespaces {
+			if ns.Type != specs.PIDNamespace {
+				continue
+			}
+			p.namespaces[i].Path = p.bindNamespacePath(ns.Type)
+			err := namespace.Bind(podState.Pid, p.namespaces[i])
+			if err != nil {
+				return fmt.Errorf("could not bind PID namespace: %v", err)
+			}
 		}
 	}
 	return nil

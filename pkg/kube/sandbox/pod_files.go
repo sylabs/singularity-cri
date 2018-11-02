@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -75,11 +76,6 @@ func (p *Pod) prepareFiles() error {
 	if err != nil {
 		return fmt.Errorf("could not create directory for pod: %v", err)
 	}
-	err = os.MkdirAll(filepath.Join(podInfoPath, p.id, bundleStorePath, rootfsStorePath), os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("could not create rootfs directory for pod: %v", err)
-	}
-
 	if err = p.addLogDirectory(); err != nil {
 		return fmt.Errorf("could not create log directory: %v", err)
 	}
@@ -89,7 +85,7 @@ func (p *Pod) prepareFiles() error {
 	if err = p.addHostname(); err != nil {
 		return fmt.Errorf("could not create hostname file: %v", err)
 	}
-	if err = p.addOCIConfig(); err != nil {
+	if err = p.addOCIBundle(); err != nil {
 		return fmt.Errorf("could not create config.json: %v", err)
 	}
 	return nil
@@ -150,13 +146,23 @@ func (p *Pod) addLogDirectory() error {
 	return nil
 }
 
-func (p *Pod) addOCIConfig() error {
+func (p *Pod) addOCIBundle() error {
+	err := os.MkdirAll(filepath.Join(podInfoPath, p.id, bundleStorePath, rootfsStorePath), os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("could not create rootfs directory for pod: %v", err)
+	}
+	spec, err := generateOCI(p)
+	if err != nil {
+		return fmt.Errorf("could not generate OCI spec for pod: %v", err)
+	}
 	config, err := os.OpenFile(p.ociConfigPath(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create OCI config file: %v", err)
 	}
-	if err = config.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", ociConfigPath, err)
+	defer config.Close()
+	err = json.NewEncoder(config).Encode(spec)
+	if err != nil {
+		return fmt.Errorf("could not encode OCI config into json: %v", err)
 	}
 	return nil
 }

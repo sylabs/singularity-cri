@@ -50,7 +50,7 @@ func (t *ociTranslator) translate() (*specs.Spec, error) {
 	}
 
 	t.g.AddAnnotation(runtime.AnnotationSyncSocket, t.pod.socketPath())
-	t.g.AddAnnotation(runtime.AnnotationType, "pod")
+	t.g.AddAnnotation(runtime.AnnotationContainerType, runtime.ContainerTypePod)
 
 	security := t.pod.GetLinux().GetSecurityContext()
 	t.g.SetupPrivileged(security.GetPrivileged())
