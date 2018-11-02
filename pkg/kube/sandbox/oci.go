@@ -3,7 +3,6 @@ package sandbox
 import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
-	"github.com/sylabs/cri/pkg/singularity/runtime"
 )
 
 type ociTranslator struct {
@@ -48,9 +47,6 @@ func (t *ociTranslator) translate() (*specs.Spec, error) {
 	for k, v := range t.pod.GetLinux().GetSysctls() {
 		t.g.AddLinuxSysctl(k, v)
 	}
-
-	t.g.AddAnnotation(runtime.AnnotationSyncSocket, t.pod.socketPath())
-	t.g.AddAnnotation(runtime.AnnotationContainerType, runtime.ContainerTypePod)
 
 	security := t.pod.GetLinux().GetSecurityContext()
 	t.g.SetupPrivileged(security.GetPrivileged())

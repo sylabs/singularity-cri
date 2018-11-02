@@ -46,14 +46,18 @@ func (c *CLIClient) State(id string) (*specs.State, error) {
 }
 
 // Run is helper for running Create and Start is a row.
-func (c *CLIClient) Run(id, bundle string) error {
-	cmd := append(c.baseCmd, "run", "-b", bundle, id)
-	return silentRun(cmd)
+func (c *CLIClient) Run(id, bundle string, flags ...string) error {
+	if err := c.Create(id, bundle, flags...); err != nil {
+		return err
+	}
+	return c.Start(id)
 }
 
 // Create asks runtime to create a container with passed parameters.
-func (c *CLIClient) Create(id, bundle string) error {
-	cmd := append(c.baseCmd, "create", "-b", bundle, id)
+func (c *CLIClient) Create(id, bundle string, flags ...string) error {
+	cmd := append(c.baseCmd, "create")
+	cmd = append(cmd, flags...)
+	cmd = append(cmd, "-b", bundle, id)
 	return silentRun(cmd)
 }
 

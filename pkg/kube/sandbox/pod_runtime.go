@@ -29,7 +29,7 @@ func (p *Pod) spawnOCIPod() error {
 		return fmt.Errorf("could not listen for state changes: %v", err)
 	}
 
-	go p.cli.Run(p.id, p.bundlePath())
+	go p.cli.Run(p.id, p.bundlePath(), "--empty-process", "--sync-socket", p.socketPath())
 
 	log.Printf("waiting for creating...")
 	state := <-p.syncChan
