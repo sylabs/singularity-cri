@@ -85,12 +85,12 @@ func (c *CLIClient) Delete(id string) error {
 }
 
 func silentRun(cmd []string) error {
-	stateCmd := exec.Command(cmd[0], cmd[1:]...)
-	stateCmd.Stderr = os.Stderr
-	stateCmd.Stdout = os.Stdout
+	runCmd := exec.Command(cmd[0], cmd[1:]...)
+	runCmd.Stderr = os.Stderr
+	runCmd.Stdout = os.Stdout
 
 	log.Printf("executing %v", cmd)
-	if err := stateCmd.Run(); err != nil {
+	if err := runCmd.Run(); err != nil {
 		return fmt.Errorf("could not execute %v: %v", cmd, err)
 	}
 	return nil

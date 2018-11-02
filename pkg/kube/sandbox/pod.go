@@ -42,9 +42,10 @@ type Pod struct {
 	stopOnce   sync.Once
 	removeOnce sync.Once
 
-	state      k8s.PodSandboxState
-	createdAt  int64 // unix nano
-	namespaces []specs.LinuxNamespace
+	state        k8s.PodSandboxState
+	createdAt    int64 // unix nano
+	namespaces   []specs.LinuxNamespace
+	runtimeState runtime.State
 
 	cli        *runtime.CLIClient
 	syncChan   <-chan runtime.State
@@ -76,7 +77,7 @@ func (p *Pod) Run() error {
 				log.Printf("could not kill pod failed run: %v", err)
 			}
 			if err := p.cleanupFiles(true); err != nil {
-				log.Printf("could not cleanupFiles pod after failed run: %v", err)
+				log.Printf("could not cleanup pod after failed run: %v", err)
 			}
 		}
 	}()
@@ -138,7 +139,7 @@ func (p *Pod) Remove() error {
 			return
 		}
 		if err = p.cleanupFiles(false); err != nil {
-			err = fmt.Errorf("could not cleanupFiles pod: %v", err)
+			err = fmt.Errorf("could not cleanup pod: %v", err)
 		}
 	})
 	return err
