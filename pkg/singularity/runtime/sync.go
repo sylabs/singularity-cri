@@ -25,18 +25,18 @@ const (
 )
 
 // ObserveState listens on passed socket for container state changes
-// and passes them to the channel. ObserveState creates socket
-// if necessary. Since this function is used to sync with runtime the
-// returned channel is unbuffered. The channel will be closed if either
-// container has transmitted into StateExited or any error during networking occurred.
-// ObserveState returns error only if it fails to start listener on the passed socket.
+// and passes them to the channel. ObserveState creates socket if necessary.
+// The returned channel is buffered to eliminate any goroutine leaks.
+// The channel will be closed if either container has transmitted into
+// StateExited or any error during networking occurred. ObserveState returns
+// error only if it fails to start listener on the passed socket.
 func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 	ln, err := net.Listen("unix", socket)
 	if err != nil {
 		return nil, fmt.Errorf("could not listen sync socket: %v", err)
 	}
 
-	syncChan := make(chan State)
+	syncChan := make(chan State, 4)
 	go func() {
 		defer close(syncChan)
 		defer ln.Close()

@@ -53,7 +53,7 @@ func (p *Pod) bundlePath() string {
 
 // rootfsPath returns path to pod's rootfs directory.
 func (p *Pod) rootfsPath() string {
-	return filepath.Join(podInfoPath, p.id, bundleStorePath, rootfsStorePath)
+	return rootfsStorePath
 }
 
 // ociConfigPath returns path to pod's config.json file.
@@ -84,9 +84,6 @@ func (p *Pod) prepareFiles() error {
 	}
 	if err = p.addHostname(); err != nil {
 		return fmt.Errorf("could not create hostname file: %v", err)
-	}
-	if err = p.addOCIBundle(); err != nil {
-		return fmt.Errorf("could not create config.json: %v", err)
 	}
 	return nil
 }

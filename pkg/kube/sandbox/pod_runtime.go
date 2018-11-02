@@ -20,7 +20,10 @@ func (p *Pod) spawnOCIPod() error {
 		})
 	}
 
-	var err error
+	err := p.addOCIBundle()
+	if err != nil {
+		return fmt.Errorf("could not create oci bundle: %v", err)
+	}
 	log.Printf("launching observe server...")
 	syncCtx, cancel := context.WithCancel(context.Background())
 	p.syncCancel = cancel
@@ -31,21 +34,9 @@ func (p *Pod) spawnOCIPod() error {
 
 	go p.cli.Run(p.id, p.bundlePath(), "--empty-process", "--sync-socket", p.socketPath())
 
-	log.Printf("waiting for creating...")
-	state := <-p.syncChan
-	if state != runtime.StateCreating {
-		return fmt.Errorf("unexpected pod state: %v", state)
-	}
-	log.Printf("waiting for created...")
-	state = <-p.syncChan
-	if state != runtime.StateCreated {
-		return fmt.Errorf("unexpected pod state: %v", state)
-	}
-	log.Printf("waiting for running...")
-	state = <-p.syncChan
-	if state != runtime.StateRunning {
-		return fmt.Errorf("unexpected pod state: %v", state)
-	}
+	p.expectState(runtime.StateCreating)
+	p.expectState(runtime.StateCreated)
+	p.expectState(runtime.StateRunning)
 
 	log.Printf("query state...")
 	podState, err := p.cli.State(p.id)
@@ -68,11 +59,28 @@ func (p *Pod) spawnOCIPod() error {
 	return nil
 }
 
+func (p *Pod) expectState(expect runtime.State) error {
+	log.Printf("waiting for state %d...", expect)
+	p.runtimeState = <-p.syncChan
+	if p.runtimeState != expect {
+		return fmt.Errorf("unexpected pod state: %v", p.runtimeState)
+	}
+	return nil
+}
+
 func (p *Pod) cleanupRuntime(force bool) error {
-	p.syncCancel()
+	if p.runtimeState == runtime.StateExited {
+		return nil
+	}
+
 	err := p.cli.Kill(p.id, force)
 	if err != nil {
 		return fmt.Errorf("could not treminate pod: %v", err)
 	}
+	err = p.expectState(runtime.StateExited)
+	if err != nil {
+		return err
+	}
+	p.syncCancel()
 	return nil
 }
