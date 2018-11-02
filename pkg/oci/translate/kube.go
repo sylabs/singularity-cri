@@ -9,7 +9,7 @@ import (
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
-	"github.com/sylabs/cri/pkg/kube"
+	"github.com/sylabs/cri/pkg/kube/sandbox"
 	"golang.org/x/sys/unix"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -17,11 +17,11 @@ import (
 type kubeT struct {
 	g          generate.Generator
 	contConfig *k8s.ContainerConfig
-	pod        *kube.Pod
+	pod        *sandbox.Pod
 }
 
 // KubeToOCI translates container and corresponding pod config into OCI config.
-func KubeToOCI(cConf *k8s.ContainerConfig, pod *kube.Pod) (*specs.Spec, error) {
+func KubeToOCI(pod *sandbox.Pod, cConf *k8s.ContainerConfig) (*specs.Spec, error) {
 	g, err := generate.New("linux")
 	if err != nil {
 		return nil, fmt.Errorf("could not initialize generator: %v", err)
@@ -50,8 +50,7 @@ func (t *kubeT) translate() (*specs.Spec, error) {
 }
 
 func (t *kubeT) configureImage() {
-	image := t.contConfig.GetImage()
-	t.g.SetRootPath(image.Image)
+	t.g.SetRootPath(t.contConfig.GetImage().GetImage())
 	t.g.SetRootReadonly(t.contConfig.GetLinux().GetSecurityContext().GetReadonlyRootfs())
 }
 
@@ -191,23 +190,28 @@ func (t *kubeT) device(from, to string) (*specs.LinuxDevice, error) {
 
 func (t *kubeT) configureNamespaces() {
 	if t.pod.GetHostname() != "" {
-		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.BindNamespacePath(specs.UTSNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.NamespacePath(specs.UTSNamespace))
 	}
 	t.g.AddOrReplaceLinuxNamespace(specs.MountNamespace, "")
-	t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), "")
 
 	security := t.contConfig.GetLinux().GetSecurityContext()
 	switch security.GetNamespaceOptions().GetIpc() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, t.pod.BindNamespacePath(specs.IPCNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, t.pod.NamespacePath(specs.IPCNamespace))
 	}
 	switch security.GetNamespaceOptions().GetNetwork() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, t.pod.BindNamespacePath(specs.NetworkNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, t.pod.NamespacePath(specs.NetworkNamespace))
+	}
+	switch security.GetNamespaceOptions().GetPid() {
+	case k8s.NamespaceMode_CONTAINER:
+		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), "")
+	case k8s.NamespaceMode_POD:
+		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), t.pod.NamespacePath(specs.PIDNamespace))
 	}
 }
 
