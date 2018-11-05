@@ -134,7 +134,7 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodS
 
 func (s *SingularityRuntime) findPod(id string) (*sandbox.Pod, error) {
 	pod, err := s.pods.Find(id)
-	if err == sandbox.ErrNotFound || pod == nil {
+	if err == sandbox.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "pod not found")
 	}
 	if err != nil {

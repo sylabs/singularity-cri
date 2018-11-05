@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sylabs/cri/pkg/kube/container"
 	"github.com/sylabs/cri/pkg/namespace"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
@@ -47,6 +48,9 @@ type Pod struct {
 	namespaces   []specs.LinuxNamespace
 	runtimeState runtime.State
 
+	mu         sync.Mutex
+	containers []*container.Container
+
 	cli        *runtime.CLIClient
 	syncChan   <-chan runtime.State
 	syncCancel context.CancelFunc
@@ -66,6 +70,16 @@ func New(config *k8s.PodSandboxConfig) *Pod {
 // ID returns unique pod ID.
 func (p *Pod) ID() string {
 	return p.id
+}
+
+// State returns current pod state.
+func (p *Pod) State() k8s.PodSandboxState {
+	return p.state
+}
+
+// CreatedAt returns pod creation time in Unix nano.
+func (p *Pod) CreatedAt() int64 {
+	return p.createdAt
 }
 
 // Run prepares and runs pod based on initial config passed to NewPod.
@@ -109,7 +123,11 @@ func (p *Pod) Stop() error {
 
 	var err error
 	p.stopOnce.Do(func() {
-		// todo stop containers
+		for _, c := range p.containers {
+			log.Printf("stopping container %s", c.ID())
+			// todo stop container
+		}
+
 		// todo reclaim resources somewhere here
 		err = p.cleanupRuntime(false)
 		if err != nil {
@@ -127,7 +145,11 @@ func (p *Pod) Stop() error {
 func (p *Pod) Remove() error {
 	var err error
 	p.removeOnce.Do(func() {
-		// todo remove containers
+		for _, c := range p.containers {
+			log.Printf("removing container %s", c.ID())
+			// todo remove container
+		}
+
 		err = p.cleanupRuntime(true)
 		if err != nil {
 			err = fmt.Errorf("could not kill pod process: %v", err)
@@ -145,14 +167,26 @@ func (p *Pod) Remove() error {
 	return err
 }
 
-// State returns current pod state.
-func (p *Pod) State() k8s.PodSandboxState {
-	return p.state
+func (p *Pod) AddContainer(cont *container.Container) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, c := range p.containers {
+		if c.ID() == cont.ID() {
+			return
+		}
+	}
+	p.containers = append(p.containers, cont)
 }
 
-// CreatedAt returns pod creation time in Unix nano.
-func (p *Pod) CreatedAt() int64 {
-	return p.createdAt
+func (p *Pod) RemoveContainer(cont *container.Container) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for i, c := range p.containers {
+		if c.ID() == cont.ID() {
+			p.containers = append(p.containers[:i], p.containers[i+1:]...)
+			return
+		}
+	}
 }
 
 // MatchesFilter tests Pod against passed filter and returns true if it matches.

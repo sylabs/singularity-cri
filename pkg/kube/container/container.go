@@ -1,9 +1,9 @@
 package container
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
+	"sync"
+	"time"
 
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/kube/sandbox"
@@ -20,14 +20,22 @@ const (
 type Container struct {
 	id string
 	*k8s.ContainerConfig
+	pod *sandbox.Pod
+
+	createdAt int64 // unix nano
+
+	createOnce sync.Once
+
+	state k8s.ContainerState
 }
 
 // New constructs Container instance. Container is thread safe to use.
-func New(config *k8s.ContainerConfig) *Container {
+func New(config *k8s.ContainerConfig, pod *sandbox.Pod) *Container {
 	contID := rand.GenerateID(contIDLen)
 	return &Container{
 		id:              contID,
 		ContainerConfig: config,
+		pod:             pod,
 	}
 }
 
@@ -36,18 +44,68 @@ func (c *Container) ID() string {
 	return c.id
 }
 
-// Create creates container inside a pod from the image.
-func (c *Container) Create(image *image.Info, pod *sandbox.Pod) error {
-	ociSpec, err := generateOCI(c, pod)
-	if err != nil {
-		return fmt.Errorf("could not generate oci config: %v", err)
-	}
-	ociBytes, err := json.Marshal(ociSpec)
-	if err != nil {
-		return fmt.Errorf("could not marshal oci config: %v", err)
-	}
-	log.Printf("OCI config is: %s", ociBytes)
-	// todo oci bundle here
+// PodID returns ID of a pod contaienr is executed in.
+func (c *Container) PodID() string {
+	return c.pod.ID()
+}
 
-	return nil
+// State returns current pod state.
+func (c *Container) State() k8s.ContainerState {
+	return c.state
+}
+
+// CreatedAt returns pod creation time in Unix nano.
+func (c *Container) CreatedAt() int64 {
+	return c.createdAt
+}
+
+// Create creates container inside a pod from the image.
+func (c *Container) Create(info *image.Info) error {
+	var err error
+	defer func() {
+		if err != nil {
+			// todo cleanup
+		}
+	}()
+
+	c.createOnce.Do(func() {
+		err = c.addOCIBundle(info)
+		if err != nil {
+			err = fmt.Errorf("could not prepare oci bundle: %v", err)
+			return
+		}
+		c.createdAt = time.Now().UnixNano()
+		c.pod.AddContainer(c)
+	})
+	return err
+}
+
+// MatchesFilter tests Container against passed filter and returns true if it matches.
+func (c *Container) MatchesFilter(filter *k8s.ContainerFilter) bool {
+	if filter == nil {
+		return true
+	}
+
+	if filter.Id != "" && filter.Id != c.id {
+		return false
+	}
+
+	if filter.PodSandboxId != "" && filter.PodSandboxId != c.pod.ID() {
+		return false
+	}
+
+	if filter.State != nil && filter.State.State != c.state {
+		return false
+	}
+
+	for k, v := range filter.LabelSelector {
+		lablel, ok := c.Labels[k]
+		if !ok {
+			return false
+		}
+		if v != lablel {
+			return false
+		}
+	}
+	return true
 }

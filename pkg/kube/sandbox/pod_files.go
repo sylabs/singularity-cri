@@ -53,7 +53,7 @@ func (p *Pod) bundlePath() string {
 
 // rootfsPath returns path to pod's rootfs directory.
 func (p *Pod) rootfsPath() string {
-	return rootfsStorePath
+	return filepath.Join(podInfoPath, p.id, bundleStorePath, rootfsStorePath)
 }
 
 // ociConfigPath returns path to pod's config.json file.

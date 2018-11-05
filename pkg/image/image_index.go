@@ -30,6 +30,7 @@ func NewIndex() *Index {
 
 // Find searches for expectImage info by its ID or prefix or any of tags.
 // This method may return error if prefix is not long enough to identify expectImage uniquely.
+// If image is not fount ErrNotFound is returned.
 func (i *Index) Find(id string) (*Info, error) {
 	info, err := i.find(id)
 	if err == ErrNotFound {

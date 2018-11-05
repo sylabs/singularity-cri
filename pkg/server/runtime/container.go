@@ -37,13 +37,14 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		return nil, err
 	}
 
-	cont := container.New(req.Config)
+	cont := container.New(req.Config, pod)
+	// add to trunc index first not to cleanup if it fails later
 	err = s.containers.Add(cont)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := cont.Create(info, pod); err != nil {
+	if err := cont.Create(info); err != nil {
 		if err := s.containers.Remove(cont.ID()); err != nil {
 			log.Printf("could not remove container from index: %v", err)
 		}
@@ -77,10 +78,64 @@ func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *k8s.RemoveC
 // ContainerStatus returns status of the container.
 // If the container is not present, returns an error.
 func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.ContainerStatusRequest) (*k8s.ContainerStatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == container.ErrNotFound {
+		return nil, status.Errorf(codes.NotFound, "pod not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	info, err := s.imageIndex.Find(cont.GetImage().GetImage())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "could not get container image: %v", cont.ID(), err)
+	}
+	return &k8s.ContainerStatusResponse{
+		Status: &k8s.ContainerStatus{
+			Id:          cont.ID(),
+			Metadata:    cont.GetMetadata(),
+			State:       0,
+			CreatedAt:   cont.CreatedAt(),
+			StartedAt:   0,
+			FinishedAt:  0,
+			ExitCode:    0,
+			Image:       cont.GetImage(),
+			ImageRef:    info.ID(),
+			Labels:      cont.GetLabels(),
+			Annotations: cont.GetAnnotations(),
+			Mounts:      cont.GetMounts(),
+			LogPath:     cont.GetLogPath(), // todo concat with pod log dir?
+		},
+	}, nil
 }
 
 // ListContainers lists all containers by filters.
 func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListContainersRequest) (*k8s.ListContainersResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	var containers []*k8s.Container
+
+	appendContToResult := func(cont *container.Container) {
+		if cont.MatchesFilter(req.Filter) {
+			info, err := s.imageIndex.Find(cont.GetImage().GetImage())
+			if err != nil {
+				log.Printf("skipping container %s due to %v", cont.ID(), err)
+				return
+			}
+			containers = append(containers, &k8s.Container{
+				Id:           cont.ID(),
+				PodSandboxId: cont.PodID(),
+				Metadata:     cont.GetMetadata(),
+				Image:        cont.GetImage(),
+				ImageRef:     info.ID(),
+				State:        cont.State(),
+				CreatedAt:    cont.CreatedAt(),
+				Labels:       cont.GetLabels(),
+				Annotations:  cont.GetAnnotations(),
+			})
+		}
+	}
+	s.containers.Iterate(appendContToResult)
+	return &k8s.ListContainersResponse{
+		Containers: containers,
+	}, nil
+
 }

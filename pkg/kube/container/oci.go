@@ -49,7 +49,7 @@ func (t *ociTranslator) translate() (*specs.Spec, error) {
 }
 
 func (t *ociTranslator) configureImage() {
-	t.g.SetRootPath(t.cont.GetImage().GetImage())
+	t.g.SetRootPath(t.cont.rootfsPath())
 	t.g.SetRootReadonly(t.cont.GetLinux().GetSecurityContext().GetReadonlyRootfs())
 }
 
