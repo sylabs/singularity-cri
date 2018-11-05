@@ -20,6 +20,7 @@ import (
 	"os/exec"
 
 	"github.com/sylabs/cri/pkg/image"
+	"github.com/sylabs/cri/pkg/kube/container"
 	"github.com/sylabs/cri/pkg/kube/sandbox"
 	"github.com/sylabs/cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
@@ -33,6 +34,7 @@ type SingularityRuntime struct {
 	starter     string
 	imageIndex  *image.Index
 	pods        *sandbox.Index
+	containers  *container.Index
 }
 
 // NewSingularityRuntime initializes and returns SingularityRuntime.
@@ -52,6 +54,7 @@ func NewSingularityRuntime(index *image.Index) (*SingularityRuntime, error) {
 		starter:     start,
 		imageIndex:  index,
 		pods:        sandbox.NewIndex(),
+		containers:  container.NewIndex(),
 	}, nil
 }
 

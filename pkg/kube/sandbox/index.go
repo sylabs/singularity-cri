@@ -59,7 +59,7 @@ func (i *Index) Add(pod *Pod) error {
 }
 
 // Iterate calls handler func on each pod registered in index.
-func (i *Index) Iterate(handler func(pod *Pod)) {
+func (i *Index) Iterate(handler func(*Pod)) {
 	innerIterate := func(key string, item interface{}) {
 		handler(item.(*Pod))
 	}

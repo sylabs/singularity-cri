@@ -16,11 +16,10 @@ package runtime
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 
 	"github.com/sylabs/cri/pkg/image"
-	"github.com/sylabs/cri/pkg/oci/translate"
+	"github.com/sylabs/cri/pkg/kube/container"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -28,31 +27,31 @@ import (
 
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateContainerRequest) (*k8s.CreateContainerResponse, error) {
-	pod, err := s.findPod(req.PodSandboxId)
-	if err != nil {
-		return nil, err
-	}
-
-	// todo oci bundle here
 	info, err := s.imageIndex.Find(req.Config.Image.Image)
 	if err == image.ErrNotFound {
 		return nil, status.Error(codes.NotFound, "image not found")
 	}
 
-	req.Config.Image.Image = info.Path() // a hack for starter to work correctly
-	ociConfig, err := translate.KubeToOCI(pod, req.Config)
+	pod, err := s.findPod(req.PodSandboxId)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not generate OCI config: %v", err)
+		return nil, err
 	}
 
-	ociBytes, err := json.Marshal(ociConfig)
+	cont := container.New(req.Config)
+	err = s.containers.Add(cont)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not marshal OCI config: %v", err)
+		return nil, err
 	}
-	log.Printf("OCI config is: %s", ociBytes)
 
-	// todo create log file
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	if err := cont.Create(info, pod); err != nil {
+		if err := s.containers.Remove(cont.ID()); err != nil {
+			log.Printf("could not remove container from index: %v", err)
+		}
+		return nil, status.Errorf(codes.Internal, "could not create container: %v", err)
+	}
+	return &k8s.CreateContainerResponse{
+		ContainerId: cont.ID(),
+	}, nil
 }
 
 // StartContainer starts the container.
