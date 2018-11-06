@@ -1,4 +1,18 @@
-package sandbox
+// Copyright (c) 2018 Sylabs, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package kube
 
 import (
 	"context"
@@ -34,11 +48,16 @@ func (p *Pod) spawnOCIPod() error {
 
 	go p.cli.Run(p.id, p.bundlePath(), "--empty-process", "--sync-socket", p.socketPath())
 
-	p.expectState(runtime.StateCreating)
-	p.expectState(runtime.StateCreated)
-	p.expectState(runtime.StateRunning)
+	if err := p.expectState(runtime.StateCreating); err != nil {
+		return err
+	}
+	if err := p.expectState(runtime.StateCreated); err != nil {
+		return err
+	}
+	if err := p.expectState(runtime.StateRunning); err != nil {
+		return err
+	}
 
-	log.Printf("query state...")
 	podState, err := p.cli.State(p.id)
 	if err != nil {
 		return fmt.Errorf("could not get pod pid: %v", err)
@@ -82,5 +101,8 @@ func (p *Pod) cleanupRuntime(force bool) error {
 		return err
 	}
 	p.syncCancel()
+	if err := p.cli.Delete(p.id); err != nil {
+		return fmt.Errorf("could not remove pod: %v", err)
+	}
 	return nil
 }

@@ -12,16 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rand
+package runtime
 
-import (
-	"crypto/rand"
-	"encoding/hex"
+const (
+	AnnotationCreatedAt  = "io.sylabs.runtime.oci.created_at"
+	AnnotationStartedAt  = "io.sylabs.runtime.oci.starter_at"
+	AnnotationFinishedAt = "io.sylabs.runtime.oci.finished_at"
+	AnnotationExitCode   = "io.sylabs.runtime.oci.exit-code"
+	AnnotationExitDesc   = "io.sylabs.runtime.oci.exit-desc"
 )
-
-// GenerateID returns unique random id of passed length generated with crypto/rand.
-func GenerateID(len int) string {
-	buf := make([]byte, (len-1)/2+1)
-	rand.Read(buf)
-	return hex.EncodeToString(buf)[:len]
-}

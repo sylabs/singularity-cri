@@ -1,3 +1,17 @@
+// Copyright (c) 2018 Sylabs, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package image
 
 import (
@@ -67,13 +81,13 @@ func ParseRef(imgRef string) (*Reference, error) {
 		if strings.Contains(image, "sha256.") {
 			ref.digests = append(ref.digests, imgRef)
 		} else {
-			ref.tags = append(ref.tags, normalizedImageRef(imgRef))
+			ref.tags = append(ref.tags, NormalizedImageRef(imgRef))
 		}
 	case singularity.DockerProtocol:
 		if strings.IndexByte(image, '@') != -1 {
 			ref.digests = append(ref.digests, image)
 		} else {
-			ref.tags = append(ref.tags, normalizedImageRef(image))
+			ref.tags = append(ref.tags, NormalizedImageRef(image))
 		}
 	default:
 		return nil, fmt.Errorf("unknown image registry: %s", uri)
@@ -129,9 +143,9 @@ func (r *Reference) RemoveTag(tag string) {
 	r.tags = removeFromSlice(r.tags, tag)
 }
 
-// normalizedImageRef appends tag 'latest' if the passed ref
+// NormalizedImageRef appends tag 'latest' if the passed ref
 // does not have any tag or digest already.
-func normalizedImageRef(imgRef string) string {
+func NormalizedImageRef(imgRef string) string {
 	image := imgRef
 	indx := strings.Index(imgRef, "://")
 	if indx != -1 {

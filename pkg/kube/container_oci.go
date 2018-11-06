@@ -1,4 +1,18 @@
-package container
+// Copyright (c) 2018 Sylabs, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package kube
 
 import (
 	"fmt"
@@ -9,23 +23,24 @@ import (
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
-	"github.com/sylabs/cri/pkg/kube/sandbox"
 	"golang.org/x/sys/unix"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-type ociTranslator struct {
+type containerTranslator struct {
 	cont *Container
-	pod  *sandbox.Pod
+	pod  *Pod
 	g    generate.Generator
 }
 
-func generateOCI(cont *Container, pod *sandbox.Pod) (*specs.Spec, error) {
+// translateContainer translates Container and its parent Pod instances
+// into OCI container specification.
+func translateContainer(cont *Container, pod *Pod) (*specs.Spec, error) {
 	g, err := generate.New("linux")
 	if err != nil {
 		return nil, fmt.Errorf("could not initialize generator: %v", err)
 	}
-	t := ociTranslator{
+	t := containerTranslator{
 		g:    g,
 		cont: cont,
 		pod:  pod,
@@ -33,7 +48,7 @@ func generateOCI(cont *Container, pod *sandbox.Pod) (*specs.Spec, error) {
 	return t.translate()
 }
 
-func (t *ociTranslator) translate() (*specs.Spec, error) {
+func (t *containerTranslator) translate() (*specs.Spec, error) {
 	t.configureImage()
 	if err := t.configureDevices(); err != nil {
 		return nil, fmt.Errorf("could not configure devices: %v", err)
@@ -48,12 +63,12 @@ func (t *ociTranslator) translate() (*specs.Spec, error) {
 	return t.g.Config, nil
 }
 
-func (t *ociTranslator) configureImage() {
-	t.g.SetRootPath(t.cont.rootfsPath())
+func (t *containerTranslator) configureImage() {
+	t.g.SetRootPath(t.cont.RootfsPath())
 	t.g.SetRootReadonly(t.cont.GetLinux().GetSecurityContext().GetReadonlyRootfs())
 }
 
-func (t *ociTranslator) configureMounts() error {
+func (t *containerTranslator) configureMounts() error {
 	if t.pod.GetDnsConfig() != nil {
 		t.g.AddMount(specs.Mount{
 			Destination: "/etc/resolv.conf",
@@ -108,7 +123,7 @@ func (t *ociTranslator) configureMounts() error {
 	return nil
 }
 
-func (t *ociTranslator) configureDevices() error {
+func (t *containerTranslator) configureDevices() error {
 	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
 		err := t.addAllDevices("/dev")
 		if err != nil {
@@ -129,7 +144,7 @@ func (t *ociTranslator) configureDevices() error {
 	return nil
 }
 
-func (t *ociTranslator) addAllDevices(dir string) error {
+func (t *containerTranslator) addAllDevices(dir string) error {
 	devices, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("could not read /dev: %v", err)
@@ -155,7 +170,7 @@ func (t *ociTranslator) addAllDevices(dir string) error {
 	return nil
 }
 
-func (t *ociTranslator) device(from, to string) (*specs.LinuxDevice, error) {
+func (t *containerTranslator) device(from, to string) (*specs.LinuxDevice, error) {
 	stat, err := os.Stat(from)
 	if err != nil {
 		return nil, fmt.Errorf("invalid device source: %v", err)
@@ -187,7 +202,7 @@ func (t *ociTranslator) device(from, to string) (*specs.LinuxDevice, error) {
 	}, nil
 }
 
-func (t *ociTranslator) configureNamespaces() {
+func (t *containerTranslator) configureNamespaces() {
 	if t.pod.GetHostname() != "" {
 		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.NamespacePath(specs.UTSNamespace))
 	}
@@ -214,24 +229,45 @@ func (t *ociTranslator) configureNamespaces() {
 	}
 }
 
-func (t *ociTranslator) configureResources() {
+func (t *containerTranslator) configureResources() {
 	res := t.cont.GetLinux().GetResources()
-	t.g.SetLinuxResourcesCPUPeriod(uint64(res.GetCpuPeriod()))
-	t.g.SetLinuxResourcesCPUQuota(res.GetCpuQuota())
 	t.g.SetLinuxResourcesCPUMems(res.GetCpusetMems())
 	t.g.SetLinuxResourcesCPUCpus(res.GetCpusetCpus())
-	t.g.SetLinuxResourcesCPUShares(uint64(res.GetCpuShares()))
-	t.g.SetProcessOOMScoreAdj(int(res.GetOomScoreAdj()))
-	t.g.SetLinuxResourcesMemoryLimit(res.GetMemoryLimitInBytes())
+
+	if res.GetCpuPeriod() != 0 {
+		t.g.SetLinuxResourcesCPUPeriod(uint64(res.GetCpuPeriod()))
+	}
+	if res.GetCpuQuota() != 0 {
+		t.g.SetLinuxResourcesCPUQuota(res.GetCpuQuota())
+	}
+	if res.GetCpuShares() != 0 {
+		t.g.SetLinuxResourcesCPUShares(uint64(res.GetCpuShares()))
+	}
+	if res.GetOomScoreAdj() != 0 {
+		t.g.SetProcessOOMScoreAdj(int(res.GetOomScoreAdj()))
+	}
+	if res.GetMemoryLimitInBytes() != 0 {
+		t.g.SetLinuxResourcesMemoryLimit(res.GetMemoryLimitInBytes())
+	}
 }
 
-func (t *ociTranslator) configureProcess() {
+func (t *containerTranslator) configureProcess() {
+	const (
+		runScript  = "/.singularity.d/runscript"
+		execScript = "/.singularity.d/actions/exec"
+	)
+
 	for _, env := range t.cont.GetEnvs() {
 		t.g.AddProcessEnv(env.GetKey(), env.GetValue())
 	}
 	t.g.SetProcessCwd(t.cont.GetWorkingDir())
-	t.g.SetProcessArgs(append(t.cont.GetCommand(), t.cont.GetArgs()...))
 	t.g.SetProcessTerminal(t.cont.GetTty())
+
+	args := append(t.cont.GetCommand(), t.cont.GetArgs()...)
+	if len(args) == 0 {
+		args = []string{runScript}
+	}
+	t.g.SetProcessArgs(append([]string{execScript}, args...))
 
 	security := t.cont.GetLinux().GetSecurityContext()
 	t.g.SetProcessNoNewPrivileges(security.GetNoNewPrivs())
@@ -262,7 +298,7 @@ func (t *ociTranslator) configureProcess() {
 	}
 }
 
-func (t *ociTranslator) configureAnnotations() {
+func (t *containerTranslator) configureAnnotations() {
 	for k, v := range t.cont.GetAnnotations() {
 		t.g.AddAnnotation(k, v)
 	}

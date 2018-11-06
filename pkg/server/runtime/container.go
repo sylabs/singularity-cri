@@ -18,8 +18,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/sylabs/cri/pkg/image"
-	"github.com/sylabs/cri/pkg/kube/container"
+	"github.com/sylabs/cri/pkg/index"
+	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -28,7 +28,7 @@ import (
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateContainerRequest) (*k8s.CreateContainerResponse, error) {
 	info, err := s.imageIndex.Find(req.Config.Image.Image)
-	if err == image.ErrNotFound {
+	if err == index.ErrImageNotFound {
 		return nil, status.Error(codes.NotFound, "image not found")
 	}
 
@@ -37,7 +37,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		return nil, err
 	}
 
-	cont := container.New(req.Config, pod)
+	cont := kube.NewContainer(req.Config, pod)
 	// add to trunc index first not to cleanup if it fails later
 	err = s.containers.Add(cont)
 	if err != nil {
@@ -57,7 +57,18 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 
 // StartContainer starts the container.
 func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartContainerRequest) (*k8s.StartContainerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == index.ErrContainerNotFound {
+		return nil, status.Error(codes.NotFound, "container is not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	if err := cont.Start(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not start container: %v", err)
+	}
+	return &k8s.StartContainerResponse{}, nil
 }
 
 // StopContainer stops a running container with a grace period (i.e., timeout).
@@ -65,21 +76,46 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 // already been stopped.
 // TODO: what must the runtime do after the grace period is reached?
 func (s *SingularityRuntime) StopContainer(_ context.Context, req *k8s.StopContainerRequest) (*k8s.StopContainerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == index.ErrContainerNotFound {
+		return nil, status.Error(codes.NotFound, "container is not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	if err := cont.Stop(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not stop container: %v", err)
+	}
+	return &k8s.StopContainerResponse{}, nil
 }
 
 // RemoveContainer removes the container. If the container is running,
 // the container must be forcibly removed. This call is idempotent, and
 // must not return an error if the container has already been removed.
 func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *k8s.RemoveContainerRequest) (*k8s.RemoveContainerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == index.ErrContainerNotFound {
+		return &k8s.RemoveContainerResponse{}, nil
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	if err := cont.Remove(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not remove container: %v", err)
+	}
+	if err := s.containers.Remove(cont.ID()); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not remove container from index: %v", err)
+	}
+	return &k8s.RemoveContainerResponse{}, nil
 }
 
 // ContainerStatus returns status of the container.
 // If the container is not present, returns an error.
 func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.ContainerStatusRequest) (*k8s.ContainerStatusResponse, error) {
 	cont, err := s.containers.Find(req.ContainerId)
-	if err == container.ErrNotFound {
+	if err == index.ErrContainerNotFound {
 		return nil, status.Errorf(codes.NotFound, "pod not found")
 	}
 	if err != nil {
@@ -90,15 +126,18 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not get container image: %v", cont.ID(), err)
 	}
+	if err := cont.UpdateState(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not update container state: %v", err)
+	}
 	return &k8s.ContainerStatusResponse{
 		Status: &k8s.ContainerStatus{
 			Id:          cont.ID(),
 			Metadata:    cont.GetMetadata(),
-			State:       0,
+			State:       cont.State(),
 			CreatedAt:   cont.CreatedAt(),
-			StartedAt:   0,
-			FinishedAt:  0,
-			ExitCode:    0,
+			StartedAt:   cont.StartedAt(),
+			FinishedAt:  cont.FinishedAt(),
+			ExitCode:    cont.ExitCode(),
 			Image:       cont.GetImage(),
 			ImageRef:    info.ID(),
 			Labels:      cont.GetLabels(),
@@ -113,7 +152,7 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListContainersRequest) (*k8s.ListContainersResponse, error) {
 	var containers []*k8s.Container
 
-	appendContToResult := func(cont *container.Container) {
+	appendContToResult := func(cont *kube.Container) {
 		if cont.MatchesFilter(req.Filter) {
 			info, err := s.imageIndex.Find(cont.GetImage().GetImage())
 			if err != nil {
