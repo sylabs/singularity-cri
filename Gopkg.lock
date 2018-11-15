@@ -170,7 +170,7 @@
   version = "v1.0.1"
 
 [[projects]]
-  branch = "master"
+  branch = "master-oci"
   digest = "1:5b948a3e65fe79a581e989b718dfbe5efa6b38494686349b9a657072b3a93805"
   name = "github.com/sylabs/singularity"
   packages = [
@@ -184,7 +184,8 @@
     "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "dae3bf7ee5768d5458260545a94ba6033a1e5495"
+  revision = "4548708b4688d10857622e17fd5aa3fa8aed6ab2"
+  source = "github.com/cclerget/singularity"
 
 [[projects]]
   branch = "master"
