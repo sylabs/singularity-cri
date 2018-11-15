@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/sylabs/cri/pkg/singularity"
-	"github.com/sylabs/singularity/src/pkg/util/user-agent"
+	"github.com/sylabs/singularity/pkg/util/user-agent"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 

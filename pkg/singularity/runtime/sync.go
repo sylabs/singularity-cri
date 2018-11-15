@@ -116,6 +116,7 @@ func nextConn(ln net.Listener) <-chan net.Conn {
 	return next
 }
 
+// StatusToState is a helper func to convert container OCI status to State.
 func StatusToState(status string) State {
 	var state State
 	switch status {

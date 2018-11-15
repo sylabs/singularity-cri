@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
@@ -29,7 +30,7 @@ func (c *Container) spawnOCIContainer(imgInfo *image.Info) error {
 	if err != nil {
 		return fmt.Errorf("could not create oci bundle: %v", err)
 	}
-	log.Printf("launching observe server...")
+
 	syncCtx, cancel := context.WithCancel(context.Background())
 	c.syncCancel = cancel
 	c.syncChan, err = runtime.ObserveState(syncCtx, c.socketPath())
@@ -49,6 +50,40 @@ func (c *Container) spawnOCIContainer(imgInfo *image.Info) error {
 	return nil
 }
 
+// UpdateState updates container state according to information
+// received from the runtime.
+func (c *Container) UpdateState() error {
+	contState, err := c.cli.State(c.id)
+	if err != nil {
+		return fmt.Errorf("could not get container state: %v", err)
+	}
+
+	c.createdAt, err = parseIntAnnotation(contState.Annotations[runtime.AnnotationCreatedAt])
+	if err != nil {
+		return fmt.Errorf("could not parse created timestamp: %v", err)
+	}
+	c.startedAt, err = parseIntAnnotation(contState.Annotations[runtime.AnnotationStartedAt])
+	if err != nil {
+		return fmt.Errorf("could not parse started timestamp: %v", err)
+	}
+	c.finishedAt, err = parseIntAnnotation(contState.Annotations[runtime.AnnotationFinishedAt])
+	if err != nil {
+		return fmt.Errorf("could not parse finished timestamp: %v", err)
+	}
+	exitCode, err := parseIntAnnotation(contState.Annotations[runtime.AnnotationExitCode])
+	if err != nil {
+		return fmt.Errorf("could not parse exit code: %v", err)
+	}
+	c.exitCode = int32(exitCode)
+	c.runtimeState = runtime.StatusToState(contState.Status)
+	c.exitDesc = contState.Annotations[runtime.AnnotationExitDesc]
+
+	if err != nil {
+		return fmt.Errorf("could not parse annotations: %v", err)
+	}
+	return nil
+}
+
 func (c *Container) expectState(expect runtime.State) error {
 	log.Printf("waiting for state %d...", expect)
 	c.runtimeState = <-c.syncChan
@@ -58,51 +93,59 @@ func (c *Container) expectState(expect runtime.State) error {
 	return nil
 }
 
-func (c *Container) UpdateState() error {
-	contState, err := c.cli.State(c.id)
-	if err != nil {
-		return fmt.Errorf("could not get container state: %v", err)
-	}
-	c.createdAt, err = strconv.ParseInt(contState.Annotations[runtime.AnnotationCreatedAt], 10, 64)
-	if err != nil {
-		return fmt.Errorf("could not parse created timestamp: %v", err)
-	}
-	c.startedAt, err = strconv.ParseInt(contState.Annotations[runtime.AnnotationStartedAt], 10, 64)
-	if err != nil {
-		return fmt.Errorf("could not parse started timestamp: %v", err)
-	}
-	c.finishedAt, err = strconv.ParseInt(contState.Annotations[runtime.AnnotationFinishedAt], 10, 64)
-	if err != nil {
-		return fmt.Errorf("could not parse finished timestamp: %v", err)
-	}
-	exitCode, err := strconv.ParseInt(contState.Annotations[runtime.AnnotationExitCode], 10, 32)
-	if err != nil {
-		return fmt.Errorf("could not parse exit code: %v", err)
-	}
-	c.exitCode = int32(exitCode)
-	c.runtimeState = runtime.StatusToState(contState.Status)
+func (c *Container) terminate(timeout int64) error {
+	// Call cancel to free any resources taken by context.
+	// We should call it when sync socket will no longer be used, and
+	// since multiple calls are fine with cancel func, call it at
+	// the end of terminate.
+	defer c.syncCancel()
 
-	if err != nil {
-		return fmt.Errorf("could not parse annotations: %v", err)
-	}
-	return nil
-}
-
-func (c *Container) cleanupRuntime(force bool) error {
 	if c.runtimeState == runtime.StateExited {
 		return nil
 	}
-	err := c.cli.Kill(c.id, force)
+
+	if timeout == 0 { // if timeout is 0, forcibly remove process
+		return c.kill()
+	}
+
+	// otherwise give container a chance to terminate gracefully
+	err := c.cli.Kill(c.id, false)
 	if err != nil {
 		return fmt.Errorf("could not treminate container: %v", err)
 	}
-	err = c.expectState(runtime.StateExited)
-	if err != nil {
-		return err
+	select {
+	case c.runtimeState = <-c.syncChan:
+		if c.runtimeState != runtime.StateExited {
+			return fmt.Errorf("unexpected container state: %v", c.runtimeState)
+		}
+	case <-time.After(time.Second * time.Duration(timeout)):
+		return c.kill()
 	}
-	c.syncCancel()
-	if err := c.cli.Delete(c.id); err != nil {
-		return fmt.Errorf("could not remove container: %v", err)
-	}
+
 	return nil
+}
+
+func (c *Container) kill() error {
+	// Call cancel to free any resources taken by context.
+	// We should call it when sync socket will no longer be used, and
+	// since multiple calls are fine with cancel func, call it at
+	// the end of kill.
+	defer c.syncCancel()
+
+	if c.runtimeState == runtime.StateExited {
+		return nil
+	}
+
+	err := c.cli.Kill(c.id, true)
+	if err != nil {
+		return fmt.Errorf("could not kill container: %v", err)
+	}
+	return c.expectState(runtime.StateExited)
+}
+
+func parseIntAnnotation(ts string) (int64, error) {
+	if ts == "" {
+		return 0, nil
+	}
+	return strconv.ParseInt(ts, 10, 64)
 }

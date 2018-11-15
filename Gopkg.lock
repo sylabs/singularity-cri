@@ -171,19 +171,20 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:48dc01ed9217dffb28c2cc353edb627fb0c606e86c00d93e926cd1ad6a983a66"
+  digest = "1:5b948a3e65fe79a581e989b718dfbe5efa6b38494686349b9a657072b3a93805"
   name = "github.com/sylabs/singularity"
   packages = [
-    "src/pkg/client/library",
-    "src/pkg/client/shub",
-    "src/pkg/signing",
-    "src/pkg/sylog",
-    "src/pkg/sypgp",
-    "src/pkg/util/user",
-    "src/pkg/util/user-agent",
+    "internal/pkg/sylog",
+    "internal/pkg/util/user",
+    "pkg/client/library",
+    "pkg/client/shub",
+    "pkg/signing",
+    "pkg/sypgp",
+    "pkg/util/loop",
+    "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "017c288b3d243302dd783e1ec93b3a84970d2b78"
+  revision = "dae3bf7ee5768d5458260545a94ba6033a1e5495"
 
 [[projects]]
   branch = "master"
@@ -373,12 +374,14 @@
   input-imports = [
     "github.com/opencontainers/runtime-spec/specs-go",
     "github.com/opencontainers/runtime-tools/generate",
+    "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "github.com/sylabs/sif/pkg/sif",
-    "github.com/sylabs/singularity/src/pkg/client/library",
-    "github.com/sylabs/singularity/src/pkg/client/shub",
-    "github.com/sylabs/singularity/src/pkg/signing",
-    "github.com/sylabs/singularity/src/pkg/util/user-agent",
+    "github.com/sylabs/singularity/pkg/client/library",
+    "github.com/sylabs/singularity/pkg/client/shub",
+    "github.com/sylabs/singularity/pkg/signing",
+    "github.com/sylabs/singularity/pkg/util/loop",
+    "github.com/sylabs/singularity/pkg/util/user-agent",
     "github.com/tchap/go-patricia/patricia",
     "golang.org/x/sys/unix",
     "google.golang.org/grpc",

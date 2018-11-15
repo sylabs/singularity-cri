@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "name": "nginx-container",
+    "attempt": 1
+  },
+  "image": {
+    "image": "nginx"
+  },
+  "linux": {
+    "security_context": {
+      "namespace_options": {}
+    }
+  }
+}

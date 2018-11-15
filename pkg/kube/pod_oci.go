@@ -39,7 +39,7 @@ func translatePod(pod *Pod) (*specs.Spec, error) {
 }
 
 func (t *podTranslator) translate() (*specs.Spec, error) {
-	t.g.SetRootPath(t.pod.RootfsPath())
+	t.g.SetRootPath(t.pod.rootfsPath())
 	t.g.SetRootReadonly(false)
 
 	t.g.SetHostname(t.pod.GetHostname())

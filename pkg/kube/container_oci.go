@@ -16,7 +16,6 @@ package kube
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -64,15 +63,19 @@ func (t *containerTranslator) translate() (*specs.Spec, error) {
 }
 
 func (t *containerTranslator) configureImage() {
-	t.g.SetRootPath(t.cont.RootfsPath())
+	t.g.SetRootPath(t.cont.rootfsPath())
 	t.g.SetRootReadonly(t.cont.GetLinux().GetSecurityContext().GetReadonlyRootfs())
 }
 
 func (t *containerTranslator) configureMounts() error {
+	if err := t.g.SetLinuxRootPropagation("rshared"); err != nil {
+		return fmt.Errorf("could not set root propagation: %v", err)
+	}
+
 	if t.pod.GetDnsConfig() != nil {
 		t.g.AddMount(specs.Mount{
 			Destination: "/etc/resolv.conf",
-			Source:      t.pod.ResolvConfFilePath(),
+			Source:      t.pod.resolvConfFilePath(),
 			Options:     []string{"bind", "ro"},
 		})
 	}
@@ -80,7 +83,7 @@ func (t *containerTranslator) configureMounts() error {
 		t.g.SetHostname(t.pod.GetHostname())
 		t.g.AddMount(specs.Mount{
 			Destination: "/etc/hostname",
-			Source:      t.pod.HostnameFilePath(),
+			Source:      t.pod.hostnameFilePath(),
 			Options:     []string{"bind", "ro"},
 		})
 	}
@@ -125,10 +128,11 @@ func (t *containerTranslator) configureMounts() error {
 
 func (t *containerTranslator) configureDevices() error {
 	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
-		err := t.addAllDevices("/dev")
-		if err != nil {
-			return err
-		}
+		t.g.AddMount(specs.Mount{
+			Destination: "/dev",
+			Source:      "/dev",
+			Options:     []string{"rbind", "nosuid", "noexec"},
+		})
 		t.g.Config.Linux.Resources.Devices = []specs.LinuxDeviceCgroup{{Allow: true, Access: "rwm"}}
 		return nil
 	}
@@ -140,32 +144,6 @@ func (t *containerTranslator) configureDevices() error {
 		}
 		t.g.AddDevice(*device)
 		t.g.AddLinuxResourcesDevice(true, device.Type, &device.Major, &device.Minor, dev.GetPermissions())
-	}
-	return nil
-}
-
-func (t *containerTranslator) addAllDevices(dir string) error {
-	devices, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return fmt.Errorf("could not read /dev: %v", err)
-	}
-	for _, dev := range devices {
-		devPath := filepath.Join(dir, dev.Name())
-		if dev.IsDir() {
-			switch dev.Name() {
-			case "pts", "shm", "fd", "mqueue":
-				continue
-			}
-			if err := t.addAllDevices(devPath); err != nil {
-				return err
-			}
-			continue
-		}
-		device, err := t.device(devPath, devPath)
-		if err != nil {
-			return err
-		}
-		t.g.AddDevice(*device)
 	}
 	return nil
 }
@@ -204,7 +182,7 @@ func (t *containerTranslator) device(from, to string) (*specs.LinuxDevice, error
 
 func (t *containerTranslator) configureNamespaces() {
 	if t.pod.GetHostname() != "" {
-		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.NamespacePath(specs.UTSNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.namespacePath(specs.UTSNamespace))
 	}
 	t.g.AddOrReplaceLinuxNamespace(specs.MountNamespace, "")
 
@@ -213,19 +191,19 @@ func (t *containerTranslator) configureNamespaces() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, t.pod.NamespacePath(specs.IPCNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, t.pod.namespacePath(specs.IPCNamespace))
 	}
 	switch security.GetNamespaceOptions().GetNetwork() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, t.pod.NamespacePath(specs.NetworkNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, t.pod.namespacePath(specs.NetworkNamespace))
 	}
 	switch security.GetNamespaceOptions().GetPid() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), t.pod.NamespacePath(specs.PIDNamespace))
+		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), t.pod.namespacePath(specs.PIDNamespace))
 	}
 }
 

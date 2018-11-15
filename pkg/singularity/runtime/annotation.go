@@ -15,9 +15,18 @@
 package runtime
 
 const (
-	AnnotationCreatedAt  = "io.sylabs.runtime.oci.created_at"
-	AnnotationStartedAt  = "io.sylabs.runtime.oci.starter_at"
+	// AnnotationCreatedAt is used to pass creation timestamp in annotations.
+	AnnotationCreatedAt = "io.sylabs.runtime.oci.created_at"
+
+	// AnnotationStartedAt is used to pass startup timestamp in annotations.
+	AnnotationStartedAt = "io.sylabs.runtime.oci.starter_at"
+
+	// AnnotationFinishedAt is used to pass finished timestamp in annotations.
 	AnnotationFinishedAt = "io.sylabs.runtime.oci.finished_at"
-	AnnotationExitCode   = "io.sylabs.runtime.oci.exit-code"
-	AnnotationExitDesc   = "io.sylabs.runtime.oci.exit-desc"
+
+	// AnnotationExitCode is used to pass exit code in annotations.
+	AnnotationExitCode = "io.sylabs.runtime.oci.exit-code"
+
+	// AnnotationExitDesc is used to pass exit descrition (e.g. reson) in annotations.
+	AnnotationExitDesc = "io.sylabs.runtime.oci.exit-desc"
 )

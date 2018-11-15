@@ -30,9 +30,9 @@ import (
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/sif/pkg/sif"
-	library "github.com/sylabs/singularity/src/pkg/client/library"
-	shub "github.com/sylabs/singularity/src/pkg/client/shub"
-	"github.com/sylabs/singularity/src/pkg/signing"
+	library "github.com/sylabs/singularity/pkg/client/library"
+	shub "github.com/sylabs/singularity/pkg/client/shub"
+	"github.com/sylabs/singularity/pkg/signing"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 

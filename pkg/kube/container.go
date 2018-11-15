@@ -41,9 +41,9 @@ type Container struct {
 	createdAt    int64 // unix nano
 	startedAt    int64 // unix nano
 	finishedAt   int64 // unix nano
-	exitCode     int32
-	state        k8s.ContainerState
 	runtimeState runtime.State
+	exitDesc     string
+	exitCode     int32
 
 	createOnce  sync.Once
 	startedOnce sync.Once
@@ -76,9 +76,18 @@ func (c *Container) PodID() string {
 	return c.pod.ID()
 }
 
-// State returns current pod state.
+// State returns current container state understood by k8s.
 func (c *Container) State() k8s.ContainerState {
-	return c.state
+	switch c.runtimeState {
+	case runtime.StateCreated:
+		return k8s.ContainerState_CONTAINER_CREATED
+	case runtime.StateRunning:
+		return k8s.ContainerState_CONTAINER_RUNNING
+	case runtime.StateExited:
+		return k8s.ContainerState_CONTAINER_EXITED
+	}
+	return k8s.ContainerState_CONTAINER_UNKNOWN
+
 }
 
 // CreatedAt returns pod creation time in Unix nano.
@@ -86,16 +95,24 @@ func (c *Container) CreatedAt() int64 {
 	return c.createdAt
 }
 
+// StartedAt returns container start time in unix nano.
 func (c *Container) StartedAt() int64 {
 	return c.startedAt
 }
 
+// FinishedAt returns container finish time in unix nano.
 func (c *Container) FinishedAt() int64 {
 	return c.finishedAt
 }
 
+// ExitCode returns container ext code.
 func (c *Container) ExitCode() int32 {
 	return c.exitCode
+}
+
+// ExitDescription returns human readable message of why container has exited.
+func (c *Container) ExitDescription() string {
+	return c.exitDesc
 }
 
 // Create creates container inside a pod from the image.
@@ -103,8 +120,11 @@ func (c *Container) Create(info *image.Info) error {
 	var err error
 	defer func() {
 		if err != nil {
-			if err := c.cleanupRuntime(true); err != nil {
+			if err := c.kill(); err != nil {
 				log.Printf("could not kill container failed run: %v", err)
+			}
+			if err := c.cli.Delete(c.id); err != nil {
+				log.Printf("could not delete container: %v", err)
 			}
 			if err := c.cleanupFiles(true); err != nil {
 				log.Printf("could not cleanup bundle: %v", err)
@@ -147,23 +167,25 @@ func (c *Container) Start() error {
 	return err
 }
 
-// Stop stops running container.
-func (c *Container) Stop() error {
+// Stop stops running container. The passed timeout is used to give
+// container a chance to stop gracefully. If timeout is 0 or container
+// is still running after grace period, it will be forcibly terminated.
+func (c *Container) Stop(timeout int64) error {
 	if c.isStopped {
 		return nil
 	}
 
-	go c.cli.Kill(c.id, false)
-	err := c.expectState(runtime.StateExited)
-	if err != nil {
-		return fmt.Errorf("could not stop container: %v", err)
+	if err := c.UpdateState(); err != nil {
+		return fmt.Errorf("could not update container state: %v", err)
 	}
-	err = c.UpdateState()
-	if err != nil {
+	if err := c.terminate(timeout); err != nil {
+		return fmt.Errorf("could not terminate container process: %v", err)
+	}
+	if err := c.UpdateState(); err != nil {
 		return fmt.Errorf("could not update container state: %v", err)
 	}
 	c.isStopped = true
-	return err
+	return nil
 }
 
 // Remove removes the container, making sure nothing
@@ -173,8 +195,15 @@ func (c *Container) Remove() error {
 	if c.isRemoved {
 		return nil
 	}
-	if err := c.cleanupRuntime(true); err != nil {
-		return fmt.Errorf("could not kill container process: %v", err)
+
+	if err := c.UpdateState(); err != nil {
+		return fmt.Errorf("could not update container state: %v", err)
+	}
+	if err := c.kill(); err != nil {
+		log.Printf("could not kill container failed run: %v", err)
+	}
+	if err := c.cli.Delete(c.id); err != nil {
+		log.Printf("could not delete container: %v", err)
 	}
 	if err := c.cleanupFiles(false); err != nil {
 		return fmt.Errorf("could not cleanup container: %v", err)
@@ -198,16 +227,16 @@ func (c *Container) MatchesFilter(filter *k8s.ContainerFilter) bool {
 		return false
 	}
 
-	if filter.State != nil && filter.State.State != c.state {
+	if filter.State != nil && filter.State.State != c.State() {
 		return false
 	}
 
 	for k, v := range filter.LabelSelector {
-		lablel, ok := c.Labels[k]
+		label, ok := c.Labels[k]
 		if !ok {
 			return false
 		}
-		if v != lablel {
+		if v != label {
 			return false
 		}
 	}

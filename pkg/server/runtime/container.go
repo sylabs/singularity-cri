@@ -73,8 +73,8 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 
 // StopContainer stops a running container with a grace period (i.e., timeout).
 // This call is idempotent, and must not return an error if the container has
-// already been stopped.
-// TODO: what must the runtime do after the grace period is reached?
+// already been stopped. If a grace period is reached runtime will be asked
+// to kill container.
 func (s *SingularityRuntime) StopContainer(_ context.Context, req *k8s.StopContainerRequest) (*k8s.StopContainerResponse, error) {
 	cont, err := s.containers.Find(req.ContainerId)
 	if err == index.ErrContainerNotFound {
@@ -84,7 +84,7 @@ func (s *SingularityRuntime) StopContainer(_ context.Context, req *k8s.StopConta
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	if err := cont.Stop(); err != nil {
+	if err := cont.Stop(req.Timeout); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not stop container: %v", err)
 	}
 	return &k8s.StopContainerResponse{}, nil
@@ -124,7 +124,7 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 
 	info, err := s.imageIndex.Find(cont.GetImage().GetImage())
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "could not get container image: %v", cont.ID(), err)
+		return nil, status.Errorf(codes.InvalidArgument, "could not get container image: %v", err)
 	}
 	if err := cont.UpdateState(); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not update container state: %v", err)
@@ -140,6 +140,8 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 			ExitCode:    cont.ExitCode(),
 			Image:       cont.GetImage(),
 			ImageRef:    info.ID(),
+			Reason:      cont.ExitDescription(),
+			Message:     cont.ExitDescription(),
 			Labels:      cont.GetLabels(),
 			Annotations: cont.GetAnnotations(),
 			Mounts:      cont.GetMounts(),
@@ -153,6 +155,10 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 	var containers []*k8s.Container
 
 	appendContToResult := func(cont *kube.Container) {
+		if err := cont.UpdateState(); err != nil {
+			log.Printf("could not update container state: %v", err)
+			return
+		}
 		if cont.MatchesFilter(req.Filter) {
 			info, err := s.imageIndex.Find(cont.GetImage().GetImage())
 			if err != nil {

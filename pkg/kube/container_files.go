@@ -24,40 +24,43 @@ import (
 
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/sif/pkg/sif"
-	"github.com/sylabs/singularity/src/pkg/util/loop"
+	"github.com/sylabs/singularity/pkg/util/loop"
 )
 
 const (
-	containerInfoPath = "/var/run/singularity/containers/"
+	contInfoPath = "/var/run/singularity/containers/"
+
+	contSocketPath    = "sync.sock"
+	contBundlePath    = "bundle/"
+	contRootfsPath    = "rootfs/"
+	contOCIConfigPath = "config.json"
 )
 
 // ociConfigPath returns path to container's config.json file.
 func (c *Container) ociConfigPath() string {
-	return filepath.Join(containerInfoPath, c.id, bundleStorePath, ociConfigPath)
+	return filepath.Join(contInfoPath, c.id, contBundlePath, contOCIConfigPath)
 }
 
-// RootfsPath returns path to container's rootfs directory.
-func (c *Container) RootfsPath() string {
-	return rootfsStorePath
-	//return filepath.Join(containerInfoPath, c.id, bundleStorePath, rootfsStorePath)
+// rootfsPath returns path to container's rootfs directory.
+func (c *Container) rootfsPath() string {
+	return filepath.Join(contInfoPath, c.id, contBundlePath, contRootfsPath)
 }
 
-// socketPath returns path to contaienr's sync socket.
+// socketPath returns path to container's sync socket.
 func (c *Container) socketPath() string {
-	return filepath.Join(containerInfoPath, c.id, socketPath)
+	return filepath.Join(contInfoPath, c.id, contSocketPath)
 }
 
 // bundlePath returns path to container's filesystem bundle directory.
 func (c *Container) bundlePath() string {
-	return filepath.Join(containerInfoPath, c.id, bundleStorePath)
+	return filepath.Join(contInfoPath, c.id, contBundlePath)
 }
 
 func (c *Container) addOCIBundle(image *image.Info) error {
-	err := os.MkdirAll(filepath.Join(containerInfoPath, c.id, bundleStorePath, rootfsStorePath), os.ModePerm)
+	err := os.MkdirAll(c.bundlePath(), os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("could not create rootfs directory for container: %v", err)
 	}
-
 	ociSpec, err := translateContainer(c, c.pod)
 	if err != nil {
 		return fmt.Errorf("could not generate oci spec for container: %v", err)
@@ -71,20 +74,49 @@ func (c *Container) addOCIBundle(image *image.Info) error {
 	if err != nil {
 		return fmt.Errorf("could not encode OCI config into json: %v", err)
 	}
-	return mountImage(image.Path(), filepath.Join(containerInfoPath, c.id, bundleStorePath, rootfsStorePath))
-	//return mountImage(image.Path(), c.RootfsPath())
+	return c.prepareOverlay(image.Path())
 }
 
-func (c *Container) cleanupFiles(silent bool) error {
-	//err := syscall.Unmount(c.RootfsPath(), 0)
-	err := syscall.Unmount(filepath.Join(containerInfoPath, c.id, bundleStorePath, rootfsStorePath), 0)
-	if err != nil && !silent {
-		return fmt.Errorf("could not umount rootfs: %v", err)
+func (c *Container) prepareOverlay(imagePath string) error {
+	var (
+		lowerPath = filepath.Join(c.bundlePath(), "lower")
+		upperPath = filepath.Join(c.bundlePath(), "upper")
+		workPath  = filepath.Join(c.bundlePath(), "work")
+	)
+
+	log.Printf("creating %s", lowerPath)
+	err := os.Mkdir(lowerPath, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("could not create lower directory for overlay: %v", err)
 	}
-	//err = os.RemoveAll(filepath.Join(containerInfoPath, c.id))
-	//if err != nil && !silent {
-	//	return fmt.Errorf("could not cleanup container: %v", err)
-	//}
+	log.Printf("creating %s", upperPath)
+	err = os.Mkdir(upperPath, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("could not create upper directory for overlay: %v", err)
+	}
+	log.Printf("creating %s", workPath)
+	err = os.Mkdir(workPath, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("could not create working directory for overlay: %v", err)
+	}
+
+	log.Printf("creating %s", c.rootfsPath())
+	err = os.Mkdir(c.rootfsPath(), os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("could not create root directory for overlay: %v", err)
+	}
+
+	err = mountImage(imagePath, lowerPath)
+	if err != nil {
+		return fmt.Errorf("could not mount image: %v", err)
+	}
+
+	overlayOpts := fmt.Sprintf("lowerdir=%s,workdir=%s,upperdir=%s", lowerPath, workPath, upperPath)
+	log.Printf("mounting overlay with options: %v", overlayOpts)
+	err = syscall.Mount("overlay", c.rootfsPath(), "overlay", syscall.MS_NOSUID|syscall.MS_REC, overlayOpts)
+	if err != nil {
+		return fmt.Errorf("could not mount overlay: %v", err)
+	}
 	return nil
 }
 
@@ -133,9 +165,26 @@ func mountImage(imagePath, targetPath string) error {
 		return fmt.Errorf("could not set loop device status: %v", err)
 	}
 
-	err = syscall.Mount(fmt.Sprintf("/dev/loop%d", devNum), targetPath, "squashfs", syscall.MS_NOSUID|syscall.MS_RDONLY, "errors=remount-ro")
+	err = syscall.Mount(fmt.Sprintf("/dev/loop%d", devNum), targetPath,
+		"squashfs", syscall.MS_NOSUID|syscall.MS_RDONLY, "errors=remount-ro")
 	if err != nil {
 		return fmt.Errorf("could not mount loop device: %v", err)
+	}
+	return nil
+}
+
+func (c *Container) cleanupFiles(silent bool) error {
+	err := syscall.Unmount(filepath.Join(c.bundlePath(), "lower"), 0)
+	if err != nil && !silent {
+		return fmt.Errorf("could not umount image: %v", err)
+	}
+	err = syscall.Unmount(c.rootfsPath(), 0)
+	if err != nil && !silent {
+		return fmt.Errorf("could not umount rootfs: %v", err)
+	}
+	err = os.RemoveAll(filepath.Join(contInfoPath, c.id))
+	if err != nil && !silent {
+		return fmt.Errorf("could not cleanup container: %v", err)
 	}
 	return nil
 }

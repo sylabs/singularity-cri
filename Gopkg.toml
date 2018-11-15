@@ -32,7 +32,6 @@
   name = "github.com/sylabs/singularity"
   branch = "master"
 
-
 [[constraint]]
   name = "github.com/sylabs/sif"
   version = "1.0.1"

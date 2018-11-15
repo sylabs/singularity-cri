@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "name": "testcontainer",
+    "attempt": 1
+  },
+  "image": {
+    "image": "library://sashayakovtseva/test/test-info"
+  },
+  "envs": [
+    {
+      "key": "MY_CUSTOM_VAR",
+      "value": "singularity-cri"
+    },
+    {
+      "key": "MY_ANOTHER_VAR",
+      "value": "is-awesome"
+    }
+  ],
+  "mounts": [
+    {
+      "container_path": "/mounted1",
+      "host_path": "/var/lib/singularity",
+      "readonly": true
+    }
+  ],
+  "log_path": "testcontainer/3.log",
+  "linux": {
+    "security_context": {
+      "namespace_options": {},
+      "no_new_privs": true
+    }
+  }
+}

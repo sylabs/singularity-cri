@@ -35,7 +35,7 @@ type CLIClient struct {
 
 // NewCLIClient returns new CLIClient ready to use.
 func NewCLIClient() *CLIClient {
-	return &CLIClient{baseCmd: []string{singularity.RuntimeName, "oci"}}
+	return &CLIClient{baseCmd: []string{singularity.RuntimeName, "-d", "oci"}}
 }
 
 // State returns state of a container with passed id.
@@ -81,10 +81,10 @@ func (c *CLIClient) Start(id string) error {
 	return silentRun(cmd)
 }
 
-// Kill asks runtime to send SIGTERM to container with passed id.
+// Kill asks runtime to send SIGINT to container with passed id.
 // If force is true that SIGKILL is sent instead.
 func (c *CLIClient) Kill(id string, force bool) error {
-	sig := "SIGTERM"
+	sig := "SIGINT"
 	if force {
 		sig = "SIGKILL"
 	}
@@ -100,12 +100,13 @@ func (c *CLIClient) Delete(id string) error {
 
 func silentRun(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
+	runCmd.Stdout = os.Stderr
 	runCmd.Stderr = os.Stderr
-	runCmd.Stdout = os.Stdout
 
 	log.Printf("executing %v", cmd)
-	if err := runCmd.Run(); err != nil {
-		return fmt.Errorf("could not execute %v: %v", cmd, err)
+	err := runCmd.Run()
+	if err != nil {
+		return fmt.Errorf("could not execute: %v", err)
 	}
 	return nil
 }

@@ -38,7 +38,7 @@ func (p *Pod) spawnOCIPod() error {
 	if err != nil {
 		return fmt.Errorf("could not create oci bundle: %v", err)
 	}
-	log.Printf("launching observe server...")
+
 	syncCtx, cancel := context.WithCancel(context.Background())
 	p.syncCancel = cancel
 	p.syncChan, err = runtime.ObserveState(syncCtx, p.socketPath())
@@ -87,22 +87,20 @@ func (p *Pod) expectState(expect runtime.State) error {
 	return nil
 }
 
-func (p *Pod) cleanupRuntime(force bool) error {
+func (p *Pod) terminate(force bool) error {
+	// Call cancel to free any resources taken by context.
+	// We should call it when sync socket will no longer be used, and
+	// since multiple calls are fine with cancel func, call it at
+	// the end of terminate.
+	defer p.syncCancel()
+
 	if p.runtimeState == runtime.StateExited {
 		return nil
 	}
 
 	err := p.cli.Kill(p.id, force)
 	if err != nil {
-		return fmt.Errorf("could not treminate pod: %v", err)
+		return fmt.Errorf("could not terminate pod: %v", err)
 	}
-	err = p.expectState(runtime.StateExited)
-	if err != nil {
-		return err
-	}
-	p.syncCancel()
-	if err := p.cli.Delete(p.id); err != nil {
-		return fmt.Errorf("could not remove pod: %v", err)
-	}
-	return nil
+	return p.expectState(runtime.StateExited)
 }
