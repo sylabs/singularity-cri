@@ -42,6 +42,7 @@ type Container struct {
 	startedAt    int64 // unix nano
 	finishedAt   int64 // unix nano
 	runtimeState runtime.State
+	attachSocket string
 	exitDesc     string
 	exitCode     int32
 
@@ -113,6 +114,11 @@ func (c *Container) ExitCode() int32 {
 // ExitDescription returns human readable message of why container has exited.
 func (c *Container) ExitDescription() string {
 	return c.exitDesc
+}
+
+// AttachSocket returns attach socket on which runtime will serve attach request.
+func (c *Container) AttachSocket() string {
+	return c.attachSocket
 }
 
 // Create creates container inside a pod from the image.

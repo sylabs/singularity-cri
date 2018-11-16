@@ -29,4 +29,8 @@ const (
 
 	// AnnotationExitDesc is used to pass exit descrition (e.g. reson) in annotations.
 	AnnotationExitDesc = "io.sylabs.runtime.oci.exit-desc"
+
+	// AnnotationAttachSocket is used to pass socket address that runtime
+	// opens for streaming requests.
+	AnnotationAttachSocket = "io.sylabs.runtime.oci.attach-socket"
 )

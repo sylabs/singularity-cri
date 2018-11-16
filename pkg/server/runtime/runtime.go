@@ -19,11 +19,16 @@ import (
 	"fmt"
 	"os/exec"
 
+	"net/http"
+
+	"log"
+
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	"k8s.io/kubernetes/pkg/kubelet/server/streaming"
 )
 
 // SingularityRuntime implements k8s RuntimeService interface.
@@ -33,12 +38,14 @@ type SingularityRuntime struct {
 	imageIndex  *index.ImageIndex
 	pods        *index.PodIndex
 	containers  *index.ContainerIndex
+
+	streaming streaming.Server
 }
 
 // NewSingularityRuntime initializes and returns SingularityRuntime.
 // Singularity must be installed on the host otherwise it will return an error.
 // SingularityRuntime depends on SingularityRegistry so it must not be nil.
-func NewSingularityRuntime(imgIndex *index.ImageIndex) (*SingularityRuntime, error) {
+func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*SingularityRuntime, error) {
 	sing, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
@@ -47,13 +54,32 @@ func NewSingularityRuntime(imgIndex *index.ImageIndex) (*SingularityRuntime, err
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.StarterName, err)
 	}
-	return &SingularityRuntime{
+
+	runtime := &SingularityRuntime{
 		singularity: sing,
 		starter:     start,
 		imageIndex:  imgIndex,
 		pods:        index.NewPodIndex(),
 		containers:  index.NewContainerIndex(),
-	}, nil
+	}
+	streamingRuntime := &streamingRuntime{runtime}
+
+	streamingConfig := streaming.DefaultConfig
+	streamingConfig.Addr = streamURL
+	streamingServer, err := streaming.NewServer(streamingConfig, streamingRuntime)
+	if err != nil {
+		return nil, fmt.Errorf("could not create streaming server: %v", err)
+	}
+
+	go func() {
+		err := streamingServer.Start(true)
+		if err != nil && err != http.ErrServerClosed {
+			log.Printf("streaming server error: %v", err)
+		}
+	}()
+
+	runtime.streaming = streamingServer
+	return runtime, nil
 }
 
 // Version returns the runtime name, runtime version and runtime API version
@@ -98,8 +124,8 @@ func (s *SingularityRuntime) Exec(context.Context, *k8s.ExecRequest) (*k8s.ExecR
 }
 
 // Attach prepares a streaming endpoint to attach to a running container.
-func (s *SingularityRuntime) Attach(context.Context, *k8s.AttachRequest) (*k8s.AttachResponse, error) {
-	return &k8s.AttachResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *SingularityRuntime) Attach(ctx context.Context, req *k8s.AttachRequest) (*k8s.AttachResponse, error) {
+	return s.streaming.GetAttach(req)
 }
 
 // PortForward prepares a streaming endpoint to forward ports from a PodSandbox.

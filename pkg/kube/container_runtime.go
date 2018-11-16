@@ -77,10 +77,8 @@ func (c *Container) UpdateState() error {
 	c.exitCode = int32(exitCode)
 	c.runtimeState = runtime.StatusToState(contState.Status)
 	c.exitDesc = contState.Annotations[runtime.AnnotationExitDesc]
+	c.attachSocket = contState.Annotations[runtime.AnnotationAttachSocket]
 
-	if err != nil {
-		return fmt.Errorf("could not parse annotations: %v", err)
-	}
 	return nil
 }
 
