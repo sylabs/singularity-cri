@@ -17,11 +17,9 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"os/exec"
-
-	"net/http"
-
 	"log"
+	"net/http"
+	"os/exec"
 
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/singularity"
@@ -125,6 +123,23 @@ func (s *SingularityRuntime) Exec(context.Context, *k8s.ExecRequest) (*k8s.ExecR
 
 // Attach prepares a streaming endpoint to attach to a running container.
 func (s *SingularityRuntime) Attach(ctx context.Context, req *k8s.AttachRequest) (*k8s.AttachResponse, error) {
+	c, err := s.containers.Find(req.ContainerId)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "container is not found")
+	}
+
+	if c.GetTty() != req.GetTty() {
+		return nil, status.Error(codes.InvalidArgument, "tty doesn't match container configuration")
+	}
+
+	if !(req.GetStdout() || req.GetStderr() || req.GetStdin()) {
+		return nil, status.Error(codes.InvalidArgument, "One of `stdin`, `stdout`, and `stderr` MUST be true")
+	}
+
+	if req.GetTty() && req.GetStderr() {
+		return nil, status.Error(codes.InvalidArgument, "If `tty` is true, `stderr` MUST be false")
+	}
+
 	return s.streaming.GetAttach(req)
 }
 

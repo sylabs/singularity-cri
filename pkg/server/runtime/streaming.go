@@ -17,6 +17,9 @@ package runtime
 import (
 	"fmt"
 	"io"
+	"log"
+	"net"
+	"sync"
 
 	"k8s.io/client-go/tools/remotecommand"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -36,6 +39,7 @@ func (s *streamingRuntime) Attach(containerID string,
 	stdin io.Reader, stdout, stderr io.WriteCloser,
 	tty bool, resize <-chan remotecommand.TerminalSize) error {
 
+	log.Printf("Attaching to %s...", containerID)
 	c, err := s.runtime.containers.Find(containerID)
 	if err != nil {
 		return fmt.Errorf("could not fetch container: %v", err)
@@ -44,8 +48,8 @@ func (s *streamingRuntime) Attach(containerID string,
 	if err := c.UpdateState(); err != nil {
 		return fmt.Errorf("could not update container state: %v", err)
 	}
-	if c.State() != k8s.ContainerState_CONTAINER_CREATED && c.State() != k8s.ContainerState_CONTAINER_RUNNING {
-		return fmt.Errorf("container is not created or running")
+	if c.State() != k8s.ContainerState_CONTAINER_RUNNING {
+		return fmt.Errorf("container is not running")
 	}
 
 	socket := c.AttachSocket()
@@ -53,54 +57,54 @@ func (s *streamingRuntime) Attach(containerID string,
 		return fmt.Errorf("container didn't provide attach socket: %v", err)
 	}
 
-	/*
-		kubecontainer.HandleResizing(resize, func(size remotecommand.TerminalSize) {
-			logrus.Debugf("Got a resize event: %+v", size)
-			_, err := fmt.Fprintf(controlFile, "%d %d %d\n", 1, size.Height, size.Width)
-			if err != nil {
-				logrus.Debugf("Failed to write to control file to resize terminal: %v", err)
-			}
-		})
+	log.Printf("Dialing %s...", socket)
+	conn, err := net.Dial("unix", socket)
+	if err != nil {
+		return fmt.Errorf("could not conntect to attach socket: %v", err)
+	}
+	defer conn.Close()
 
-		attachSocketPath := filepath.Join(ss.runtimeServer.Config().ContainerAttachSocketDir, c.ID(), "attach")
-		conn, err := net.DialUnix("unixpacket", nil, &net.UnixAddr{Name: attachSocketPath, Net: "unixpacket"})
-		if err != nil {
-			return fmt.Errorf("failed to connect to container %s attach socket: %v", c.ID(), err)
+	log.Printf("Connected to attach socket %s...", socket)
+	go func() {
+		for size := range resize {
+			log.Printf("got resize event for %s: %+v", containerID, size)
 		}
-		defer conn.Close()
+	}()
 
-		receiveStdout := make(chan error)
-		if outputStream != nil || errorStream != nil {
-			go func() {
-				receiveStdout <- redirectResponseToOutputStreams(outputStream, errorStream, conn)
-			}()
-		}
+	errors := make(chan error, 3)
+	var wg sync.WaitGroup
 
-		stdinDone := make(chan error)
+	if stdout != nil {
+		wg.Add(1)
 		go func() {
-			var err error
-			if inputStream != nil {
-				_, err = utils.CopyDetachable(conn, inputStream, nil)
-				conn.CloseWrite()
-			}
-			stdinDone <- err
+			defer wg.Done()
+			_, err := io.Copy(stdout, conn)
+			errors <- err
 		}()
+	}
+	if stderr != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := io.Copy(stderr, conn)
+			errors <- err
+		}()
+	}
+	if stdin != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := io.Copy(conn, stdin)
+			errors <- err
+		}()
+	}
 
-		select {
-		case err := <-receiveStdout:
-			return err
-		case err := <-stdinDone:
-			if _, ok := err.(utils.DetachError); ok {
-				return nil
-			}
-			if outputStream != nil || errorStream != nil {
-				return <-receiveStdout
-			}
-		}
+	err = <-errors
 
-		return nil
-	*/
-	return fmt.Errorf("not implemented")
+	log.Printf("Waiting attach end %s...", containerID)
+	wg.Wait()
+	log.Printf("Attach for %s returved %v...", containerID, err)
+	return err
 }
 
 // PortForward ...
