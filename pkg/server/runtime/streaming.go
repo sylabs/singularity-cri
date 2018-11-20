@@ -103,7 +103,7 @@ func (s *streamingRuntime) Attach(containerID string,
 
 	log.Printf("Waiting attach end %s...", containerID)
 	wg.Wait()
-	log.Printf("Attach for %s returved %v...", containerID, err)
+	log.Printf("Attach for %s returned %v...", containerID, err)
 	return err
 }
 
