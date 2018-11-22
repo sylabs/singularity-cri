@@ -191,19 +191,28 @@ func (t *containerTranslator) configureNamespaces() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, t.pod.namespacePath(specs.IPCNamespace))
+		podNsPath := t.pod.namespacePath(specs.IPCNamespace)
+		if podNsPath != "" {
+			t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, podNsPath)
+		}
 	}
 	switch security.GetNamespaceOptions().GetNetwork() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, t.pod.namespacePath(specs.NetworkNamespace))
+		podNsPath := t.pod.namespacePath(specs.NetworkNamespace)
+		if podNsPath != "" {
+			t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, podNsPath)
+		}
 	}
 	switch security.GetNamespaceOptions().GetPid() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), t.pod.namespacePath(specs.PIDNamespace))
+		podNsPath := t.pod.namespacePath(specs.PIDNamespace)
+		if podNsPath != "" {
+			t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), podNsPath)
+		}
 	}
 }
 
