@@ -181,6 +181,7 @@ func (t *containerTranslator) device(from, to string) (*specs.LinuxDevice, error
 }
 
 func (t *containerTranslator) configureNamespaces() {
+	t.g.ClearLinuxNamespaces()
 	if t.pod.GetHostname() != "" {
 		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.namespacePath(specs.UTSNamespace))
 	}
