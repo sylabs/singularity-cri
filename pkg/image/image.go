@@ -37,8 +37,8 @@ import (
 )
 
 const (
-	// ImageIDLen reflects number of symbols in image unique ID.
-	ImageIDLen = 64
+	// IDLen reflects number of symbols in image unique ID.
+	IDLen = 64
 )
 
 // Info represents image stored on host filesystem.

@@ -38,7 +38,7 @@ var (
 // NewImageIndex returns new ImageIndex ready to use.
 func NewImageIndex() *ImageIndex {
 	return &ImageIndex{
-		indx:    truncindex.NewTruncIndex(image.ImageIDLen),
+		indx:    truncindex.NewTruncIndex(image.IDLen),
 		refToID: make(map[string]string),
 	}
 }
