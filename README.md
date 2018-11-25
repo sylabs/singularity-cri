@@ -103,6 +103,7 @@ To test CRI in interactive mode we suggest the following workflow:
 	```bash
 	$ sudo crictl pull nginx
 
+	# sudo crictl create <podID> nginx.json test-pod.json
 	$ sudo crictl create 0e0538d57a52d nginx.json test-pod.json
 	7a83219a135ebb79133bac065d861e174488ba81a6622a10e2ec7e8b5b1b4371
 	
@@ -110,6 +111,7 @@ To test CRI in interactive mode we suggest the following workflow:
 	CONTAINER ID        IMAGE               CREATED             STATE               NAME                ATTEMPT             POD ID
     7a83219a135eb       nginx               4 seconds ago       Created             nginx-container     1                   0e0538d57a52d
 	
+	# sudo crictl start <containerID>
 	$ sudo crictl start 7a83219a135eb
 	7a83219a135eb
 	```
@@ -118,6 +120,7 @@ To test CRI in interactive mode we suggest the following workflow:
 	```bash
 	$ sudo crictl pull library://sashayakovtseva/test/test-info
 
+	# sudo crictl create <podID> nginx.json test-pod.json
 	$ sudo crictl create 0e0538d57a52d info-cont.json test-pod.json
 	bf040d311ca7d929ee20de4973df5c00aaf6f0e733feb695e985757686fb121b
 	
@@ -125,6 +128,7 @@ To test CRI in interactive mode we suggest the following workflow:
 	CONTAINER ID        IMAGE                                      CREATED             STATE               NAME                ATTEMPT             POD ID
 	bf040d311ca7d       library://sashayakovtseva/test/test-info   10 seconds ago      Created             testcontainer       1                   0e0538d57a52d
 
+	# sudo crictl start <containerID>
 	$ sudo crictl start bf040d311ca7d
 	bf040d311ca7d
 	```
