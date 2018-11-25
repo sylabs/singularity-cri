@@ -14,10 +14,11 @@ The CRI is currently under development and passes 13/71 [validation tests](https
 To work on Singularity CRI install the following:
 
 - [git](https://git-scm.com/downloads)
-- [go](https://golang.org/doc/install)
+- [go 1.10+](https://golang.org/doc/install)
 - [dep](https://golang.github.io/dep/docs/installation.html)
 - [gometalinter](https://github.com/alecthomas/gometalinter#installing)
-- [singularity with OCI support](https://github.com/cclerget/singularity/blob/master-oci/INSTALL.md)
+- singularity with OCI support from https://github.com/cclerget/singularity/tree/master-oci (note the _fork_ repository and the _master-oci_ branch)
+- build-essential/Development tools and libssl-dev uuid-dev squashfs-tools -- packages
 
 Make sure you configured [go workspace](https://golang.org/doc/code.html).
 
@@ -28,7 +29,10 @@ go get https://github.com/sylabs/cri
 cd $GOPATH/src/github.com/sylabs/cri
 make dep
 ```
-After this steps you can start working on the project.
+
+CRI works with Singularity runtime directly so you need to have `/usr/local/libexec/singularity/bin` set up in your PATH environment variable.
+
+After those steps you can start working on the project.
 
 Make sure to run linters before submitting a PR:
 
@@ -36,11 +40,6 @@ Make sure to run linters before submitting a PR:
 make lint
 ```
 
-## Install dependencies
-
- - Install and setup a go 1.10 development environment.
- - Install build-essential/Development tools and libssl-dev uuid-dev squashfs-tools -- packages
- - Install [singularity](https://github.com/singularityware/singularity) 3.0+
 
 ## Running and testing
 
@@ -74,12 +73,12 @@ To test CRI in interactive mode we suggest the following workflow:
 	rm -f crictl-$VERSION-linux-amd64.tar.gz
 	```
 
-2. Configure it work with Singularity CRI. For default CRI config this should be enough:
-	 ```bash
-	export CONTAINER_RUNTIME_ENDPOINT=unix:///var/run/singularity.sock
-	export IMAGE_SERVICE_ENDPOINT=unix:///var/run/singularity.sock
+2. Configure it work with Singularity CRI. Create `/etc/crictl.yaml` config file and add the following:
+	 ```txt 
+	CONTAINER_RUNTIME_ENDPOINT=unix:///var/run/singularity.sock
+	IMAGE_SERVICE_ENDPOINT=unix:///var/run/singularity.sock
 	```
-For convenience you may setup `/etc/crictl.yaml` and(or) alias for terminal (see [`crictl`](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/crictl.md#install-crictl) for details).
+	For details on all options available see [`crictl install page`](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/crictl.md#install-crictl).
 
 3. Build and launch CRI server:
 	 ```bash
