@@ -133,63 +133,72 @@ To test CRI in interactive mode we suggest the following workflow:
 	bf040d311ca7d
 	```
 	
-If everything is fine you should see something like following in terminal with CRI running:
+	If everything is fine you should see something like following in terminal with CRI running:
 
-	...
-	content of /
-		     Lrwxrwxrwx        0	.exec -> .singularity.d/actions/exec
-		     Lrwxrwxrwx        0	.run -> .singularity.d/actions/run
-		     Lrwxrwxrwx        0	.shell -> .singularity.d/actions/shell
-		     drwxr-xr-x        0	.singularity.d -> 
-		     Lrwxrwxrwx        0	.test -> .singularity.d/actions/test
-		     drwxr-xr-x        0	bin -> 
-		     drwxr-xr-x        0	dev -> 
-		     Lrwxrwxrwx        0	environment -> .singularity.d/env/90-environment.sh
-		     drwxr-xr-x        0	etc -> 
-		     drwxr-xr-x        0	home -> 
-		     drwxr-xr-x        0	lib -> 
-		     drwxr-xr-x        0	media -> 
-		     drwxr-xr-x        0	mnt -> 
-		     drwxr-xr-x        0	mounted1 -> 
-		     dr-xr-xr-x        0	proc -> 
-		     drwx------        0	root -> 
-		     drwxr-xr-x        0	run -> 
-		     drwxr-xr-x        0	sbin -> 
-		     Lrwxrwxrwx        0	singularity -> .singularity.d/runscript
-		     drwxr-xr-x        0	srv -> 
-		     dr-xr-xr-x        0	sys -> 
-		     -rwxr-xr-x        0	test -> 
-		    dtrwxr-xr-x        0	tmp -> 
-		     drwxr-xr-x        0	usr -> 
-		     drwxr-xr-x        0	var -> 
-	content of /proc/self/fd
-		     Lr-x------        0	0 -> /dev/null
-		     Lrwx------        0	1 -> /dev/pts/6
-		     Lrwx------        0	2 -> /dev/pts/6
-		     Lr-x------        0	3 -> 
-		     Lrwx------        0	4 -> anon_inode:[eventpoll]
-	content of /proc/self/ns
-		     Lrwxrwxrwx        0	cgroup -> cgroup:[4026531835]
-		     Lrwxrwxrwx        0	ipc -> ipc:[4026532487]
-		     Lrwxrwxrwx        0	mnt -> mnt:[4026532488]
-		     Lrwxrwxrwx        0	net -> net:[4026532429]
-		     Lrwxrwxrwx        0	pid -> pid:[4026532427]
-		     Lrwxrwxrwx        0	pid_for_children -> pid:[4026532427]
-		     Lrwxrwxrwx        0	user -> user:[4026531837]
-		     Lrwxrwxrwx        0	uts -> uts:[4026532486]
-	content of /tmp
-	content of /mounted1
-		     -rwxr-xr-x        0	06712c8f7001b065487385e54971e0ecbe27785ad73b5834901fba0feb81402f -> 
-		     -rwxr-xr-x        0	0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0 -> 
-		     -rwxr-xr-x        0	20dfcf5b2811cacac83cf8b201f674c43a09424dc2865ca9a1c7395e670cbbfa -> 
-		     -rwxr-xr-x        0	2350769d4e7ba2cc7b0f59672205f54f260d09903fd354c002b782966d91dcb1 -> 
-		     -rwxr-xr-x        0	4f3ca194232440b204aeb0d46c1bd3502f573fa5bdd6b33847008e1ceaea1b1f -> 
-		     -rwxr-xr-x        0	ab7e1728de2a7e556e0d9ec7b6e98a2c0957dbd0d2bd30d56238e4ef4d7465d0 -> 
-		     -rw-r--r--        0	registry.json -> 
-		     -rw-rw-rw-        0	test-lala -> 
-	read "/mounted2" error: open /mounted2: no such file or directory
-	could not create file: open /mounted1/test-lala: read-only file system
+		...
+		content of /
+				Lrwxrwxrwx        0	.exec -> .singularity.d/actions/exec
+				Lrwxrwxrwx        0	.run -> .singularity.d/actions/run
+				Lrwxrwxrwx        0	.shell -> .singularity.d/actions/shell
+				drwxr-xr-x        0	.singularity.d -> 
+				Lrwxrwxrwx        0	.test -> .singularity.d/actions/test
+				drwxr-xr-x        0	bin -> 
+				drwxr-xr-x        0	dev -> 
+				Lrwxrwxrwx        0	environment -> .singularity.d/env/90-environment.sh
+				drwxr-xr-x        0	etc -> 
+				drwxr-xr-x        0	home -> 
+				drwxr-xr-x        0	lib -> 
+				drwxr-xr-x        0	media -> 
+				drwxr-xr-x        0	mnt -> 
+				drwxr-xr-x        0	mounted1 -> 
+				dr-xr-xr-x        0	proc -> 
+				drwx------        0	root -> 
+				drwxr-xr-x        0	run -> 
+				drwxr-xr-x        0	sbin -> 
+				Lrwxrwxrwx        0	singularity -> .singularity.d/runscript
+				drwxr-xr-x        0	srv -> 
+				dr-xr-xr-x        0	sys -> 
+				-rwxr-xr-x        0	test -> 
+				dtrwxr-xr-x        0	tmp -> 
+				drwxr-xr-x        0	usr -> 
+				drwxr-xr-x        0	var -> 
+		content of /proc/self/fd
+				Lr-x------        0	0 -> /dev/null
+				Lrwx------        0	1 -> /dev/pts/6
+				Lrwx------        0	2 -> /dev/pts/6
+				Lr-x------        0	3 -> 
+				Lrwx------        0	4 -> anon_inode:[eventpoll]
+		content of /proc/self/ns
+				Lrwxrwxrwx        0	cgroup -> cgroup:[4026531835]
+				Lrwxrwxrwx        0	ipc -> ipc:[4026532487]
+				Lrwxrwxrwx        0	mnt -> mnt:[4026532488]
+				Lrwxrwxrwx        0	net -> net:[4026532429]
+				Lrwxrwxrwx        0	pid -> pid:[4026532427]
+				Lrwxrwxrwx        0	pid_for_children -> pid:[4026532427]
+				Lrwxrwxrwx        0	user -> user:[4026531837]
+				Lrwxrwxrwx        0	uts -> uts:[4026532486]
+		content of /tmp
+		content of /mounted1
+				-rwxr-xr-x        0	06712c8f7001b065487385e54971e0ecbe27785ad73b5834901fba0feb81402f -> 
+				-rwxr-xr-x        0	0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0 -> 
+				-rwxr-xr-x        0	20dfcf5b2811cacac83cf8b201f674c43a09424dc2865ca9a1c7395e670cbbfa -> 
+				-rwxr-xr-x        0	2350769d4e7ba2cc7b0f59672205f54f260d09903fd354c002b782966d91dcb1 -> 
+				-rwxr-xr-x        0	4f3ca194232440b204aeb0d46c1bd3502f573fa5bdd6b33847008e1ceaea1b1f -> 
+				-rwxr-xr-x        0	ab7e1728de2a7e556e0d9ec7b6e98a2c0957dbd0d2bd30d56238e4ef4d7465d0 -> 
+				-rw-r--r--        0	registry.json -> 
+				-rw-rw-rw-        0	test-lala -> 
+		read "/mounted2" error: open /mounted2: no such file or directory
+		could not create file: open /mounted1/test-lala: read-only file system
 
+7. Cleanup examples
+
+	The quickest way to cleanup is simply pod removal:
+	```bash
+	# sudo crictl rmp <podID>
+	$ sudo crictl rmp 0e0538d57a52d
+	```
+
+	Note: If you prefer more gentle cleanup you can stop and remove containers first and then stop and remove corresponding pod.
 
 
 ## Project Structure
