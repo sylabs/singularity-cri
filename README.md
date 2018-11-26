@@ -17,15 +17,15 @@ To work on Singularity CRI install the following:
 - [go 1.10+](https://golang.org/doc/install)
 - [dep](https://golang.github.io/dep/docs/installation.html)
 - [gometalinter](https://github.com/alecthomas/gometalinter#installing)
-- singularity with OCI support from https://github.com/cclerget/singularity/tree/master-oci (note the _fork_ repository and the _master-oci_ branch)
 - build-essential/Development tools and libssl-dev uuid-dev squashfs-tools -- packages
+- singularity with OCI support from https://github.com/cclerget/singularity/tree/master-oci (note the _fork_ repository and the _master-oci_ branch)
 
 Make sure you configured [go workspace](https://golang.org/doc/code.html).
 
 To set up project do the following:
 
 ```bash
-go get https://github.com/sylabs/cri
+go get github.com/sylabs/cri
 cd $GOPATH/src/github.com/sylabs/cri
 make dep
 ```
@@ -75,8 +75,10 @@ To test CRI in interactive mode we suggest the following workflow:
 
 2. Configure it work with Singularity CRI. Create `/etc/crictl.yaml` config file and add the following:
 	 ```txt 
-	CONTAINER_RUNTIME_ENDPOINT=unix:///var/run/singularity.sock
-	IMAGE_SERVICE_ENDPOINT=unix:///var/run/singularity.sock
+	runtime-endpoint: unix:///var/run/singularity.sock
+	image-endpoint: unix:///var/run/singularity.sock
+	timeout: 10
+	debug: false
 	```
 	For details on all options available see [`crictl install page`](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/crictl.md#install-crictl).
 
