@@ -1,3 +1,17 @@
+// Copyright (c) 2018 Sylabs, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package runtime
 
 import (
@@ -21,7 +35,7 @@ type CLIClient struct {
 
 // NewCLIClient returns new CLIClient ready to use.
 func NewCLIClient() *CLIClient {
-	return &CLIClient{baseCmd: []string{singularity.RuntimeName, "oci"}}
+	return &CLIClient{baseCmd: []string{singularity.RuntimeName, "-d", "oci"}}
 }
 
 // State returns state of a container with passed id.
@@ -67,10 +81,10 @@ func (c *CLIClient) Start(id string) error {
 	return silentRun(cmd)
 }
 
-// Kill asks runtime to send SIGTERM to container with passed id.
+// Kill asks runtime to send SIGINT to container with passed id.
 // If force is true that SIGKILL is sent instead.
 func (c *CLIClient) Kill(id string, force bool) error {
-	sig := "SIGTERM"
+	sig := "SIGINT"
 	if force {
 		sig = "SIGKILL"
 	}
@@ -86,12 +100,13 @@ func (c *CLIClient) Delete(id string) error {
 
 func silentRun(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
+	runCmd.Stdout = os.Stderr
 	runCmd.Stderr = os.Stderr
-	runCmd.Stdout = os.Stdout
 
 	log.Printf("executing %v", cmd)
-	if err := runCmd.Run(); err != nil {
-		return fmt.Errorf("could not execute %v: %v", cmd, err)
+	err := runCmd.Run()
+	if err != nil {
+		return fmt.Errorf("could not execute: %v", err)
 	}
 	return nil
 }

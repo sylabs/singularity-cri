@@ -1,40 +1,53 @@
-package translate
+// Copyright (c) 2018 Sylabs, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package kube
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
-	"github.com/sylabs/cri/pkg/kube/sandbox"
 	"golang.org/x/sys/unix"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-type kubeT struct {
-	g          generate.Generator
-	contConfig *k8s.ContainerConfig
-	pod        *sandbox.Pod
+type containerTranslator struct {
+	cont *Container
+	pod  *Pod
+	g    generate.Generator
 }
 
-// KubeToOCI translates container and corresponding pod config into OCI config.
-func KubeToOCI(pod *sandbox.Pod, cConf *k8s.ContainerConfig) (*specs.Spec, error) {
+// translateContainer translates Container and its parent Pod instances
+// into OCI container specification.
+func translateContainer(cont *Container, pod *Pod) (*specs.Spec, error) {
 	g, err := generate.New("linux")
 	if err != nil {
 		return nil, fmt.Errorf("could not initialize generator: %v", err)
 	}
-	t := kubeT{
-		g:          g,
-		contConfig: cConf,
-		pod:        pod,
+	t := containerTranslator{
+		g:    g,
+		cont: cont,
+		pod:  pod,
 	}
 	return t.translate()
 }
 
-func (t *kubeT) translate() (*specs.Spec, error) {
+func (t *containerTranslator) translate() (*specs.Spec, error) {
 	t.configureImage()
 	if err := t.configureDevices(); err != nil {
 		return nil, fmt.Errorf("could not configure devices: %v", err)
@@ -49,16 +62,20 @@ func (t *kubeT) translate() (*specs.Spec, error) {
 	return t.g.Config, nil
 }
 
-func (t *kubeT) configureImage() {
-	t.g.SetRootPath(t.contConfig.GetImage().GetImage())
-	t.g.SetRootReadonly(t.contConfig.GetLinux().GetSecurityContext().GetReadonlyRootfs())
+func (t *containerTranslator) configureImage() {
+	t.g.SetRootPath(t.cont.rootfsPath())
+	t.g.SetRootReadonly(t.cont.GetLinux().GetSecurityContext().GetReadonlyRootfs())
 }
 
-func (t *kubeT) configureMounts() error {
+func (t *containerTranslator) configureMounts() error {
+	if err := t.g.SetLinuxRootPropagation("rshared"); err != nil {
+		return fmt.Errorf("could not set root propagation: %v", err)
+	}
+
 	if t.pod.GetDnsConfig() != nil {
 		t.g.AddMount(specs.Mount{
 			Destination: "/etc/resolv.conf",
-			Source:      t.pod.ResolvConfFilePath(),
+			Source:      t.pod.resolvConfFilePath(),
 			Options:     []string{"bind", "ro"},
 		})
 	}
@@ -66,12 +83,12 @@ func (t *kubeT) configureMounts() error {
 		t.g.SetHostname(t.pod.GetHostname())
 		t.g.AddMount(specs.Mount{
 			Destination: "/etc/hostname",
-			Source:      t.pod.HostnameFilePath(),
+			Source:      t.pod.hostnameFilePath(),
 			Options:     []string{"bind", "ro"},
 		})
 	}
 
-	if t.contConfig.GetLinux().GetSecurityContext().GetPrivileged() {
+	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
 		mounts := t.g.Mounts()
 		for i := range mounts {
 			switch mounts[i].Type {
@@ -81,7 +98,7 @@ func (t *kubeT) configureMounts() error {
 		}
 	}
 
-	for _, mount := range t.contConfig.GetMounts() {
+	for _, mount := range t.cont.GetMounts() {
 		source, err := filepath.EvalSymlinks(mount.GetHostPath())
 		if err != nil {
 			return fmt.Errorf("invalid bind mount source: %v", err)
@@ -109,17 +126,18 @@ func (t *kubeT) configureMounts() error {
 	return nil
 }
 
-func (t *kubeT) configureDevices() error {
-	if t.contConfig.GetLinux().GetSecurityContext().GetPrivileged() {
-		err := t.addAllDevices("/dev")
-		if err != nil {
-			return err
-		}
+func (t *containerTranslator) configureDevices() error {
+	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
+		t.g.AddMount(specs.Mount{
+			Destination: "/dev",
+			Source:      "/dev",
+			Options:     []string{"rbind", "nosuid", "noexec"},
+		})
 		t.g.Config.Linux.Resources.Devices = []specs.LinuxDeviceCgroup{{Allow: true, Access: "rwm"}}
 		return nil
 	}
 
-	for _, dev := range t.contConfig.GetDevices() {
+	for _, dev := range t.cont.GetDevices() {
 		device, err := t.device(dev.GetHostPath(), dev.GetContainerPath())
 		if err != nil {
 			return err
@@ -130,33 +148,7 @@ func (t *kubeT) configureDevices() error {
 	return nil
 }
 
-func (t *kubeT) addAllDevices(dir string) error {
-	devices, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return fmt.Errorf("could not read /dev: %v", err)
-	}
-	for _, dev := range devices {
-		devPath := filepath.Join(dir, dev.Name())
-		if dev.IsDir() {
-			switch dev.Name() {
-			case "pts", "shm", "fd", "mqueue":
-				continue
-			}
-			if err := t.addAllDevices(devPath); err != nil {
-				return err
-			}
-			continue
-		}
-		device, err := t.device(devPath, devPath)
-		if err != nil {
-			return err
-		}
-		t.g.AddDevice(*device)
-	}
-	return nil
-}
-
-func (t *kubeT) device(from, to string) (*specs.LinuxDevice, error) {
+func (t *containerTranslator) device(from, to string) (*specs.LinuxDevice, error) {
 	stat, err := os.Stat(from)
 	if err != nil {
 		return nil, fmt.Errorf("invalid device source: %v", err)
@@ -188,53 +180,84 @@ func (t *kubeT) device(from, to string) (*specs.LinuxDevice, error) {
 	}, nil
 }
 
-func (t *kubeT) configureNamespaces() {
+func (t *containerTranslator) configureNamespaces() {
+	t.g.ClearLinuxNamespaces()
 	if t.pod.GetHostname() != "" {
-		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.NamespacePath(specs.UTSNamespace))
+		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.namespacePath(specs.UTSNamespace))
 	}
 	t.g.AddOrReplaceLinuxNamespace(specs.MountNamespace, "")
 
-	security := t.contConfig.GetLinux().GetSecurityContext()
+	security := t.cont.GetLinux().GetSecurityContext()
 	switch security.GetNamespaceOptions().GetIpc() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, t.pod.NamespacePath(specs.IPCNamespace))
+		podNsPath := t.pod.namespacePath(specs.IPCNamespace)
+		if podNsPath != "" {
+			t.g.AddOrReplaceLinuxNamespace(specs.IPCNamespace, podNsPath)
+		}
 	}
 	switch security.GetNamespaceOptions().GetNetwork() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, t.pod.NamespacePath(specs.NetworkNamespace))
+		podNsPath := t.pod.namespacePath(specs.NetworkNamespace)
+		if podNsPath != "" {
+			t.g.AddOrReplaceLinuxNamespace(specs.NetworkNamespace, podNsPath)
+		}
 	}
 	switch security.GetNamespaceOptions().GetPid() {
 	case k8s.NamespaceMode_CONTAINER:
 		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), "")
 	case k8s.NamespaceMode_POD:
-		t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), t.pod.NamespacePath(specs.PIDNamespace))
+		podNsPath := t.pod.namespacePath(specs.PIDNamespace)
+		if podNsPath != "" {
+			t.g.AddOrReplaceLinuxNamespace(string(specs.PIDNamespace), podNsPath)
+		}
 	}
 }
 
-func (t *kubeT) configureResources() {
-	res := t.contConfig.GetLinux().GetResources()
-	t.g.SetLinuxResourcesCPUPeriod(uint64(res.GetCpuPeriod()))
-	t.g.SetLinuxResourcesCPUQuota(res.GetCpuQuota())
+func (t *containerTranslator) configureResources() {
+	res := t.cont.GetLinux().GetResources()
 	t.g.SetLinuxResourcesCPUMems(res.GetCpusetMems())
 	t.g.SetLinuxResourcesCPUCpus(res.GetCpusetCpus())
-	t.g.SetLinuxResourcesCPUShares(uint64(res.GetCpuShares()))
-	t.g.SetProcessOOMScoreAdj(int(res.GetOomScoreAdj()))
-	t.g.SetLinuxResourcesMemoryLimit(res.GetMemoryLimitInBytes())
+
+	if res.GetCpuPeriod() != 0 {
+		t.g.SetLinuxResourcesCPUPeriod(uint64(res.GetCpuPeriod()))
+	}
+	if res.GetCpuQuota() != 0 {
+		t.g.SetLinuxResourcesCPUQuota(res.GetCpuQuota())
+	}
+	if res.GetCpuShares() != 0 {
+		t.g.SetLinuxResourcesCPUShares(uint64(res.GetCpuShares()))
+	}
+	if res.GetOomScoreAdj() != 0 {
+		t.g.SetProcessOOMScoreAdj(int(res.GetOomScoreAdj()))
+	}
+	if res.GetMemoryLimitInBytes() != 0 {
+		t.g.SetLinuxResourcesMemoryLimit(res.GetMemoryLimitInBytes())
+	}
 }
 
-func (t *kubeT) configureProcess() {
-	for _, env := range t.contConfig.GetEnvs() {
+func (t *containerTranslator) configureProcess() {
+	const (
+		runScript  = "/.singularity.d/runscript"
+		execScript = "/.singularity.d/actions/exec"
+	)
+
+	for _, env := range t.cont.GetEnvs() {
 		t.g.AddProcessEnv(env.GetKey(), env.GetValue())
 	}
-	t.g.SetProcessCwd(t.contConfig.GetWorkingDir())
-	t.g.SetProcessArgs(append(t.contConfig.GetCommand(), t.contConfig.GetArgs()...))
-	t.g.SetProcessTerminal(t.contConfig.GetTty())
+	t.g.SetProcessCwd(t.cont.GetWorkingDir())
+	t.g.SetProcessTerminal(t.cont.GetTty())
 
-	security := t.contConfig.GetLinux().GetSecurityContext()
+	args := append(t.cont.GetCommand(), t.cont.GetArgs()...)
+	if len(args) == 0 {
+		args = []string{runScript}
+	}
+	t.g.SetProcessArgs(append([]string{execScript}, args...))
+
+	security := t.cont.GetLinux().GetSecurityContext()
 	t.g.SetProcessNoNewPrivileges(security.GetNoNewPrivs())
 	t.g.SetProcessUsername(security.GetRunAsUsername())
 	t.g.SetProcessUID(uint32(security.GetRunAsUser().GetValue()))
@@ -263,8 +286,8 @@ func (t *kubeT) configureProcess() {
 	}
 }
 
-func (t *kubeT) configureAnnotations() {
-	for k, v := range t.contConfig.GetAnnotations() {
+func (t *containerTranslator) configureAnnotations() {
+	for k, v := range t.cont.GetAnnotations() {
 		t.g.AddAnnotation(k, v)
 	}
 }

@@ -1,4 +1,18 @@
-package sandbox
+// Copyright (c) 2018 Sylabs, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package kube
 
 import (
 	"encoding/json"
@@ -13,20 +27,20 @@ import (
 const (
 	podInfoPath = "/var/run/singularity/pods/"
 
-	nsStorePath    = "namespaces/"
-	resolvConfPath = "resolv.conf"
-	hostnamePath   = "hostname"
-	socketPath     = "sync.sock"
+	podNsStorePath    = "namespaces/"
+	podResolvConfPath = "resolv.conf"
+	podHostnamePath   = "hostname"
+	podSocketPath     = "sync.sock"
 
-	bundleStorePath = "bundle/"
-	rootfsStorePath = "rootfs/"
-	ociConfigPath   = "config.json"
+	podBundlePath    = "bundle/"
+	podRootfsPath    = "rootfs/"
+	podOCIConfigPath = "config.json"
 )
 
-// NamespacePath returns path to pod's namespace file of the passed type.
+// namespacePath returns path to pod's namespace file of the passed type.
 // If requested namespace is not unshared specifically for pod an empty
 // string is returned.
-func (p *Pod) NamespacePath(nsType specs.LinuxNamespaceType) string {
+func (p *Pod) namespacePath(nsType specs.LinuxNamespaceType) string {
 	for _, ns := range p.namespaces {
 		if ns.Type == nsType {
 			return p.bindNamespacePath(nsType)
@@ -35,44 +49,43 @@ func (p *Pod) NamespacePath(nsType specs.LinuxNamespaceType) string {
 	return ""
 }
 
-// HostnameFilePath returns path to pod's hostname file.
-func (p *Pod) HostnameFilePath() string {
-	return filepath.Join(podInfoPath, p.id, hostnamePath)
+// hostnameFilePath returns path to pod's hostname file.
+func (p *Pod) hostnameFilePath() string {
+	return filepath.Join(podInfoPath, p.id, podHostnamePath)
 }
 
-// ResolvConfFilePath returns path to pod's resolv.conf file.
-func (p *Pod) ResolvConfFilePath() string {
-	return filepath.Join(podInfoPath, p.id, resolvConfPath)
+// resolvConfFilePath returns path to pod's resolv.conf file.
+func (p *Pod) resolvConfFilePath() string {
+	return filepath.Join(podInfoPath, p.id, podResolvConfPath)
 }
 
-// nolint:unused
 // bundlePath returns path to pod's filesystem bundle directory.
 func (p *Pod) bundlePath() string {
-	return filepath.Join(podInfoPath, p.id, bundleStorePath)
+	return filepath.Join(podInfoPath, p.id, podBundlePath)
 }
 
 // rootfsPath returns path to pod's rootfs directory.
 func (p *Pod) rootfsPath() string {
-	return rootfsStorePath
+	return filepath.Join(podInfoPath, p.id, podBundlePath, podRootfsPath)
 }
 
 // ociConfigPath returns path to pod's config.json file.
 func (p *Pod) ociConfigPath() string {
-	return filepath.Join(podInfoPath, p.id, bundleStorePath, ociConfigPath)
+	return filepath.Join(podInfoPath, p.id, podBundlePath, podOCIConfigPath)
 }
 
 // socketPath returns path to pod's sync socket.
 func (p *Pod) socketPath() string {
-	return filepath.Join(podInfoPath, p.id, socketPath)
+	return filepath.Join(podInfoPath, p.id, podSocketPath)
 }
 
 // bindNamespacePath returns path to pod's namespace file of the passed type.
 func (p *Pod) bindNamespacePath(nsType specs.LinuxNamespaceType) string {
-	return filepath.Join(podInfoPath, p.id, nsStorePath, string(nsType))
+	return filepath.Join(podInfoPath, p.id, podNsStorePath, string(nsType))
 }
 
 func (p *Pod) prepareFiles() error {
-	err := os.MkdirAll(filepath.Join(podInfoPath, p.id, nsStorePath), os.ModePerm)
+	err := os.MkdirAll(filepath.Join(podInfoPath, p.id, podNsStorePath), os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("could not create directory for pod: %v", err)
 	}
@@ -94,9 +107,9 @@ func (p *Pod) addResolvConf() error {
 		return nil
 	}
 
-	resolv, err := os.OpenFile(p.ResolvConfFilePath(), os.O_RDWR|os.O_CREATE, 0644)
+	resolv, err := os.OpenFile(p.resolvConfFilePath(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return fmt.Errorf("could not create %s: %v", resolvConfPath, err)
+		return fmt.Errorf("could not create %s: %v", podResolvConfPath, err)
 	}
 	for _, s := range config.GetServers() {
 		fmt.Fprintf(resolv, "nameserver %s\n", s)
@@ -108,7 +121,7 @@ func (p *Pod) addResolvConf() error {
 		fmt.Fprintf(resolv, "options %s\n", o)
 	}
 	if err = resolv.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", resolvConfPath, err)
+		return fmt.Errorf("could not close %s: %v", podResolvConfPath, err)
 	}
 	return nil
 }
@@ -119,13 +132,13 @@ func (p *Pod) addHostname() error {
 		return nil
 	}
 
-	host, err := os.OpenFile(p.HostnameFilePath(), os.O_RDWR|os.O_CREATE, 0644)
+	host, err := os.OpenFile(p.hostnameFilePath(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return fmt.Errorf("could not create %s: %v", hostnamePath, err)
+		return fmt.Errorf("could not create %s: %v", podHostnamePath, err)
 	}
 	fmt.Fprintln(host, hostname)
 	if err = host.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", hostnamePath, err)
+		return fmt.Errorf("could not close %s: %v", podHostnamePath, err)
 	}
 	return nil
 }
@@ -144,11 +157,11 @@ func (p *Pod) addLogDirectory() error {
 }
 
 func (p *Pod) addOCIBundle() error {
-	err := os.MkdirAll(filepath.Join(podInfoPath, p.id, bundleStorePath, rootfsStorePath), os.ModePerm)
+	err := os.MkdirAll(p.rootfsPath(), os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("could not create rootfs directory for pod: %v", err)
 	}
-	spec, err := generateOCI(p)
+	spec, err := translatePod(p)
 	if err != nil {
 		return fmt.Errorf("could not generate OCI spec for pod: %v", err)
 	}
@@ -175,13 +188,11 @@ func (p *Pod) cleanupFiles(silent bool) error {
 	}
 	err := os.RemoveAll(filepath.Join(podInfoPath, p.id))
 	if err != nil && !silent {
-		return fmt.Errorf("could not cleanupFiles pod: %v", err)
+		return fmt.Errorf("could not cleanup pod: %v", err)
 	}
-	if p.GetLogDirectory() != "" {
-		err := os.RemoveAll(p.GetLogDirectory())
-		if err != nil && !silent {
-			return fmt.Errorf("could not remove log directory: %v", err)
-		}
+	err = os.RemoveAll(p.GetLogDirectory())
+	if err != nil && !silent {
+		return fmt.Errorf("could not remove log directory: %v", err)
 	}
 	return nil
 }

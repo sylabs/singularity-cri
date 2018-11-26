@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/sylabs/cri/pkg/image"
+	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -37,7 +38,7 @@ const registryInfoFile = "registry.json"
 // SingularityRegistry implements k8s ImageService interface.
 type SingularityRegistry struct {
 	storage string // path to image storage without trailing slash
-	images  *image.Index
+	images  *index.ImageIndex
 
 	m        sync.Mutex
 	infoFile *os.File
@@ -45,7 +46,7 @@ type SingularityRegistry struct {
 
 // NewSingularityRegistry initializes and returns SingularityRuntime.
 // Singularity must be installed on the host otherwise it will return an error.
-func NewSingularityRegistry(storePath string, index *image.Index) (*SingularityRegistry, error) {
+func NewSingularityRegistry(storePath string, index *index.ImageIndex) (*SingularityRegistry, error) {
 	_, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
@@ -105,7 +106,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 // This call is idempotent, and does not return an error if the image has already been removed.
 func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveImageRequest) (*k8s.RemoveImageResponse, error) {
 	info, err := s.images.Find(req.Image.Image)
-	if err == image.ErrNotFound {
+	if err == index.ErrImageNotFound {
 		return &k8s.RemoveImageResponse{}, nil
 	}
 	if err != nil {
@@ -127,7 +128,7 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 // present, returns a response with ImageStatusResponse.Image set to nil.
 func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
 	info, err := s.images.Find(req.Image.Image)
-	if err == image.ErrNotFound {
+	if err == index.ErrImageNotFound {
 		return &k8s.ImageStatusResponse{}, nil
 	}
 	if err != nil {

@@ -30,8 +30,8 @@
 
 [[constraint]]
   name = "github.com/sylabs/singularity"
-  branch = "master"
-
+  source = "github.com/cclerget/singularity"
+  branch = "master-oci"
 
 [[constraint]]
   name = "github.com/sylabs/sif"

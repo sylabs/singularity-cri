@@ -16,11 +16,10 @@ package runtime
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 
-	"github.com/sylabs/cri/pkg/image"
-	"github.com/sylabs/cri/pkg/oci/translate"
+	"github.com/sylabs/cri/pkg/index"
+	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -28,60 +27,160 @@ import (
 
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateContainerRequest) (*k8s.CreateContainerResponse, error) {
+	info, err := s.imageIndex.Find(req.Config.Image.Image)
+	if err == index.ErrImageNotFound {
+		return nil, status.Error(codes.NotFound, "image not found")
+	}
+
 	pod, err := s.findPod(req.PodSandboxId)
 	if err != nil {
 		return nil, err
 	}
 
-	// todo oci bundle here
-	info, err := s.imageIndex.Find(req.Config.Image.Image)
-	if err == image.ErrNotFound {
-		return nil, status.Error(codes.NotFound, "image not found")
-	}
-
-	req.Config.Image.Image = info.Path() // a hack for starter to work correctly
-	ociConfig, err := translate.KubeToOCI(pod, req.Config)
+	cont := kube.NewContainer(req.Config, pod)
+	// add to trunc index first not to cleanup if it fails later
+	err = s.containers.Add(cont)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not generate OCI config: %v", err)
+		return nil, err
 	}
 
-	ociBytes, err := json.Marshal(ociConfig)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not marshal OCI config: %v", err)
+	if err := cont.Create(info); err != nil {
+		if err := s.containers.Remove(cont.ID()); err != nil {
+			log.Printf("could not remove container from index: %v", err)
+		}
+		return nil, status.Errorf(codes.Internal, "could not create container: %v", err)
 	}
-	log.Printf("OCI config is: %s", ociBytes)
-
-	// todo create log file
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	return &k8s.CreateContainerResponse{
+		ContainerId: cont.ID(),
+	}, nil
 }
 
 // StartContainer starts the container.
 func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartContainerRequest) (*k8s.StartContainerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == index.ErrContainerNotFound {
+		return nil, status.Error(codes.NotFound, "container is not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	if err := cont.Start(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not start container: %v", err)
+	}
+	return &k8s.StartContainerResponse{}, nil
 }
 
 // StopContainer stops a running container with a grace period (i.e., timeout).
 // This call is idempotent, and must not return an error if the container has
-// already been stopped.
-// TODO: what must the runtime do after the grace period is reached?
+// already been stopped. If a grace period is reached runtime will be asked
+// to kill container.
 func (s *SingularityRuntime) StopContainer(_ context.Context, req *k8s.StopContainerRequest) (*k8s.StopContainerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == index.ErrContainerNotFound {
+		return nil, status.Error(codes.NotFound, "container is not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	if err := cont.Stop(req.Timeout); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not stop container: %v", err)
+	}
+	return &k8s.StopContainerResponse{}, nil
 }
 
 // RemoveContainer removes the container. If the container is running,
 // the container must be forcibly removed. This call is idempotent, and
 // must not return an error if the container has already been removed.
 func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *k8s.RemoveContainerRequest) (*k8s.RemoveContainerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == index.ErrContainerNotFound {
+		return &k8s.RemoveContainerResponse{}, nil
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	if err := cont.Remove(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not remove container: %v", err)
+	}
+	if err := s.containers.Remove(cont.ID()); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not remove container from index: %v", err)
+	}
+	return &k8s.RemoveContainerResponse{}, nil
 }
 
 // ContainerStatus returns status of the container.
 // If the container is not present, returns an error.
 func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.ContainerStatusRequest) (*k8s.ContainerStatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == index.ErrContainerNotFound {
+		return nil, status.Errorf(codes.NotFound, "pod not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	info, err := s.imageIndex.Find(cont.GetImage().GetImage())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "could not get container image: %v", err)
+	}
+	if err := cont.UpdateState(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not update container state: %v", err)
+	}
+	return &k8s.ContainerStatusResponse{
+		Status: &k8s.ContainerStatus{
+			Id:          cont.ID(),
+			Metadata:    cont.GetMetadata(),
+			State:       cont.State(),
+			CreatedAt:   cont.CreatedAt(),
+			StartedAt:   cont.StartedAt(),
+			FinishedAt:  cont.FinishedAt(),
+			ExitCode:    cont.ExitCode(),
+			Image:       cont.GetImage(),
+			ImageRef:    info.ID(),
+			Reason:      cont.ExitDescription(),
+			Message:     cont.ExitDescription(),
+			Labels:      cont.GetLabels(),
+			Annotations: cont.GetAnnotations(),
+			Mounts:      cont.GetMounts(),
+			LogPath:     cont.GetLogPath(), // todo concat with pod log dir?
+		},
+	}, nil
 }
 
 // ListContainers lists all containers by filters.
 func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListContainersRequest) (*k8s.ListContainersResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented")
+	var containers []*k8s.Container
+
+	appendContToResult := func(cont *kube.Container) {
+		if err := cont.UpdateState(); err != nil {
+			log.Printf("could not update container state: %v", err)
+			return
+		}
+		if cont.MatchesFilter(req.Filter) {
+			info, err := s.imageIndex.Find(cont.GetImage().GetImage())
+			if err != nil {
+				log.Printf("skipping container %s due to %v", cont.ID(), err)
+				return
+			}
+			containers = append(containers, &k8s.Container{
+				Id:           cont.ID(),
+				PodSandboxId: cont.PodID(),
+				Metadata:     cont.GetMetadata(),
+				Image:        cont.GetImage(),
+				ImageRef:     info.ID(),
+				State:        cont.State(),
+				CreatedAt:    cont.CreatedAt(),
+				Labels:       cont.GetLabels(),
+				Annotations:  cont.GetAnnotations(),
+			})
+		}
+	}
+	s.containers.Iterate(appendContToResult)
+	return &k8s.ListContainersResponse{
+		Containers: containers,
+	}, nil
+
 }

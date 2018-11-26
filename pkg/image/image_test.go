@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/sylabs/cri/pkg/singularity"
-	"github.com/sylabs/singularity/src/pkg/util/user-agent"
+	"github.com/sylabs/singularity/pkg/util/user-agent"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -60,17 +60,17 @@ func TestPullImage(t *testing.T) {
 			ref: &Reference{
 				uri:     "library",
 				tags:    nil,
-				digests: []string{"library://sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8"},
+				digests: []string{"library://sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
 			},
 			expectImage: &Info{
-				id:     "9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
-				sha256: "9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
-				size:   5517312,
-				path:   filepath.Join(os.TempDir(), "9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8"),
+				id:     "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
+				sha256: "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
+				size:   5521408,
+				path:   filepath.Join(os.TempDir(), "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"),
 				ref: &Reference{
 					uri:     "library",
 					tags:    nil,
-					digests: []string{"library://sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8"},
+					digests: []string{"library://sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
 				},
 			},
 			expectError: nil,
