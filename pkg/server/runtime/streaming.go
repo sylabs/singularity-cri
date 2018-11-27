@@ -19,6 +19,8 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"k8s.io/client-go/tools/remotecommand"
@@ -58,11 +60,11 @@ func (s *streamingRuntime) Attach(containerID string,
 	}
 
 	log.Printf("Dialing %s...", socket)
-	conn, err := net.Dial("unix", socket)
+	attachSock, err := net.Dial("unix", socket)
 	if err != nil {
 		return fmt.Errorf("could not conntect to attach socket: %v", err)
 	}
-	defer conn.Close()
+	defer attachSock.Close()
 
 	log.Printf("Connected to attach socket %s...", socket)
 	go func() {
@@ -78,7 +80,12 @@ func (s *streamingRuntime) Attach(containerID string,
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := io.Copy(stdout, conn)
+
+			file, _ := os.Create(filepath.Join("/var/run/singularity/containers/", c.ID()+".out"))
+			defer file.Close()
+
+			w := io.MultiWriter(stdout, file)
+			_, err := io.Copy(w, attachSock)
 			errors <- err
 		}()
 	}
@@ -86,7 +93,12 @@ func (s *streamingRuntime) Attach(containerID string,
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := io.Copy(stderr, conn)
+
+			file, _ := os.Create(filepath.Join("/var/run/singularity/containers/", c.ID()+".err"))
+			defer file.Close()
+
+			w := io.MultiWriter(stderr, file)
+			_, err := io.Copy(w, attachSock)
 			errors <- err
 		}()
 	}
@@ -94,7 +106,12 @@ func (s *streamingRuntime) Attach(containerID string,
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := io.Copy(conn, stdin)
+
+			file, _ := os.Create(filepath.Join("/var/run/singularity/containers/", c.ID()+".in"))
+			defer file.Close()
+
+			w := io.MultiWriter(attachSock, file)
+			_, err := io.Copy(w, stdin)
 			errors <- err
 		}()
 	}

@@ -39,7 +39,7 @@ func (c *Container) spawnOCIContainer(imgInfo *image.Info) error {
 		return fmt.Errorf("could not listen for state changes: %v", err)
 	}
 
-	go c.cli.Create(c.id, c.bundlePath(), "--sync-socket", c.socketPath())
+	go c.cli.Create(c.id, c.bundlePath(), "--sync-socket", c.socketPath(), "--log-path", c.logPath)
 
 	if err := c.expectState(runtime.StateCreating); err != nil {
 		return err

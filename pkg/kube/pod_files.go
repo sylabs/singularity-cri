@@ -89,13 +89,13 @@ func (p *Pod) prepareFiles() error {
 	if err != nil {
 		return fmt.Errorf("could not create directory for pod: %v", err)
 	}
-	if err = p.addLogDirectory(); err != nil {
+	if err := p.addLogDirectory(); err != nil {
 		return fmt.Errorf("could not create log directory: %v", err)
 	}
-	if err = p.addResolvConf(); err != nil {
+	if err := p.addResolvConf(); err != nil {
 		return fmt.Errorf("could not create resolv.conf: %v", err)
 	}
-	if err = p.addHostname(); err != nil {
+	if err := p.addHostname(); err != nil {
 		return fmt.Errorf("could not create hostname file: %v", err)
 	}
 	return nil

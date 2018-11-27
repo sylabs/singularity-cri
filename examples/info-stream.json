@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "test-streaming",
+    "attempt": 1
+  },
+  "image": {
+    "image": "library://sashayakovtseva/test/test-info:stream"
+  },
+  "envs": [
+    {
+      "key": "MY_CUSTOM_VAR",
+      "value": "singularity-cri"
+    },
+    {
+      "key": "MY_ANOTHER_VAR",
+      "value": "is-awesome"
+    }
+  ],
+  "log_path": "test-streaming/1.log",
+  "linux": {
+    "security_context": {
+      "namespace_options": {},
+      "no_new_privs": true
+    }
+  }
+}

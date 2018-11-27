@@ -56,6 +56,23 @@ func (c *Container) bundlePath() string {
 	return filepath.Join(contInfoPath, c.id, contBundlePath)
 }
 
+func (c *Container) addLogDirectory() error {
+	logDir := c.pod.GetLogDirectory()
+	logPath := c.GetLogPath()
+	if logDir == "" || logPath == "" {
+		return nil
+	}
+
+	logPath = filepath.Join(logDir, logPath)
+	logDir = filepath.Dir(logPath)
+	err := os.MkdirAll(logDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("could not create %s: %v", logDir, err)
+	}
+	c.logPath = logPath
+	return nil
+}
+
 func (c *Container) addOCIBundle(image *image.Info) error {
 	err := os.MkdirAll(c.bundlePath(), os.ModePerm)
 	if err != nil {

@@ -5,7 +5,7 @@
     "attempt": 1,
     "uid": "hdishd83djaidwnduwk28bcsb"
   },
-  "logDirectory": "/tmp",
+  "log_directory": "/tmp/testpod",
   "linux": {
   }
 }

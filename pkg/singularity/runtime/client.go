@@ -106,7 +106,7 @@ func (c *CLIClient) Attach(id string) error {
 
 func silentRun(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
-	runCmd.Stdout = os.Stderr
+	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stderr
 
 	log.Printf("executing %v", cmd)

@@ -44,14 +44,16 @@ type Container struct {
 	*k8s.ContainerConfig
 	pod *Pod
 
-	createdAt     int64 // unix nano
-	startedAt     int64 // unix nano
-	finishedAt    int64 // unix nano
-	runtimeState  runtime.State
+	runtimeState runtime.State
+	createdAt    int64 // unix nano
+	startedAt    int64 // unix nano
+	finishedAt   int64 // unix nano
+	exitDesc     string
+	exitCode     int32
+
 	attachSocket  string
 	controlSocket string
-	exitDesc      string
-	exitCode      int32
+	logPath       string
 
 	createOnce sync.Once
 	isStopped  bool
@@ -145,6 +147,11 @@ func (c *Container) Create(info *image.Info) error {
 	}()
 
 	c.createOnce.Do(func() {
+		err = c.addLogDirectory()
+		if err != nil {
+			err = fmt.Errorf("could not create log directory: %v", err)
+			return
+		}
 		err = c.spawnOCIContainer(info)
 		if err != nil {
 			err = fmt.Errorf("could not spawn container: %v", err)
