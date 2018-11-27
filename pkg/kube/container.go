@@ -44,13 +44,14 @@ type Container struct {
 	*k8s.ContainerConfig
 	pod *Pod
 
-	createdAt    int64 // unix nano
-	startedAt    int64 // unix nano
-	finishedAt   int64 // unix nano
-	runtimeState runtime.State
-	attachSocket string
-	exitDesc     string
-	exitCode     int32
+	createdAt     int64 // unix nano
+	startedAt     int64 // unix nano
+	finishedAt    int64 // unix nano
+	runtimeState  runtime.State
+	attachSocket  string
+	controlSocket string
+	exitDesc      string
+	exitCode      int32
 
 	createOnce sync.Once
 	isStopped  bool
