@@ -31,6 +31,12 @@ const (
 	ContainerIDLen = 64
 )
 
+var (
+	// ErrContainerNotCreated is used when attempting to perform operations on containers that
+	// are not in CONTAINER_CREATED state, e.g. start already started container.
+	ErrContainerNotCreated = fmt.Errorf("container is not in %s state", k8s.ContainerState_CONTAINER_CREATED.String())
+)
+
 // Container represents kubernetes container inside a pod. It encapsulates
 // all container-specific logic and should be used by runtime for correct interaction.
 type Container struct {
@@ -46,10 +52,9 @@ type Container struct {
 	exitDesc     string
 	exitCode     int32
 
-	createOnce  sync.Once
-	startedOnce sync.Once
-	isStopped   bool
-	isRemoved   bool
+	createOnce sync.Once
+	isStopped  bool
+	isRemoved  bool
 
 	cli        *runtime.CLIClient
 	syncChan   <-chan runtime.State
@@ -156,21 +161,21 @@ func (c *Container) Create(info *image.Info) error {
 
 // Start starts created container.
 func (c *Container) Start() error {
-	var err error
-
-	c.startedOnce.Do(func() {
-		go c.cli.Start(c.id)
-		err = c.expectState(runtime.StateRunning)
-		if err != nil {
-			return
-		}
-		err = c.UpdateState()
-		if err != nil {
-			err = fmt.Errorf("could not update container state: %v", err)
-			return
-		}
-	})
-	return err
+	if err := c.UpdateState(); err != nil {
+		return fmt.Errorf("could not update container state: %v", err)
+	}
+	if c.State() != k8s.ContainerState_CONTAINER_CREATED {
+		return ErrContainerNotCreated
+	}
+	go c.cli.Start(c.id)
+	err := c.expectState(runtime.StateRunning)
+	if err != nil {
+		return err
+	}
+	if err := c.UpdateState(); err != nil {
+		return fmt.Errorf("could not update container state: %v", err)
+	}
+	return nil
 }
 
 // Stop stops running container. The passed timeout is used to give

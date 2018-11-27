@@ -1,7 +1,11 @@
 # Maintainers:
 
-- Eduardo Arango    <eduardo@sylabs.io>
-- Sasha Yakovtseva  <sasha@sylabs.io>
-- Michael Bauer <michael@sylabs.io>
+- Sasha Yakovtseva <sasha@sylabs.io>
+- Cedric Clerget <cedric@sylabs.io>
+- Michael Bauer <bauerm@sylabs.io>
 
 # Contributors:
+
+- Sasha Yakovtseva <sasha@sylabs.io>
+- Eduardo Arango <eduardo@sylabs.io>
+- Jason Stover <jms@sylabs.io> 
