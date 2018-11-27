@@ -64,8 +64,11 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-
-	if err := cont.Start(); err != nil {
+	err = cont.Start()
+	if err == kube.ErrContainerNotCreated {
+		return nil, status.Errorf(codes.InvalidArgument, "attempt to start container in %s state", cont.State())
+	}
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not start container: %v", err)
 	}
 	return &k8s.StartContainerResponse{}, nil
