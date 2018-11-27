@@ -246,7 +246,7 @@
     "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "71a3f914389ae28413d131f62cc1124eadb7ac66"
+  revision = "5cb2997fe25da86d9936128cb18b9308b9ccd60a"
   source = "github.com/cclerget/singularity"
 
 [[projects]]
@@ -436,7 +436,15 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5b2f97b0491f384d2d30febb1a3f3bac6eb66a3fc2ee613fef7f42b6b240e31b"
+  digest = "1:cccacf95f7aaf1878275a6a9be7e31221ec1b14262c98c80ace3dfb9baf01641"
+  name = "k8s.io/api"
+  packages = ["core/v1"]
+  pruneopts = "UT"
+  revision = "b7bd5f2d334ce968edc54f5fdb2ac67ce39c56d5"
+
+[[projects]]
+  branch = "release-1.11"
+  digest = "1:511cca7a9519c5c234f8f91c9c05096a43b53d09d7d6ab18707d2b9c0f73ece6"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -480,7 +488,44 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = "UT"
-  revision = "d4f83ca2e2604a4c3444295a8aca957c3a784f06"
+  revision = "70adfbae261eebb795b76321790745ad0e3c523f"
+
+[[projects]]
+  branch = "master"
+  digest = "1:afa08e879cf78569ef7c56e9091099a62ace591a96b647e32dc3d351306fdddb"
+  name = "k8s.io/apiserver"
+  packages = [
+    "pkg/server/httplog",
+    "pkg/util/wsstream",
+  ]
+  pruneopts = "UT"
+  revision = "e3c8fa95bba5a5ff9939a62c6ccd51ff3646b350"
+
+[[projects]]
+  branch = "release-8.0"
+  digest = "1:257891d85f84a442ddbb2b2a948327b84bebc936e11cc7c43d66d83f9aa1ea1e"
+  name = "k8s.io/client-go"
+  packages = [
+    "pkg/apis/clientauthentication",
+    "pkg/apis/clientauthentication/v1alpha1",
+    "pkg/apis/clientauthentication/v1beta1",
+    "pkg/version",
+    "plugin/pkg/client/auth/exec",
+    "rest",
+    "rest/watch",
+    "tools/clientcmd/api",
+    "tools/metrics",
+    "tools/remotecommand",
+    "transport",
+    "transport/spdy",
+    "util/cert",
+    "util/connrotation",
+    "util/exec",
+    "util/flowcontrol",
+    "util/integer",
+  ]
+  pruneopts = "UT"
+  revision = "56e7a63b5e38b614bb7cb8c49ed26dc991b324c4"
 
 [[projects]]
   digest = "1:e2999bf1bb6eddc2a6aa03fe5e6629120a53088926520ca3b4765f77d7ff7eab"
@@ -491,7 +536,7 @@
   version = "v0.1.0"
 
 [[projects]]
-  digest = "1:fa5814199eabf8b80eb6eddcffe4afc8e59d77142a274487c8d76285ff492dca"
+  digest = "1:87ceca6ef127c299308579a4de055e96d128c0d915c2f980c3786051651a5144"
   name = "k8s.io/kubernetes"
   packages = [
     "pkg/apis/core",
@@ -502,8 +547,8 @@
     "pkg/kubelet/server/streaming",
   ]
   pruneopts = "UT"
-  revision = "bf9a868e8ea3d3a8fa53cbb22f566771b3f8068b"
-  version = "v1.11.4"
+  revision = "753b2dbc622f5cc417845f0ff8a77f539a4213ea"
+  version = "v1.11.5"
 
 [[projects]]
   branch = "master"
