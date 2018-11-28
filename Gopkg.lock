@@ -10,6 +10,14 @@
   version = "v3.5.1"
 
 [[projects]]
+  digest = "1:6f614c5193761d29b3184a170380672cafd025306261ce7810e2dd99907184c4"
+  name = "github.com/coreos/go-systemd"
+  packages = ["dbus"]
+  pruneopts = "UT"
+  revision = "9002847aa1425fb6ac49077c0a630b3b67e0fbfd"
+  version = "v18"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -57,6 +65,14 @@
   ]
   pruneopts = "UT"
   revision = "eeefdecb41b842af6dc652aaea4026e8403e62df"
+
+[[projects]]
+  digest = "1:dae52e85e2f3d0a734799e74ec0711d3ddd673b21a9e83be6c899af64c3a98f6"
+  name = "github.com/godbus/dbus"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "66d97aec3384421e393c2a76b770a1b5c31d07a8"
+  version = "v5.0"
 
 [[projects]]
   digest = "1:db238461f652ddb7c7057bc6fc503f6003a29987b1485ecbb96d92287db65bc9"
@@ -132,6 +148,14 @@
   pruneopts = "UT"
   revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
   version = "v1.0.1"
+
+[[projects]]
+  digest = "1:2a30dfecd2365b6fa246e68d18b9b0d13c7976cd481912824e580945cfd8a807"
+  name = "github.com/kubernetes-sigs/cri-o"
+  packages = ["utils"]
+  pruneopts = "UT"
+  revision = "c1db736895aaeb57b2d6f331e2fc8cec2d54078c"
+  version = "v1.12.3"
 
 [[projects]]
   digest = "1:cdb899c199f907ac9fb50495ec71212c95cb5b0e0a8ee0800da0238036091033"
@@ -233,7 +257,7 @@
 
 [[projects]]
   branch = "master-oci"
-  digest = "1:8df5ff0c2e9accad3b469dd235eecff0b91c65f1bebaacb7bb643dcf0858a7c4"
+  digest = "1:cabc93c58575b4d5cb38382c1044b5332077fd8eb52556d4ff107058b2318282"
   name = "github.com/sylabs/singularity"
   packages = [
     "internal/pkg/sylog",
@@ -244,10 +268,11 @@
     "pkg/signing",
     "pkg/sypgp",
     "pkg/util/loop",
+    "pkg/util/unix",
     "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "5cb2997fe25da86d9936128cb18b9308b9ccd60a"
+  revision = "70dd5aabc33f9bd829755728b849392f5e5c2c4d"
   source = "github.com/cclerget/singularity"
 
 [[projects]]
@@ -563,6 +588,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/kubernetes-sigs/cri-o/utils",
     "github.com/opencontainers/runtime-spec/specs-go",
     "github.com/opencontainers/runtime-tools/generate",
     "github.com/stretchr/testify/assert",
@@ -573,6 +599,7 @@
     "github.com/sylabs/singularity/pkg/ociruntime",
     "github.com/sylabs/singularity/pkg/signing",
     "github.com/sylabs/singularity/pkg/util/loop",
+    "github.com/sylabs/singularity/pkg/util/unix",
     "github.com/sylabs/singularity/pkg/util/user-agent",
     "github.com/tchap/go-patricia/patricia",
     "golang.org/x/sys/unix",

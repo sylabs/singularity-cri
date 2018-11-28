@@ -129,6 +129,18 @@ func (c *Container) AttachSocket() string {
 	return c.attachSocket
 }
 
+// ControlSocket returns control socket on which runtime will wait for
+// control signals, e.g. resize event.
+func (c *Container) ControlSocket() string {
+	return c.controlSocket
+}
+
+// LogPath returns and absolute path to container logs on the host
+// filesystem or empty string if logs are not collected.
+func (c *Container) LogPath() string {
+	return c.logPath
+}
+
 // Create creates container inside a pod from the image.
 func (c *Container) Create(info *image.Info) error {
 	var err error

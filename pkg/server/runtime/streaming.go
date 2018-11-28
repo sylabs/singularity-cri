@@ -15,14 +15,15 @@
 package runtime
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"net"
-	"os"
-	"path/filepath"
-	"sync"
 
+	"github.com/kubernetes-sigs/cri-o/utils"
+	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sylabs/singularity/pkg/ociruntime"
+	"github.com/sylabs/singularity/pkg/util/unix"
 	"k8s.io/client-go/tools/remotecommand"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -58,69 +59,76 @@ func (s *streamingRuntime) Attach(containerID string,
 	if socket == "" {
 		return fmt.Errorf("container didn't provide attach socket: %v", err)
 	}
-
-	log.Printf("Dialing %s...", socket)
-	attachSock, err := net.Dial("unix", socket)
+	attachSock, err := unix.Dial(socket)
 	if err != nil {
 		return fmt.Errorf("could not conntect to attach socket: %v", err)
 	}
 	defer attachSock.Close()
 
-	log.Printf("Connected to attach socket %s...", socket)
+	done := make(chan struct{})
 	go func() {
-		for size := range resize {
-			log.Printf("got resize event for %s: %+v", containerID, size)
+		socket := c.ControlSocket()
+		if socket == "" {
+			log.Printf("container didn't provide control socket: %v", err)
+			return
+		}
+
+		log.Printf("resize start for %s", containerID)
+		for {
+			select {
+			case <-done:
+				log.Printf("resize end for %s", containerID)
+				return
+			case size := <-resize:
+				log.Printf("got resize event for %s: %+v", containerID, size)
+				ctrlSock, err := unix.Dial(socket)
+				if err != nil {
+					log.Printf("could not conntect to control socket: %v", err)
+					continue
+				}
+				ctrl := ociruntime.Control{
+					ConsoleSize: &specs.Box{
+						Height: uint(size.Height),
+						Width:  uint(size.Width),
+					},
+				}
+				err = json.NewEncoder(ctrlSock).Encode(&ctrl)
+				if err != nil {
+					log.Printf("could not send resize event to control socket: %v", err)
+				}
+				ctrlSock.Close()
+			}
 		}
 	}()
 
-	errors := make(chan error, 3)
-	var wg sync.WaitGroup
-
-	if stdout != nil {
-		wg.Add(1)
+	errors := make(chan error, 2)
+	if stdout != nil || stderr != nil {
 		go func() {
-			defer wg.Done()
+			out := stdout
+			if out == nil {
+				out = stderr
+			}
 
-			file, _ := os.Create(filepath.Join("/var/run/singularity/containers/", c.ID()+".out"))
-			defer file.Close()
-
-			w := io.MultiWriter(stdout, file)
-			_, err := io.Copy(w, attachSock)
+			_, err := io.Copy(out, attachSock)
+			log.Printf("stdout/stderr got error %v", err)
 			errors <- err
 		}()
 	}
-	if stderr != nil {
-		wg.Add(1)
+	if tty && c.GetStdin() && stdin != nil {
 		go func() {
-			defer wg.Done()
-
-			file, _ := os.Create(filepath.Join("/var/run/singularity/containers/", c.ID()+".err"))
-			defer file.Close()
-
-			w := io.MultiWriter(stderr, file)
-			_, err := io.Copy(w, attachSock)
-			errors <- err
-		}()
-	}
-	if stdin != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			file, _ := os.Create(filepath.Join("/var/run/singularity/containers/", c.ID()+".in"))
-			defer file.Close()
-
-			w := io.MultiWriter(attachSock, file)
-			_, err := io.Copy(w, stdin)
+			// copy until ctrl-d hits
+			_, err := utils.CopyDetachable(attachSock, stdin, []byte{4})
+			log.Printf("stdin got error %v", err)
 			errors <- err
 		}()
 	}
 
 	err = <-errors
-
-	log.Printf("Waiting attach end %s...", containerID)
-	wg.Wait()
+	close(done)
 	log.Printf("Attach for %s returned %v...", containerID, err)
+	if (err == utils.DetachError{}) {
+		return nil
+	}
 	return err
 }
 
