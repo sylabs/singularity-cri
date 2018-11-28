@@ -44,12 +44,16 @@ type Container struct {
 	*k8s.ContainerConfig
 	pod *Pod
 
+	runtimeState runtime.State
 	createdAt    int64 // unix nano
 	startedAt    int64 // unix nano
 	finishedAt   int64 // unix nano
-	runtimeState runtime.State
 	exitDesc     string
 	exitCode     int32
+
+	attachSocket  string
+	controlSocket string
+	logPath       string
 
 	createOnce sync.Once
 	isStopped  bool
@@ -120,6 +124,23 @@ func (c *Container) ExitDescription() string {
 	return c.exitDesc
 }
 
+// AttachSocket returns attach socket on which runtime will serve attach request.
+func (c *Container) AttachSocket() string {
+	return c.attachSocket
+}
+
+// ControlSocket returns control socket on which runtime will wait for
+// control signals, e.g. resize event.
+func (c *Container) ControlSocket() string {
+	return c.controlSocket
+}
+
+// LogPath returns and absolute path to container logs on the host
+// filesystem or empty string if logs are not collected.
+func (c *Container) LogPath() string {
+	return c.logPath
+}
+
 // Create creates container inside a pod from the image.
 func (c *Container) Create(info *image.Info) error {
 	var err error
@@ -138,6 +159,11 @@ func (c *Container) Create(info *image.Info) error {
 	}()
 
 	c.createOnce.Do(func() {
+		err = c.addLogDirectory()
+		if err != nil {
+			err = fmt.Errorf("could not create log directory: %v", err)
+			return
+		}
 		err = c.spawnOCIContainer(info)
 		if err != nil {
 			err = fmt.Errorf("could not spawn container: %v", err)

@@ -98,9 +98,15 @@ func (c *CLIClient) Delete(id string) error {
 	return silentRun(cmd)
 }
 
+// Attach asks runtime attach to container standard streams.
+func (c *CLIClient) Attach(id string) error {
+	cmd := append(c.baseCmd, "attach", id)
+	return silentRun(cmd)
+}
+
 func silentRun(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
-	runCmd.Stdout = os.Stderr
+	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stderr
 
 	log.Printf("executing %v", cmd)

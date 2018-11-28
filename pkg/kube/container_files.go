@@ -56,6 +56,23 @@ func (c *Container) bundlePath() string {
 	return filepath.Join(contInfoPath, c.id, contBundlePath)
 }
 
+func (c *Container) addLogDirectory() error {
+	logDir := c.pod.GetLogDirectory()
+	logPath := c.GetLogPath()
+	if logDir == "" || logPath == "" {
+		return nil
+	}
+
+	logPath = filepath.Join(logDir, logPath)
+	logDir = filepath.Dir(logPath)
+	err := os.MkdirAll(logDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("could not create %s: %v", logDir, err)
+	}
+	c.logPath = logPath
+	return nil
+}
+
 func (c *Container) addOCIBundle(image *image.Info) error {
 	err := os.MkdirAll(c.bundlePath(), os.ModePerm)
 	if err != nil {
@@ -185,6 +202,10 @@ func (c *Container) cleanupFiles(silent bool) error {
 	err = os.RemoveAll(filepath.Join(contInfoPath, c.id))
 	if err != nil && !silent {
 		return fmt.Errorf("could not cleanup container: %v", err)
+	}
+	err = os.RemoveAll(filepath.Dir(c.logPath))
+	if err != nil && !silent {
+		return fmt.Errorf("could not remove logs: %v", err)
 	}
 	return nil
 }

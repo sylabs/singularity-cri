@@ -1,0 +1,12 @@
+{
+  "metadata": {
+    "name": "interactive",
+    "attempt": 1
+  },
+  "image": {
+    "image": "sashayakovtseva/test-info:interactive"
+  },
+  "log_path": "interactive/1.log",
+  "stdin": true,
+  "tty": true
+}

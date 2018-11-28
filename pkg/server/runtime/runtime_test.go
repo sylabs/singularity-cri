@@ -24,7 +24,7 @@ import (
 )
 
 func TestSingularityRuntimeService_Version(t *testing.T) {
-	s, err := NewSingularityRuntime(nil)
+	s, err := NewSingularityRuntime("", nil)
 	require.NoError(t, err, "could not create new runtime service")
 
 	expectedVersion, err := exec.Command(s.singularity, "version").Output()

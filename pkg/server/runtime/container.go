@@ -27,6 +27,11 @@ import (
 
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateContainerRequest) (*k8s.CreateContainerResponse, error) {
+	if (req.GetConfig().GetTty() && !req.GetConfig().GetStdin()) ||
+		(req.GetConfig().GetStdin() && !req.GetConfig().GetTty()) {
+		return nil, status.Error(codes.InvalidArgument, "tty and stdin must be both either true or false")
+	}
+
 	info, err := s.imageIndex.Find(req.Config.Image.Image)
 	if err == index.ErrImageNotFound {
 		return nil, status.Error(codes.NotFound, "image not found")
@@ -148,7 +153,7 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 			Labels:      cont.GetLabels(),
 			Annotations: cont.GetAnnotations(),
 			Mounts:      cont.GetMounts(),
-			LogPath:     cont.GetLogPath(), // todo concat with pod log dir?
+			LogPath:     cont.LogPath(),
 		},
 	}, nil
 }
