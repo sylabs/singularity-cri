@@ -16,7 +16,6 @@ package image
 
 import (
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -186,9 +185,7 @@ func TestMergeStrSlice(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := mergeStrSlice(tc.s1, tc.s2)
-			sort.Strings(actual)
-			sort.Strings(tc.expect)
-			require.Equal(t, tc.expect, actual)
+			require.ElementsMatch(t, tc.expect, actual)
 		})
 	}
 }
@@ -226,4 +223,67 @@ func TestRemoveFromSlice(t *testing.T) {
 			require.Equal(t, tc.expect, actual)
 		})
 	}
+}
+
+func TestReferenceDigests(t *testing.T) {
+	ref := &Reference{
+		digests: []string{
+			"gcr.io/cri-tools/test-image@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343",
+			"gcr.io/cri-tools/test-image@sha256:9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
+		},
+	}
+
+	digests := ref.Digests()
+	digests = append(digests, "will-not-affect")
+	require.NotEqual(t, ref.Digests(), digests)
+	require.NotEqual(t, ref.digests, digests)
+
+	ref.AddDigests([]string{
+		"gcr.io/cri-tools/test-image@sha256:73a84b7ecd215008166111f3beb0a8da142535afafa68439e6292d173bc1251f",
+		"gcr.io/cri-tools/test-image@sha256:d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
+	})
+	require.ElementsMatch(t, []string{
+		"gcr.io/cri-tools/test-image@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343",
+		"gcr.io/cri-tools/test-image@sha256:9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
+		"gcr.io/cri-tools/test-image@sha256:73a84b7ecd215008166111f3beb0a8da142535afafa68439e6292d173bc1251f",
+		"gcr.io/cri-tools/test-image@sha256:d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
+	}, ref.Digests())
+
+	ref.RemoveDigest("gcr.io/cri-tools/test-image@sha256:9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8")
+	require.ElementsMatch(t, []string{
+		"gcr.io/cri-tools/test-image@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343",
+		"gcr.io/cri-tools/test-image@sha256:73a84b7ecd215008166111f3beb0a8da142535afafa68439e6292d173bc1251f",
+		"gcr.io/cri-tools/test-image@sha256:d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
+	}, ref.Digests())
+
+}
+
+func TestReferenceTags(t *testing.T) {
+	ref := &Reference{
+		tags: []string{
+			"gcr.io/cri-tools/test-image-tags:1",
+			"gcr.io/cri-tools/test-image-tags:2",
+		},
+	}
+
+	tags := ref.Tags()
+	tags = append(tags, "will-not-affect")
+	require.NotEqual(t, ref.Tags(), tags)
+	require.NotEqual(t, ref.tags, tags)
+
+	ref.AddTags([]string{"new-tag", "new-tag-2"})
+	require.ElementsMatch(t, []string{
+		"gcr.io/cri-tools/test-image-tags:1",
+		"gcr.io/cri-tools/test-image-tags:2",
+		"new-tag",
+		"new-tag-2",
+	}, ref.Tags())
+
+	ref.RemoveTag("gcr.io/cri-tools/test-image-tags:2")
+	require.ElementsMatch(t, []string{
+		"gcr.io/cri-tools/test-image-tags:1",
+		"new-tag",
+		"new-tag-2",
+	}, ref.Tags())
+
 }
