@@ -158,12 +158,12 @@
   version = "1.0.1"
 
 [[projects]]
-  digest = "1:57234a321bf1f8f98a8a9a5122a2404cc60d0800516f4ab7a7b2375e4b2d19ea"
+  branch = "master"
+  digest = "1:9376df698f00197a5c32ddd2e0b9489ea63de4371a3eb26fad29270e55b84c15"
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
   pruneopts = "UT"
-  revision = "4e3b9264a330d094b0386c3703c5f379119711e8"
-  version = "v1.0.1"
+  revision = "1722abf79c2f8f2675f47367f827c6491472cf27"
 
 [[projects]]
   digest = "1:8e29919b351fc84fd71a1c8c6952db264490d270db419138f4534bc4bb09e9fc"
@@ -233,13 +233,14 @@
 
 [[projects]]
   branch = "master-oci"
-  digest = "1:309b0729181d88a3b2701a2e9935cb1285086593831b9105dbfe77e03276a6a9"
+  digest = "1:8df5ff0c2e9accad3b469dd235eecff0b91c65f1bebaacb7bb643dcf0858a7c4"
   name = "github.com/sylabs/singularity"
   packages = [
     "internal/pkg/sylog",
     "internal/pkg/util/user",
     "pkg/client/library",
     "pkg/client/shub",
+    "pkg/ociruntime",
     "pkg/signing",
     "pkg/sypgp",
     "pkg/util/loop",
@@ -569,6 +570,7 @@
     "github.com/sylabs/sif/pkg/sif",
     "github.com/sylabs/singularity/pkg/client/library",
     "github.com/sylabs/singularity/pkg/client/shub",
+    "github.com/sylabs/singularity/pkg/ociruntime",
     "github.com/sylabs/singularity/pkg/signing",
     "github.com/sylabs/singularity/pkg/util/loop",
     "github.com/sylabs/singularity/pkg/util/user-agent",
