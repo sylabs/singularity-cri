@@ -76,6 +76,7 @@ func main() {
 	}
 	defer lis.Close()
 
+	syscall.Umask(0)
 	imageIndex := index.NewImageIndex()
 	syImage, err := image.NewSingularityRegistry(f.storeDir, imageIndex)
 	if err != nil {
