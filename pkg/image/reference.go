@@ -171,7 +171,7 @@ func mergeStrSlice(t1, t2 []string) []string {
 }
 
 // removeFromSlice returns passed slice without first occurrence of element v.
-// It does not makes a copy of a passed slice.
+// It does not make a copy of a passed slice.
 func removeFromSlice(a []string, v string) []string {
 	for i, str := range a {
 		if str == v {

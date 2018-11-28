@@ -22,7 +22,7 @@ clean:
 
 .PHONY: test
 test: $(CONFIG_GO)
-	@export GOOS=linux && go test -cover ./...
+	@export GOOS=linux && go test -v -cover ./...
 
 .PHONY: lint
 lint:

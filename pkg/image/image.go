@@ -37,11 +37,11 @@ import (
 )
 
 const (
-	// ImageIDLen reflects number of symbols in image unique ID.
-	ImageIDLen = 64
+	// IDLen reflects number of symbols in image unique ID.
+	IDLen = 64
 )
 
-// Info represents image stored on host filesystem.
+// Info represents image stored on the host filesystem.
 type Info struct {
 	id     string
 	sha256 string
@@ -55,6 +55,12 @@ func (i *Info) ID() string {
 	return i.id
 }
 
+// SetID sets desired image id. Should be used when
+// default ID (image sha256 checksum) doesn't fit needs.
+func (i *Info) SetID(id string) {
+	i.id = id
+}
+
 // Path returns path to image file.
 func (i *Info) Path() string {
 	return i.path
@@ -65,9 +71,16 @@ func (i *Info) Size() uint64 {
 	return i.size
 }
 
-// Ref returns associated image reference.,
+// Ref returns associated image reference.
 func (i *Info) Ref() *Reference {
 	return i.ref
+}
+
+// SetRef sets associated image reference. Should be used
+// in rare cases when one wishes to override Reference that
+// was used to pull image.
+func (i *Info) SetRef(ref *Reference) {
+	i.ref = ref
 }
 
 // MarshalJSON marshals Info into a valid JSON.

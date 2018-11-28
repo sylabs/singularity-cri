@@ -124,7 +124,7 @@ func TestPullImage(t *testing.T) {
 	}
 }
 
-func TestMatches(t *testing.T) {
+func TestInfo_Matches(t *testing.T) {
 	tt := []struct {
 		name   string
 		img    *Info
@@ -230,4 +230,46 @@ func TestMatches(t *testing.T) {
 			require.Equal(t, tc.expect, tc.img.Matches(tc.filter))
 		})
 	}
+}
+
+func TestInfo_UnmarshalJSON(t *testing.T) {
+	input := `
+{"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+"sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+"size":741376,
+"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+"ref":{"uri":"docker","tags":["busybox:1.28"],"digests":null}}`
+
+	info := new(Info)
+	err := info.UnmarshalJSON([]byte(input))
+	require.NoError(t, err, "could not unmarshal image")
+	require.Equal(t, &Info{
+		id:     "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+		sha256: "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+		size:   741376,
+		path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+		ref: &Reference{
+			uri:  "docker",
+			tags: []string{"busybox:1.28"},
+		},
+	}, info)
+}
+
+func TestInfo_MarshalJSON(t *testing.T) {
+	expect := []byte(`{"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","size":741376,"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","ref":{"uri":"docker","tags":["busybox:1.28"],"digests":null}}`)
+
+	info := &Info{
+		id:     "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+		sha256: "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+		size:   741376,
+		path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+		ref: &Reference{
+			uri:  "docker",
+			tags: []string{"busybox:1.28"},
+		},
+	}
+
+	res, err := info.MarshalJSON()
+	require.NoError(t, err, "could not marshal image")
+	require.Equal(t, expect, res)
 }
