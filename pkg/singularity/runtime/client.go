@@ -16,14 +16,13 @@ package runtime
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-
-	"context"
 	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -37,6 +36,7 @@ type (
 		baseCmd []string
 	}
 
+	// ExecResponse holds result of command execution inside a container.
 	ExecResponse struct {
 		// Captured command stdout output.
 		Stdout []byte

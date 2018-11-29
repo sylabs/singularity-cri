@@ -6,6 +6,7 @@
   "image": {
     "image": "library://sashayakovtseva/test/test-info"
   },
+  "command": ["./test"],
   "envs": [
     {
       "key": "MY_CUSTOM_VAR",
