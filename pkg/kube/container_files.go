@@ -65,7 +65,7 @@ func (c *Container) addLogDirectory() error {
 
 	logPath = filepath.Join(logDir, logPath)
 	logDir = filepath.Dir(logPath)
-	err := os.MkdirAll(logDir, os.ModePerm)
+	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", logDir, err)
 	}
@@ -74,7 +74,7 @@ func (c *Container) addLogDirectory() error {
 }
 
 func (c *Container) addOCIBundle(image *image.Info) error {
-	err := os.MkdirAll(c.bundlePath(), os.ModePerm)
+	err := os.MkdirAll(c.bundlePath(), 0755)
 	if err != nil {
 		return fmt.Errorf("could not create rootfs directory for container: %v", err)
 	}
@@ -102,23 +102,23 @@ func (c *Container) prepareOverlay(imagePath string) error {
 	)
 
 	log.Printf("creating %s", lowerPath)
-	err := os.Mkdir(lowerPath, os.ModePerm)
+	err := os.Mkdir(lowerPath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create lower directory for overlay: %v", err)
 	}
 	log.Printf("creating %s", upperPath)
-	err = os.Mkdir(upperPath, os.ModePerm)
+	err = os.Mkdir(upperPath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create upper directory for overlay: %v", err)
 	}
 	log.Printf("creating %s", workPath)
-	err = os.Mkdir(workPath, os.ModePerm)
+	err = os.Mkdir(workPath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create working directory for overlay: %v", err)
 	}
 
 	log.Printf("creating %s", c.rootfsPath())
-	err = os.Mkdir(c.rootfsPath(), os.ModePerm)
+	err = os.Mkdir(c.rootfsPath(), 0755)
 	if err != nil {
 		return fmt.Errorf("could not create root directory for overlay: %v", err)
 	}

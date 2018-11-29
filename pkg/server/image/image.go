@@ -62,7 +62,7 @@ func NewSingularityRegistry(storePath string, index *index.ImageIndex) (*Singula
 		images:  index,
 	}
 
-	if err := os.MkdirAll(storePath, os.ModePerm); err != nil {
+	if err := os.MkdirAll(storePath, 0755); err != nil {
 		return nil, fmt.Errorf("could not create storage directory: %v", err)
 	}
 	registry.infoFile, err = os.OpenFile(filepath.Join(storePath, registryInfoFile), os.O_CREATE|os.O_RDWR, 0644)
