@@ -80,6 +80,15 @@ func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*Singu
 	return runtime, nil
 }
 
+// Shutdown shuts down any running background tasks created by SingularityRuntime.
+// This methods should be called when SingularityRuntime will no longer be used.
+func (s *SingularityRuntime) Shutdown() error {
+	if err := s.streaming.Stop(); err != nil {
+		return fmt.Errorf("could not stop streaming server: %v", err)
+	}
+	return nil
+}
+
 // Version returns the runtime name, runtime version and runtime API version
 func (s *SingularityRuntime) Version(context.Context, *k8s.VersionRequest) (*k8s.VersionResponse, error) {
 	const kubeAPIVersion = "0.1.0"
