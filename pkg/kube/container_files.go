@@ -203,9 +203,11 @@ func (c *Container) cleanupFiles(silent bool) error {
 	if err != nil && !silent {
 		return fmt.Errorf("could not cleanup container: %v", err)
 	}
-	err = os.RemoveAll(filepath.Dir(c.logPath))
-	if err != nil && !silent {
-		return fmt.Errorf("could not remove logs: %v", err)
+	if c.logPath != "" {
+		err = os.RemoveAll(filepath.Dir(c.logPath))
+		if err != nil && !silent {
+			return fmt.Errorf("could not remove logs: %v", err)
+		}
 	}
 	return nil
 }
