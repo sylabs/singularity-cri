@@ -85,7 +85,7 @@ func (p *Pod) bindNamespacePath(nsType specs.LinuxNamespaceType) string {
 }
 
 func (p *Pod) prepareFiles() error {
-	err := os.MkdirAll(filepath.Join(podInfoPath, p.id, podNsStorePath), os.ModePerm)
+	err := os.MkdirAll(filepath.Join(podInfoPath, p.id, podNsStorePath), 0755)
 	if err != nil {
 		return fmt.Errorf("could not create directory for pod: %v", err)
 	}
@@ -149,7 +149,7 @@ func (p *Pod) addLogDirectory() error {
 		return nil
 	}
 
-	err := os.MkdirAll(logDir, os.ModePerm)
+	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", logDir, err)
 	}
@@ -157,7 +157,7 @@ func (p *Pod) addLogDirectory() error {
 }
 
 func (p *Pod) addOCIBundle() error {
-	err := os.MkdirAll(p.rootfsPath(), os.ModePerm)
+	err := os.MkdirAll(p.rootfsPath(), 0755)
 	if err != nil {
 		return fmt.Errorf("could not create rootfs directory for pod: %v", err)
 	}
