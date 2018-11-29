@@ -20,6 +20,7 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"time"
 
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/singularity"
@@ -121,8 +122,21 @@ func (s *SingularityRuntime) ReopenContainerLog(context.Context, *k8s.ReopenCont
 }
 
 // ExecSync runs a command in a container synchronously.
-func (s *SingularityRuntime) ExecSync(context.Context, *k8s.ExecSyncRequest) (*k8s.ExecSyncResponse, error) {
-	return &k8s.ExecSyncResponse{}, status.Errorf(codes.Unimplemented, "EXEC SYNC not implemented")
+func (s *SingularityRuntime) ExecSync(ctx context.Context, req *k8s.ExecSyncRequest) (*k8s.ExecSyncResponse, error) {
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == index.ErrContainerNotFound {
+		return nil, status.Error(codes.NotFound, "container is not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	timeout := time.Second * time.Duration(req.Timeout)
+	resp, err := cont.ExecSync(timeout, req.Cmd)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not execute in container: %v", err)
+	}
+	return resp, nil
 }
 
 // Exec prepares a streaming endpoint to execute a command in the container.
