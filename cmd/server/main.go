@@ -98,6 +98,9 @@ func main() {
 
 	<-exitCh
 
-	grpcServer.Stop()
 	log.Println("Singularity CRI service exiting...")
+	if err := syRuntime.Shutdown(); err != nil {
+		log.Printf("error during singularity runtime service shutdown: %v", err)
+	}
+	grpcServer.Stop()
 }

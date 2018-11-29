@@ -16,26 +16,40 @@ package runtime
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/singularity"
 )
 
-// CLIClient is a type for convenient interaction with
-// singularity OCI runtime engine via CLI.
-type CLIClient struct {
-	baseCmd []string
-}
+type (
+	// CLIClient is a type for convenient interaction with
+	// singularity OCI runtime engine via CLI.
+	CLIClient struct {
+		baseCmd []string
+	}
+
+	// ExecResponse holds result of command execution inside a container.
+	ExecResponse struct {
+		// Captured command stdout output.
+		Stdout []byte
+		// Captured command stderr output.
+		Stderr []byte
+		// Exit code the command finished with.
+		ExitCode int32
+	}
+)
 
 // NewCLIClient returns new CLIClient ready to use.
 func NewCLIClient() *CLIClient {
-	return &CLIClient{baseCmd: []string{singularity.RuntimeName, "-d", "oci"}}
+	return &CLIClient{baseCmd: []string{singularity.RuntimeName, "-s", "oci"}}
 }
 
 // State returns state of a container with passed id.
@@ -79,6 +93,40 @@ func (c *CLIClient) Create(id, bundle string, flags ...string) error {
 func (c *CLIClient) Start(id string) error {
 	cmd := append(c.baseCmd, "start", id)
 	return silentRun(cmd)
+}
+
+// Exec executes a command inside a container.
+func (c *CLIClient) Exec(ctx context.Context, id string, args ...string) (*ExecResponse, error) {
+	cmd := append(c.baseCmd, "exec")
+	cmd = append(cmd, id)
+	cmd = append(cmd, args...)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	runCmd := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	runCmd.Stdout = &stdout
+	runCmd.Stderr = &stderr
+
+	log.Printf("executing %v", cmd)
+	err := runCmd.Run()
+	var exitCode int32
+	exitErr, ok := err.(*exec.ExitError)
+	if ok {
+		var waitStatus syscall.WaitStatus
+		waitStatus, ok = exitErr.Sys().(syscall.WaitStatus)
+		if ok {
+			exitCode = int32(waitStatus.ExitStatus())
+		}
+	}
+	if !ok && err != nil {
+		return nil, fmt.Errorf("could not execute: %v", err)
+	}
+	return &ExecResponse{
+		Stdout:   stdout.Bytes(),
+		Stderr:   stderr.Bytes(),
+		ExitCode: exitCode,
+	}, nil
 }
 
 // Kill asks runtime to send SIGINT to container with passed id.

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/rand"
@@ -242,6 +243,27 @@ func (c *Container) Remove() error {
 	c.pod.removeContainer(c)
 	c.isRemoved = true
 	return nil
+}
+
+// ExecSync runs passed command inside a container and returns result.
+func (c *Container) ExecSync(timeout time.Duration, cmd []string) (*k8s.ExecSyncResponse, error) {
+	ctx := context.Background()
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
+	resp, err := c.cli.Exec(ctx, c.id, cmd...)
+	if err != nil {
+		return nil, fmt.Errorf("exec returned error: %v", err)
+	}
+
+	return &k8s.ExecSyncResponse{
+		Stdout:   resp.Stdout,
+		Stderr:   resp.Stderr,
+		ExitCode: resp.ExitCode,
+	}, nil
 }
 
 // MatchesFilter tests Container against passed filter and returns true if it matches.
