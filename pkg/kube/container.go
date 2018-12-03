@@ -17,10 +17,12 @@ package kube
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
+	"os/exec"
 	"sync"
 	"time"
+
+	"io"
 
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/rand"
@@ -282,6 +284,11 @@ func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteC
 	}
 
 	return nil
+}
+
+func (c *Container) PrepareExec(cmd []string) *exec.Cmd {
+	ctx := context.Background()
+	return c.cli.PrepareExec(ctx, c.id, cmd...)
 }
 
 // MatchesFilter tests Container against passed filter and returns true if it matches.

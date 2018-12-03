@@ -52,9 +52,11 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 
 	if tty {
 		// stderr is nil here
-		master, slave, err := pty.Open()
+		execCmd := c.PrepareExec(cmd)
+
+		master, err := pty.Start(execCmd)
 		if err != nil {
-			return fmt.Errorf("could not open pts: %v", err)
+			return fmt.Errorf("could not start exec in pty: %v", err)
 		}
 
 		done := make(chan struct{})
@@ -79,7 +81,6 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 		}()
 
 		defer master.Close()
-		defer slave.Close()
 		defer close(done)
 
 		if stdin != nil {
@@ -90,7 +91,7 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 			go io.Copy(stdout, master)
 		}
 
-		err = c.Exec(cmd, slave, slave, slave)
+		err = execCmd.Wait()
 	} else {
 		err = c.Exec(cmd, stdin, stdout, stderr)
 	}

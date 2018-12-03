@@ -19,11 +19,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os/exec"
 	"syscall"
+
+	"io"
 
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/singularity/pkg/ociruntime"
@@ -154,6 +155,14 @@ func (c *CLIClient) Exec(ctx context.Context, id string,
 		return fmt.Errorf("could not execute: %v", err)
 	}
 	return nil
+}
+
+func (c *CLIClient) PrepareExec(ctx context.Context, id string, args ...string) *exec.Cmd {
+	cmd := append(c.baseCmd, "exec")
+	cmd = append(cmd, id, execScript)
+	cmd = append(cmd, args...)
+
+	return exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 }
 
 // Kill asks runtime to send SIGINT to container with passed id.
