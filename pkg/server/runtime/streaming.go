@@ -33,6 +33,7 @@ type streamingRuntime struct {
 	runtime *SingularityRuntime
 }
 
+// Exec executes a command inside a container with attaching passed io streams to it.
 func (s *streamingRuntime) Exec(containerID string, cmd []string,
 	stdin io.Reader, stdout, stderr io.WriteCloser,
 	tty bool, resize <-chan remotecommand.TerminalSize) error {
@@ -85,19 +86,16 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 
 		if stdin != nil {
 			go io.Copy(master, stdin)
-
 		}
 		if stdout != nil {
 			go io.Copy(stdout, master)
 		}
-
 		err = execCmd.Wait()
 	} else {
 		err = c.Exec(cmd, stdin, stdout, stderr)
 	}
 
 	log.Printf("Exec for %s returned %v...", containerID, err)
-
 	return err
 }
 

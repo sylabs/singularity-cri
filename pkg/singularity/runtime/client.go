@@ -135,20 +135,16 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*E
 	}, nil
 }
 
+// Exec executes passed command inside a container setting io streams to passed ones.
 func (c *CLIClient) Exec(ctx context.Context, id string,
 	stdin io.Reader, stdout, stderr io.WriteCloser,
 	args ...string) error {
 
-	cmd := append(c.baseCmd, "exec")
-	cmd = append(cmd, id, execScript)
-	cmd = append(cmd, args...)
-
-	runCmd := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	runCmd := c.PrepareExec(ctx, id, args...)
 	runCmd.Stdout = stdout
 	runCmd.Stderr = stderr
 	runCmd.Stdin = stdin
 
-	log.Printf("executing %v", cmd)
 	err := runCmd.Run()
 	_, ok := err.(*exec.ExitError)
 	if !ok && err != nil {
@@ -157,11 +153,14 @@ func (c *CLIClient) Exec(ctx context.Context, id string,
 	return nil
 }
 
+// PrepareExec simply prepares command to call to execute inside a
+// given container. It makes sure singularity exec script is called.
 func (c *CLIClient) PrepareExec(ctx context.Context, id string, args ...string) *exec.Cmd {
 	cmd := append(c.baseCmd, "exec")
 	cmd = append(cmd, id, execScript)
 	cmd = append(cmd, args...)
 
+	log.Printf("will execute %v", cmd)
 	return exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 }
 

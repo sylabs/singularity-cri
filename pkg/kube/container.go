@@ -17,12 +17,11 @@ package kube
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os/exec"
 	"sync"
 	"time"
-
-	"io"
 
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/rand"
@@ -275,6 +274,7 @@ func (c *Container) ExecSync(timeout time.Duration, cmd []string) (*k8s.ExecSync
 	}, nil
 }
 
+// Exec executes a command inside a container with attaching passed io streams to it.
 func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteCloser) error {
 	ctx := context.Background()
 
@@ -286,6 +286,8 @@ func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteC
 	return nil
 }
 
+// Prepare exec created an instance of exec.Cmd that may be used
+// later to run a command inside an allocated tty.
 func (c *Container) PrepareExec(cmd []string) *exec.Cmd {
 	ctx := context.Background()
 	return c.cli.PrepareExec(ctx, c.id, cmd...)
