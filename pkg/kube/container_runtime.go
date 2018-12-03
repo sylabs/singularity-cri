@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 	"time"
 
 	"github.com/sylabs/cri/pkg/image"
@@ -119,11 +118,4 @@ func (c *Container) kill() error {
 		return fmt.Errorf("could not kill container: %v", err)
 	}
 	return c.expectState(runtime.StateExited)
-}
-
-func parseIntAnnotation(ts string) (int64, error) {
-	if ts == "" {
-		return 0, nil
-	}
-	return strconv.ParseInt(ts, 10, 64)
 }
