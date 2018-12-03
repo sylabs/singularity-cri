@@ -25,8 +25,8 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/singularity"
+	"github.com/sylabs/singularity/pkg/ociruntime"
 )
 
 type (
@@ -53,7 +53,7 @@ func NewCLIClient() *CLIClient {
 }
 
 // State returns state of a container with passed id.
-func (c *CLIClient) State(id string) (*specs.State, error) {
+func (c *CLIClient) State(id string) (*ociruntime.State, error) {
 	cmd := append(c.baseCmd, "state", id)
 
 	var cliResp bytes.Buffer
@@ -65,7 +65,7 @@ func (c *CLIClient) State(id string) (*specs.State, error) {
 		return nil, fmt.Errorf("could not query state: %v", err)
 	}
 
-	var state *specs.State
+	var state *ociruntime.State
 	err := json.Unmarshal(cliResp.Bytes(), &state)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode state: %v", err)

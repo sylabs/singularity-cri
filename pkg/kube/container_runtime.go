@@ -23,7 +23,6 @@ import (
 
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
-	"github.com/sylabs/singularity/pkg/ociruntime"
 )
 
 func (c *Container) spawnOCIContainer(imgInfo *image.Info) error {
@@ -54,33 +53,12 @@ func (c *Container) spawnOCIContainer(imgInfo *image.Info) error {
 // UpdateState updates container state according to information
 // received from the runtime.
 func (c *Container) UpdateState() error {
-	contState, err := c.cli.State(c.id)
+	var err error
+	c.ociState, err = c.cli.State(c.id)
 	if err != nil {
 		return fmt.Errorf("could not get container state: %v", err)
 	}
-
-	c.createdAt, err = parseIntAnnotation(contState.Annotations[ociruntime.AnnotationCreatedAt])
-	if err != nil {
-		return fmt.Errorf("could not parse created timestamp: %v", err)
-	}
-	c.startedAt, err = parseIntAnnotation(contState.Annotations[ociruntime.AnnotationStartedAt])
-	if err != nil {
-		return fmt.Errorf("could not parse started timestamp: %v", err)
-	}
-	c.finishedAt, err = parseIntAnnotation(contState.Annotations[ociruntime.AnnotationFinishedAt])
-	if err != nil {
-		return fmt.Errorf("could not parse finished timestamp: %v", err)
-	}
-	exitCode, err := parseIntAnnotation(contState.Annotations[ociruntime.AnnotationExitCode])
-	if err != nil {
-		return fmt.Errorf("could not parse exit code: %v", err)
-	}
-	c.exitCode = int32(exitCode)
-	c.runtimeState = runtime.StatusToState(contState.Status)
-	c.exitDesc = contState.Annotations[ociruntime.AnnotationExitDesc]
-	c.attachSocket = contState.Annotations[ociruntime.AnnotationAttachSocket]
-	c.controlSocket = contState.Annotations[ociruntime.AnnotationControlSocket]
-
+	c.runtimeState = runtime.StatusToState(c.ociState.Status)
 	return nil
 }
 

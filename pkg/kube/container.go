@@ -24,6 +24,7 @@ import (
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
+	"github.com/sylabs/singularity/pkg/ociruntime"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -46,15 +47,8 @@ type Container struct {
 	pod *Pod
 
 	runtimeState runtime.State
-	createdAt    int64 // unix nano
-	startedAt    int64 // unix nano
-	finishedAt   int64 // unix nano
-	exitDesc     string
-	exitCode     int32
-
-	attachSocket  string
-	controlSocket string
-	logPath       string
+	ociState     *ociruntime.State
+	logPath      string
 
 	createOnce sync.Once
 	isStopped  bool
@@ -102,38 +96,50 @@ func (c *Container) State() k8s.ContainerState {
 
 // CreatedAt returns pod creation time in Unix nano.
 func (c *Container) CreatedAt() int64 {
-	return c.createdAt
+	if c.ociState.CreatedAt == nil {
+		return 0
+	}
+	return *c.ociState.CreatedAt
 }
 
 // StartedAt returns container start time in unix nano.
 func (c *Container) StartedAt() int64 {
-	return c.startedAt
+	if c.ociState.StartedAt == nil {
+		return 0
+	}
+	return *c.ociState.StartedAt
 }
 
 // FinishedAt returns container finish time in unix nano.
 func (c *Container) FinishedAt() int64 {
-	return c.finishedAt
+	if c.ociState.FinishedAt == nil {
+		return 0
+	}
+	return *c.ociState.FinishedAt
 }
 
 // ExitCode returns container ext code.
 func (c *Container) ExitCode() int32 {
-	return c.exitCode
+	if c.ociState.ExitCode == nil {
+		return 0
+	}
+	return int32(*c.ociState.ExitCode)
 }
 
 // ExitDescription returns human readable message of why container has exited.
 func (c *Container) ExitDescription() string {
-	return c.exitDesc
+	return c.ociState.ExitDesc
 }
 
 // AttachSocket returns attach socket on which runtime will serve attach request.
 func (c *Container) AttachSocket() string {
-	return c.attachSocket
+	return c.ociState.AttachSocket
 }
 
 // ControlSocket returns control socket on which runtime will wait for
 // control signals, e.g. resize event.
 func (c *Container) ControlSocket() string {
-	return c.controlSocket
+	return c.ociState.ControlSocket
 }
 
 // LogPath returns and absolute path to container logs on the host
