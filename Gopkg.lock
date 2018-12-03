@@ -257,7 +257,7 @@
 
 [[projects]]
   branch = "master-oci"
-  digest = "1:cabc93c58575b4d5cb38382c1044b5332077fd8eb52556d4ff107058b2318282"
+  digest = "1:9bc7258f984867c16a633ccb049b9a49ba985bc33c3e64ede9d7c0b7da3f7cb6"
   name = "github.com/sylabs/singularity"
   packages = [
     "internal/pkg/sylog",
@@ -272,7 +272,7 @@
     "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "70dd5aabc33f9bd829755728b849392f5e5c2c4d"
+  revision = "66b4f095759858c1399975e9bace0262e375b531"
   source = "github.com/cclerget/singularity"
 
 [[projects]]
@@ -336,7 +336,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6ca51c5d8a610b3da56856df7a8f8f3e075eba8d5f7a4acbadd79b2d2a368054"
+  digest = "1:b69ed3091785699803ec77e55e9d9f9397c3ca0d821e14a7d6e2f9db105592a1"
   name = "golang.org/x/net"
   packages = [
     "context",
