@@ -20,6 +20,7 @@ import (
 	"io"
 	"log"
 
+	"github.com/kr/pty"
 	"github.com/kubernetes-sigs/cri-o/utils"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity/pkg/ociruntime"
@@ -32,9 +33,71 @@ type streamingRuntime struct {
 	runtime *SingularityRuntime
 }
 
-// Exec ...
-func (s *streamingRuntime) Exec(containerID string, cmd []string, in io.Reader, out, err io.WriteCloser, tty bool, resize <-chan remotecommand.TerminalSize) error {
-	return fmt.Errorf("not implemented")
+func (s *streamingRuntime) Exec(containerID string, cmd []string,
+	stdin io.Reader, stdout, stderr io.WriteCloser,
+	tty bool, resize <-chan remotecommand.TerminalSize) error {
+
+	log.Printf("Exec %v in %s...", cmd, containerID)
+	c, err := s.runtime.containers.Find(containerID)
+	if err != nil {
+		return fmt.Errorf("could not fetch container: %v", err)
+	}
+
+	if err := c.UpdateState(); err != nil {
+		return fmt.Errorf("could not update container state: %v", err)
+	}
+	if c.State() != k8s.ContainerState_CONTAINER_RUNNING {
+		return fmt.Errorf("container is not running")
+	}
+
+	if tty {
+		// stderr is nil here
+		master, slave, err := pty.Open()
+		if err != nil {
+			return fmt.Errorf("could not open pts: %v", err)
+		}
+
+		done := make(chan struct{})
+		go func() {
+			log.Printf("resize start for %s", containerID)
+			for {
+				select {
+				case <-done:
+					log.Printf("resize end for %s", containerID)
+					return
+				case size := <-resize:
+					log.Printf("got resize event for %s: %+v", containerID, size)
+					s := &pty.Winsize{
+						Cols: uint16(size.Width),
+						Rows: uint16(size.Height),
+					}
+					if err := pty.Setsize(master, s); err != nil {
+						log.Printf("could not resize terminal: %v", err)
+					}
+				}
+			}
+		}()
+
+		defer master.Close()
+		defer slave.Close()
+		defer close(done)
+
+		if stdin != nil {
+			go io.Copy(master, stdin)
+
+		}
+		if stdout != nil {
+			go io.Copy(stdout, master)
+		}
+
+		err = c.Exec(cmd, slave, slave, slave)
+	} else {
+		err = c.Exec(cmd, stdin, stdout, stderr)
+	}
+
+	log.Printf("Exec for %s returned %v...", containerID, err)
+
+	return err
 }
 
 // Attach attaches passed streams to the container.

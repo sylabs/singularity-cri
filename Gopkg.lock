@@ -150,6 +150,14 @@
   version = "v1.0.1"
 
 [[projects]]
+  digest = "1:29d28429a93b076908a36420a7ecb2bf429d24c15a4b5e2c220ea00fc84b71af"
+  name = "github.com/kr/pty"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "db8e3cd836b82e82e0a9c8edc6896967dd31374f"
+  version = "v1.1.3"
+
+[[projects]]
   digest = "1:2a30dfecd2365b6fa246e68d18b9b0d13c7976cd481912824e580945cfd8a807"
   name = "github.com/kubernetes-sigs/cri-o"
   packages = ["utils"]
@@ -588,6 +596,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/kr/pty",
     "github.com/kubernetes-sigs/cri-o/utils",
     "github.com/opencontainers/runtime-spec/specs-go",
     "github.com/opencontainers/runtime-tools/generate",
