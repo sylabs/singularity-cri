@@ -141,7 +141,7 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	case singularity.LibraryProtocol:
 		err = library.DownloadImage(pullPath, pullURL, singularity.LibraryURL, true, "")
 	case singularity.ShubProtocol:
-		err = shub.DownloadImage(pullPath, pullURL, true)
+		err = shub.DownloadImage(pullPath, pullURL, true, false)
 	case singularity.DockerProtocol:
 		remote := fmt.Sprintf("%s://%s", ref.uri, pullURL)
 		var errMsg bytes.Buffer
