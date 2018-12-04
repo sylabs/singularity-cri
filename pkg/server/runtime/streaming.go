@@ -51,6 +51,7 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 		return fmt.Errorf("container is not running")
 	}
 
+	var execErr error
 	if tty {
 		// stderr is nil here
 		execCmd := c.PrepareExec(cmd)
@@ -90,13 +91,13 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 		if stdout != nil {
 			go io.Copy(stdout, master)
 		}
-		err = execCmd.Wait()
+		execErr = execCmd.Wait()
 	} else {
-		err = c.Exec(cmd, stdin, stdout, stderr)
+		execErr = c.Exec(cmd, stdin, stdout, stderr)
 	}
 
-	log.Printf("Exec for %s returned %v...", containerID, err)
-	return err
+	log.Printf("Exec for %s returned %v...", containerID, execErr)
+	return execErr
 }
 
 // Attach attaches passed streams to the container.

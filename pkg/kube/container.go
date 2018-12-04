@@ -286,7 +286,7 @@ func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteC
 	return nil
 }
 
-// Prepare exec created an instance of exec.Cmd that may be used
+// PrepareExec creates an instance of exec.Cmd that may be used
 // later to run a command inside an allocated tty.
 func (c *Container) PrepareExec(cmd []string) *exec.Cmd {
 	ctx := context.Background()

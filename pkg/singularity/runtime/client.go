@@ -19,12 +19,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os/exec"
 	"syscall"
-
-	"io"
 
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/singularity/pkg/ociruntime"
