@@ -305,7 +305,7 @@ func (c *Container) ReopenLogFile() error {
 	}
 	ctrlSock, err := unix.Dial(socket)
 	if err != nil {
-		return fmt.Errorf("could not conntect to control socket: %v", err)
+		return fmt.Errorf("could not connect to control socket: %v", err)
 	}
 	defer ctrlSock.Close()
 
