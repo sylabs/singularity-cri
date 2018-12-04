@@ -17,7 +17,9 @@ package kube
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -260,9 +262,9 @@ func (c *Container) ExecSync(timeout time.Duration, cmd []string) (*k8s.ExecSync
 		defer cancel()
 	}
 
-	resp, err := c.cli.Exec(ctx, c.id, cmd...)
+	resp, err := c.cli.ExecSync(ctx, c.id, cmd...)
 	if err != nil {
-		return nil, fmt.Errorf("exec returned error: %v", err)
+		return nil, fmt.Errorf("exec sync returned error: %v", err)
 	}
 
 	return &k8s.ExecSyncResponse{
@@ -270,6 +272,25 @@ func (c *Container) ExecSync(timeout time.Duration, cmd []string) (*k8s.ExecSync
 		Stderr:   resp.Stderr,
 		ExitCode: resp.ExitCode,
 	}, nil
+}
+
+// Exec executes a command inside a container with attaching passed io streams to it.
+func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteCloser) error {
+	ctx := context.Background()
+
+	err := c.cli.Exec(ctx, c.id, stdin, stdout, stderr, cmd...)
+	if err != nil {
+		return fmt.Errorf("exec returned error: %v", err)
+	}
+
+	return nil
+}
+
+// PrepareExec creates an instance of exec.Cmd that may be used
+// later to run a command inside an allocated tty.
+func (c *Container) PrepareExec(cmd []string) *exec.Cmd {
+	ctx := context.Background()
+	return c.cli.PrepareExec(ctx, c.id, cmd...)
 }
 
 // MatchesFilter tests Container against passed filter and returns true if it matches.

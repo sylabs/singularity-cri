@@ -19,14 +19,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
-	"os"
 	"os/exec"
 	"syscall"
 
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/singularity/pkg/ociruntime"
+)
+
+const (
+	execScript = "/.singularity.d/actions/exec"
 )
 
 type (
@@ -95,10 +99,11 @@ func (c *CLIClient) Start(id string) error {
 	return silentRun(cmd)
 }
 
-// Exec executes a command inside a container.
-func (c *CLIClient) Exec(ctx context.Context, id string, args ...string) (*ExecResponse, error) {
+// ExecSync executes a command inside a container synchronously until
+// context is done and returns the result.
+func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*ExecResponse, error) {
 	cmd := append(c.baseCmd, "exec")
-	cmd = append(cmd, id)
+	cmd = append(cmd, id, execScript)
 	cmd = append(cmd, args...)
 
 	var stdout bytes.Buffer
@@ -129,6 +134,35 @@ func (c *CLIClient) Exec(ctx context.Context, id string, args ...string) (*ExecR
 	}, nil
 }
 
+// Exec executes passed command inside a container setting io streams to passed ones.
+func (c *CLIClient) Exec(ctx context.Context, id string,
+	stdin io.Reader, stdout, stderr io.WriteCloser,
+	args ...string) error {
+
+	runCmd := c.PrepareExec(ctx, id, args...)
+	runCmd.Stdout = stdout
+	runCmd.Stderr = stderr
+	runCmd.Stdin = stdin
+
+	err := runCmd.Run()
+	_, ok := err.(*exec.ExitError)
+	if !ok && err != nil {
+		return fmt.Errorf("could not execute: %v", err)
+	}
+	return nil
+}
+
+// PrepareExec simply prepares command to call to execute inside a
+// given container. It makes sure singularity exec script is called.
+func (c *CLIClient) PrepareExec(ctx context.Context, id string, args ...string) *exec.Cmd {
+	cmd := append(c.baseCmd, "exec")
+	cmd = append(cmd, id, execScript)
+	cmd = append(cmd, args...)
+
+	log.Printf("will execute %v", cmd)
+	return exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+}
+
 // Kill asks runtime to send SIGINT to container with passed id.
 // If force is true that SIGKILL is sent instead.
 func (c *CLIClient) Kill(id string, force bool) error {
@@ -154,8 +188,6 @@ func (c *CLIClient) Attach(id string) error {
 
 func silentRun(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
-	runCmd.Stdout = os.Stdout
-	runCmd.Stderr = os.Stderr
 
 	log.Printf("executing %v", cmd)
 	err := runCmd.Run()

@@ -140,8 +140,18 @@ func (s *SingularityRuntime) ExecSync(ctx context.Context, req *k8s.ExecSyncRequ
 }
 
 // Exec prepares a streaming endpoint to execute a command in the container.
-func (s *SingularityRuntime) Exec(context.Context, *k8s.ExecRequest) (*k8s.ExecResponse, error) {
-	return &k8s.ExecResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *SingularityRuntime) Exec(ctx context.Context, req *k8s.ExecRequest) (*k8s.ExecResponse, error) {
+	_, err := s.containers.Find(req.ContainerId)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "container is not found")
+	}
+	if !(req.GetStdout() || req.GetStderr() || req.GetStdin()) {
+		return nil, status.Error(codes.InvalidArgument, "One of `stdin`, `stdout`, and `stderr` MUST be true")
+	}
+	if req.GetTty() && req.GetStderr() {
+		return nil, status.Error(codes.InvalidArgument, "If `tty` is true, `stderr` MUST be false")
+	}
+	return s.streaming.GetExec(req)
 }
 
 // Attach prepares a streaming endpoint to attach to a running container.
@@ -150,19 +160,15 @@ func (s *SingularityRuntime) Attach(ctx context.Context, req *k8s.AttachRequest)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, "container is not found")
 	}
-
 	if c.GetTty() != req.GetTty() {
 		return nil, status.Error(codes.InvalidArgument, "tty doesn't match container configuration")
 	}
-
 	if !(req.GetStdout() || req.GetStderr() || req.GetStdin()) {
 		return nil, status.Error(codes.InvalidArgument, "One of `stdin`, `stdout`, and `stderr` MUST be true")
 	}
-
 	if req.GetTty() && req.GetStderr() {
 		return nil, status.Error(codes.InvalidArgument, "If `tty` is true, `stderr` MUST be false")
 	}
-
 	return s.streaming.GetAttach(req)
 }
 
