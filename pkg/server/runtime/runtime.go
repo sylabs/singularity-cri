@@ -125,6 +125,9 @@ func (s *SingularityRuntime) ReopenContainerLog(ctx context.Context, req *k8s.Re
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	if cont.State() != k8s.ContainerState_CONTAINER_RUNNING {
+		return nil, status.Error(codes.InvalidArgument, "container is not running")
+	}
 
 	err = cont.ReopenLogFile()
 	if err != nil {
