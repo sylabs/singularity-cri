@@ -117,8 +117,20 @@ func (s *SingularityRuntime) UpdateContainerResources(context.Context, *k8s.Upda
 // rotated. If the container is not running, container runtime can choose
 // to either create a new log file and return nil, or return an error.
 // Once it returns error, new container log file MUST NOT be created.
-func (s *SingularityRuntime) ReopenContainerLog(context.Context, *k8s.ReopenContainerLogRequest) (*k8s.ReopenContainerLogResponse, error) {
-	return &k8s.ReopenContainerLogResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *SingularityRuntime) ReopenContainerLog(ctx context.Context, req *k8s.ReopenContainerLogRequest) (*k8s.ReopenContainerLogResponse, error) {
+	cont, err := s.containers.Find(req.ContainerId)
+	if err == index.ErrContainerNotFound {
+		return nil, status.Error(codes.NotFound, "container is not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	err = cont.ReopenLogFile()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not reopen log file: %v", err)
+	}
+	return &k8s.ReopenContainerLogResponse{}, nil
 }
 
 // ExecSync runs a command in a container synchronously.
