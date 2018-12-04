@@ -265,7 +265,7 @@
 
 [[projects]]
   branch = "master-oci"
-  digest = "1:9bc7258f984867c16a633ccb049b9a49ba985bc33c3e64ede9d7c0b7da3f7cb6"
+  digest = "1:258bd6c08489cbdf8b6fa5b0b44901b6e283b1ef26abc00f2980ab0c9a8fea77"
   name = "github.com/sylabs/singularity"
   packages = [
     "internal/pkg/sylog",
@@ -280,7 +280,7 @@
     "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "66b4f095759858c1399975e9bace0262e375b531"
+  revision = "8293832a0ba49fad38ca7d296bf922fbc17e35d5"
   source = "github.com/cclerget/singularity"
 
 [[projects]]

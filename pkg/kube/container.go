@@ -16,6 +16,7 @@ package kube
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -27,6 +28,7 @@ import (
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/ociruntime"
+	"github.com/sylabs/singularity/pkg/util/unix"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -291,6 +293,30 @@ func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteC
 func (c *Container) PrepareExec(cmd []string) *exec.Cmd {
 	ctx := context.Background()
 	return c.cli.PrepareExec(ctx, c.id, cmd...)
+}
+
+// ReopenLogFile reopens container log file.
+// This method is usually called when logs are rotated.
+func (c *Container) ReopenLogFile() error {
+	socket := c.ControlSocket()
+	if socket == "" {
+		return fmt.Errorf("container didn't provide control socket")
+
+	}
+	ctrlSock, err := unix.Dial(socket)
+	if err != nil {
+		return fmt.Errorf("could not connect to control socket: %v", err)
+	}
+	defer ctrlSock.Close()
+
+	ctrl := ociruntime.Control{
+		ReopenLog: true,
+	}
+	err = json.NewEncoder(ctrlSock).Encode(&ctrl)
+	if err != nil {
+		return fmt.Errorf("could not send reopen log to control socket: %v", err)
+	}
+	return nil
 }
 
 // MatchesFilter tests Container against passed filter and returns true if it matches.
