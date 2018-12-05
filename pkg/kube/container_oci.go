@@ -79,14 +79,12 @@ func (t *containerTranslator) configureMounts() error {
 			Options:     []string{"bind", "ro"},
 		})
 	}
-	if t.pod.GetHostname() != "" {
-		t.g.SetHostname(t.pod.GetHostname())
-		t.g.AddMount(specs.Mount{
-			Destination: "/etc/hostname",
-			Source:      t.pod.hostnameFilePath(),
-			Options:     []string{"bind", "ro"},
-		})
-	}
+	t.g.SetHostname(t.pod.GetHostname())
+	t.g.AddMount(specs.Mount{
+		Destination: "/etc/hostname",
+		Source:      t.pod.hostnameFilePath(),
+		Options:     []string{"bind", "ro"},
+	})
 
 	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
 		mounts := t.g.Mounts()
@@ -182,9 +180,7 @@ func (t *containerTranslator) device(from, to string) (*specs.LinuxDevice, error
 
 func (t *containerTranslator) configureNamespaces() {
 	t.g.ClearLinuxNamespaces()
-	if t.pod.GetHostname() != "" {
-		t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.namespacePath(specs.UTSNamespace))
-	}
+	t.g.AddOrReplaceLinuxNamespace(specs.UTSNamespace, t.pod.namespacePath(specs.UTSNamespace))
 	t.g.AddOrReplaceLinuxNamespace(specs.MountNamespace, "")
 
 	security := t.cont.GetLinux().GetSecurityContext()

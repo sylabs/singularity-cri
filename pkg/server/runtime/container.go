@@ -16,9 +16,8 @@ package runtime
 
 import (
 	"context"
-	"log"
-
 	"fmt"
+	"log"
 
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/kube"
@@ -173,7 +172,7 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 
 	appendContToResult := func(cont *kube.Container) {
 		if err := cont.UpdateState(); err != nil {
-			log.Printf("could not update container state: %v", err)
+			log.Printf("could not fetch container %s: %v", cont.ID(), err)
 			return
 		}
 		if cont.MatchesFilter(req.Filter) {
