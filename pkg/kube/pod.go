@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
+	"github.com/sylabs/singularity/pkg/ociruntime"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -43,10 +43,9 @@ type Pod struct {
 	isStopped bool
 	isRemoved bool
 
-	state        k8s.PodSandboxState
-	createdAt    int64 // unix nano
-	namespaces   []specs.LinuxNamespace
 	runtimeState runtime.State
+	ociState     *ociruntime.State
+	namespaces   []specs.LinuxNamespace
 
 	mu         sync.Mutex
 	containers []*Container
@@ -62,7 +61,6 @@ func NewPod(config *k8s.PodSandboxConfig) *Pod {
 	return &Pod{
 		PodSandboxConfig: config,
 		id:               podID,
-		state:            k8s.PodSandboxState_SANDBOX_NOTREADY,
 		cli:              runtime.NewCLIClient(),
 	}
 }
@@ -74,12 +72,18 @@ func (p *Pod) ID() string {
 
 // State returns current pod state.
 func (p *Pod) State() k8s.PodSandboxState {
-	return p.state
+	if p.runtimeState == runtime.StateRunning {
+		return k8s.PodSandboxState_SANDBOX_READY
+	}
+	return k8s.PodSandboxState_SANDBOX_NOTREADY
 }
 
 // CreatedAt returns pod creation time in Unix nano.
 func (p *Pod) CreatedAt() int64 {
-	return p.createdAt
+	if p.ociState.CreatedAt == nil {
+		return 0
+	}
+	return *p.ociState.CreatedAt
 }
 
 // Run prepares and runs pod based on initial config passed to NewPod.
@@ -112,8 +116,11 @@ func (p *Pod) Run() error {
 			err = fmt.Errorf("could not spawn pod: %v", err)
 			return
 		}
-		p.state = k8s.PodSandboxState_SANDBOX_READY
-		p.createdAt = time.Now().UnixNano()
+		err = p.UpdateState()
+		if err != nil {
+			err = fmt.Errorf("could not update pod state: %v", err)
+			return
+		}
 	})
 	return err
 }
@@ -138,7 +145,9 @@ func (p *Pod) Stop() error {
 	if err != nil {
 		return fmt.Errorf("could not stop pod process: %v", err)
 	}
-	p.state = k8s.PodSandboxState_SANDBOX_NOTREADY
+	if err := p.UpdateState(); err != nil {
+		return fmt.Errorf("could not update container state: %v", err)
+	}
 	p.isStopped = true
 	return err
 }
@@ -182,7 +191,7 @@ func (p *Pod) MatchesFilter(filter *k8s.PodSandboxFilter) bool {
 		return false
 	}
 
-	if filter.State != nil && filter.State.State != p.state {
+	if filter.State != nil && filter.State.State != p.State() {
 		return false
 	}
 

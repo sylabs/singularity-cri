@@ -95,7 +95,6 @@ func (c *Container) State() k8s.ContainerState {
 		return k8s.ContainerState_CONTAINER_EXITED
 	}
 	return k8s.ContainerState_CONTAINER_UNKNOWN
-
 }
 
 // CreatedAt returns pod creation time in Unix nano.

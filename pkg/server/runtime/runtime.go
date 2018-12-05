@@ -188,8 +188,12 @@ func (s *SingularityRuntime) Attach(ctx context.Context, req *k8s.AttachRequest)
 }
 
 // PortForward prepares a streaming endpoint to forward ports from a PodSandbox.
-func (s *SingularityRuntime) PortForward(context.Context, *k8s.PortForwardRequest) (*k8s.PortForwardResponse, error) {
-	return &k8s.PortForwardResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *SingularityRuntime) PortForward(ctx context.Context, req *k8s.PortForwardRequest) (*k8s.PortForwardResponse, error) {
+	_, err := s.pods.Find(req.PodSandboxId)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "pod is not found")
+	}
+	return s.streaming.GetPortForward(req)
 }
 
 // ContainerStats returns stats of the container. If the container does not

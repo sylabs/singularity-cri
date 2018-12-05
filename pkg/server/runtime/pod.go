@@ -16,6 +16,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/sylabs/cri/pkg/index"
@@ -93,6 +94,16 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *k8s.PodSan
 	if err != nil {
 		return nil, err
 	}
+	if err := pod.UpdateState(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not update pod state: %v", err)
+	}
+
+	var verboseInfo map[string]string
+	if req.Verbose {
+		verboseInfo = map[string]string{
+			"pid": fmt.Sprintf("%d", pod.Pid()),
+		}
+	}
 	return &k8s.PodSandboxStatusResponse{
 		Status: &k8s.PodSandboxStatus{
 			Id:        pod.ID(),
@@ -108,6 +119,7 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *k8s.PodSan
 			Labels:      pod.GetLabels(),
 			Annotations: pod.GetAnnotations(),
 		},
+		Info: verboseInfo,
 	}, nil
 }
 
@@ -116,6 +128,10 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodS
 	var pods []*k8s.PodSandbox
 
 	appendPodToResult := func(pod *kube.Pod) {
+		if err := pod.UpdateState(); err != nil {
+			log.Printf("could not update pod state: %v", err)
+			return
+		}
 		if pod.MatchesFilter(req.Filter) {
 			pods = append(pods, &k8s.PodSandbox{
 				Id:          pod.ID(),

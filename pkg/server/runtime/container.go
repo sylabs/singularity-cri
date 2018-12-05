@@ -18,6 +18,8 @@ import (
 	"context"
 	"log"
 
+	"fmt"
+
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
@@ -27,9 +29,8 @@ import (
 
 // CreateContainer creates a new container in specified PodSandbox.
 func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateContainerRequest) (*k8s.CreateContainerResponse, error) {
-	if (req.GetConfig().GetTty() && !req.GetConfig().GetStdin()) ||
-		(req.GetConfig().GetStdin() && !req.GetConfig().GetTty()) {
-		return nil, status.Error(codes.InvalidArgument, "tty and stdin must be both either true or false")
+	if req.GetConfig().GetTty() && !req.GetConfig().GetStdin() {
+		return nil, status.Error(codes.InvalidArgument, "tty requires stdin to be true")
 	}
 
 	info, err := s.imageIndex.Find(req.Config.Image.Image)
@@ -137,6 +138,13 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 	if err := cont.UpdateState(); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not update container state: %v", err)
 	}
+
+	var verboseInfo map[string]string
+	if req.Verbose {
+		verboseInfo = map[string]string{
+			"pid": fmt.Sprintf("%d", cont.Pid()),
+		}
+	}
 	return &k8s.ContainerStatusResponse{
 		Status: &k8s.ContainerStatus{
 			Id:          cont.ID(),
@@ -155,6 +163,7 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 			Mounts:      cont.GetMounts(),
 			LogPath:     cont.LogPath(),
 		},
+		Info: verboseInfo,
 	}, nil
 }
 
