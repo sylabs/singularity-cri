@@ -15,10 +15,13 @@
 package runtime
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"os/exec"
+	"strings"
 
 	"github.com/kr/pty"
 	"github.com/kubernetes-sigs/cri-o/utils"
@@ -195,7 +198,60 @@ func (s *streamingRuntime) Attach(containerID string,
 	return err
 }
 
-// PortForward ...
+// PortForward enters pod's NET namespace to forward passed
+// stream to the given port and back.
 func (s *streamingRuntime) PortForward(podSandboxID string, port int32, stream io.ReadWriteCloser) error {
-	return fmt.Errorf("not implemented")
+	p, err := s.runtime.pods.Find(podSandboxID)
+	if err != nil {
+		return fmt.Errorf("could not fetch container: %v", err)
+	}
+
+	if err := p.UpdateState(); err != nil {
+		return fmt.Errorf("could not update pod state: %v", err)
+	}
+	if p.State() != k8s.PodSandboxState_SANDBOX_READY {
+		return fmt.Errorf("pod is not ready")
+	}
+
+	socatPath, err := exec.LookPath("socat")
+	if err != nil {
+		return fmt.Errorf("unable to do port forwarding: socat not found")
+	}
+	nsenterPath, err := exec.LookPath("nsenter")
+	if err != nil {
+		return fmt.Errorf("unable to do port forwarding: nsenter not found")
+	}
+
+	args := []string{"-t", fmt.Sprintf("%d", p.Pid()), "-n", socatPath, "-", fmt.Sprintf("TCP4:localhost:%d", port)}
+	commandString := fmt.Sprintf("%s %s", nsenterPath, strings.Join(args, " "))
+	log.Printf("executing port forwarding command: %s", commandString)
+
+	var stderr bytes.Buffer
+	cmd := exec.Command(nsenterPath, args...)
+	cmd.Stdout = stream
+	cmd.Stderr = &stderr
+
+	// If we use Stdin, cmd.Run() won't return until the goroutine that's copying
+	// from stream finishes. Unfortunately, if you have a client like telnet connected
+	// via port forwarding, as long as the user's telnet client is connected to the user's
+	// local listener that port forwarding sets up, the telnet session never exits. This
+	// means that even if socat has finished running, cmd.Run() won't ever return
+	// (because the client still has the connection and stream open).
+	//
+	// The work around is to use StdinPipe(), as Wait() (called by Run()) closes the pipe
+	// when the cmd (socat) exits.
+	inPipe, err := cmd.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("unable to do port forwarding: error creating stdin pipe: %v", err)
+	}
+	go func() {
+		io.Copy(inPipe, stream)
+		inPipe.Close()
+	}()
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%v: %s", err, stderr.Bytes())
+	}
+
+	return nil
 }

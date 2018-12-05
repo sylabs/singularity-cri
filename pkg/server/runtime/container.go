@@ -18,6 +18,8 @@ import (
 	"context"
 	"log"
 
+	"fmt"
+
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
@@ -137,6 +139,13 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 	if err := cont.UpdateState(); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not update container state: %v", err)
 	}
+
+	var verboseInfo map[string]string
+	if req.Verbose {
+		verboseInfo = map[string]string{
+			"pid": fmt.Sprintf("%d", cont.Pid()),
+		}
+	}
 	return &k8s.ContainerStatusResponse{
 		Status: &k8s.ContainerStatus{
 			Id:          cont.ID(),
@@ -155,6 +164,7 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 			Mounts:      cont.GetMounts(),
 			LogPath:     cont.LogPath(),
 		},
+		Info: verboseInfo,
 	}, nil
 }
 

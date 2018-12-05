@@ -61,6 +61,11 @@ func (c *Container) UpdateState() error {
 	return nil
 }
 
+// Pid returns pid of the container process in the host's PID namespace.
+func (c *Container) Pid() int {
+	return c.ociState.Pid
+}
+
 func (c *Container) expectState(expect runtime.State) error {
 	log.Printf("waiting for state %d...", expect)
 	c.runtimeState = <-c.syncChan

@@ -78,6 +78,23 @@ func (p *Pod) spawnOCIPod() error {
 	return nil
 }
 
+// UpdateState updates container state according to information
+// received from the runtime.
+func (p *Pod) UpdateState() error {
+	var err error
+	p.ociState, err = p.cli.State(p.id)
+	if err != nil {
+		return fmt.Errorf("could not get pod state: %v", err)
+	}
+	p.runtimeState = runtime.StatusToState(p.ociState.Status)
+	return nil
+}
+
+// Pid returns pid of the pod process in the host's PID namespace.
+func (p *Pod) Pid() int {
+	return p.ociState.Pid
+}
+
 func (p *Pod) expectState(expect runtime.State) error {
 	log.Printf("waiting for state %d...", expect)
 	p.runtimeState = <-p.syncChan
