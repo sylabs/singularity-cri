@@ -230,12 +230,10 @@ func (p *Pod) removeContainer(cont *Container) {
 }
 
 func (p *Pod) unshareNamespaces() error {
-	if p.GetHostname() != "" {
-		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
-			Type: specs.UTSNamespace,
-			Path: p.bindNamespacePath(specs.UTSNamespace),
-		})
-	}
+	p.namespaces = append(p.namespaces, specs.LinuxNamespace{
+		Type: specs.UTSNamespace,
+		Path: p.bindNamespacePath(specs.UTSNamespace),
+	})
 	security := p.GetLinux().GetSecurityContext()
 	if security.GetNamespaceOptions().GetNetwork() == k8s.NamespaceMode_POD {
 		p.namespaces = append(p.namespaces, specs.LinuxNamespace{
