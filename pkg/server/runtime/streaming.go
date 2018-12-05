@@ -180,7 +180,7 @@ func (s *streamingRuntime) Attach(containerID string,
 			errors <- err
 		}()
 	}
-	if tty && c.GetStdin() && stdin != nil {
+	if c.GetStdin() && stdin != nil {
 		go func() {
 			// copy until ctrl-d hits
 			_, err := utils.CopyDetachable(attachSock, stdin, []byte{4})
