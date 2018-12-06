@@ -118,12 +118,9 @@ func (s *SingularityRuntime) UpdateContainerResources(context.Context, *k8s.Upda
 // to either create a new log file and return nil, or return an error.
 // Once it returns error, new container log file MUST NOT be created.
 func (s *SingularityRuntime) ReopenContainerLog(ctx context.Context, req *k8s.ReopenContainerLogRequest) (*k8s.ReopenContainerLogResponse, error) {
-	cont, err := s.containers.Find(req.ContainerId)
-	if err == index.ErrContainerNotFound {
-		return nil, status.Error(codes.NotFound, "container is not found")
-	}
+	cont, err := s.findContainer(req.ContainerId)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, err
 	}
 	if cont.State() != k8s.ContainerState_CONTAINER_RUNNING {
 		return nil, status.Error(codes.InvalidArgument, "container is not running")
@@ -138,12 +135,9 @@ func (s *SingularityRuntime) ReopenContainerLog(ctx context.Context, req *k8s.Re
 
 // ExecSync runs a command in a container synchronously.
 func (s *SingularityRuntime) ExecSync(ctx context.Context, req *k8s.ExecSyncRequest) (*k8s.ExecSyncResponse, error) {
-	cont, err := s.containers.Find(req.ContainerId)
-	if err == index.ErrContainerNotFound {
-		return nil, status.Error(codes.NotFound, "container is not found")
-	}
+	cont, err := s.findContainer(req.ContainerId)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, err
 	}
 
 	timeout := time.Second * time.Duration(req.Timeout)
@@ -156,9 +150,9 @@ func (s *SingularityRuntime) ExecSync(ctx context.Context, req *k8s.ExecSyncRequ
 
 // Exec prepares a streaming endpoint to execute a command in the container.
 func (s *SingularityRuntime) Exec(ctx context.Context, req *k8s.ExecRequest) (*k8s.ExecResponse, error) {
-	_, err := s.containers.Find(req.ContainerId)
+	_, err := s.findContainer(req.ContainerId)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "container is not found")
+		return nil, err
 	}
 	if !(req.GetStdout() || req.GetStderr() || req.GetStdin()) {
 		return nil, status.Error(codes.InvalidArgument, "One of `stdin`, `stdout`, and `stderr` MUST be true")
@@ -171,9 +165,9 @@ func (s *SingularityRuntime) Exec(ctx context.Context, req *k8s.ExecRequest) (*k
 
 // Attach prepares a streaming endpoint to attach to a running container.
 func (s *SingularityRuntime) Attach(ctx context.Context, req *k8s.AttachRequest) (*k8s.AttachResponse, error) {
-	c, err := s.containers.Find(req.ContainerId)
+	c, err := s.findContainer(req.ContainerId)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "container is not found")
+		return nil, err
 	}
 	if c.GetTty() != req.GetTty() {
 		return nil, status.Error(codes.InvalidArgument, "tty doesn't match container configuration")
@@ -189,9 +183,9 @@ func (s *SingularityRuntime) Attach(ctx context.Context, req *k8s.AttachRequest)
 
 // PortForward prepares a streaming endpoint to forward ports from a PodSandbox.
 func (s *SingularityRuntime) PortForward(ctx context.Context, req *k8s.PortForwardRequest) (*k8s.PortForwardResponse, error) {
-	_, err := s.pods.Find(req.PodSandboxId)
+	_, err := s.findPod(req.PodSandboxId)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "pod is not found")
+		return nil, err
 	}
 	return s.streaming.GetPortForward(req)
 }
