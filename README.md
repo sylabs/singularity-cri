@@ -85,7 +85,7 @@ To test CRI in interactive mode we suggest the following workflow:
 
 3. Build and launch CRI server:
 	 ```bash
-	(rm bin/sycri || true) && 
+	make clean && 
 	make && 
 	sudo PATH=$PATH ./bin/sycri
 	```
