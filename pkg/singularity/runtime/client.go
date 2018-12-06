@@ -190,7 +190,7 @@ func (c *CLIClient) Attach(id string) error {
 func run(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
 	runCmd.Stderr = os.Stderr
-	runCmd.Stderr = os.Stdout
+	runCmd.Stdout = os.Stdout
 
 	log.Printf("executing %v", cmd)
 	err := runCmd.Run()
