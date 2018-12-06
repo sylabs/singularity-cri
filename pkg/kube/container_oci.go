@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -239,6 +240,8 @@ func (t *containerTranslator) configureProcess() {
 	const (
 		runScript  = "/.singularity.d/runscript"
 		execScript = "/.singularity.d/actions/exec"
+
+		appArmorLocalhostPrefix = "localhost/"
 	)
 
 	for _, env := range t.cont.GetEnvs() {
@@ -264,7 +267,9 @@ func (t *containerTranslator) configureProcess() {
 	if security.GetPrivileged() {
 		t.g.SetupPrivileged(true)
 	} else {
-		t.g.SetProcessApparmorProfile(security.GetApparmorProfile())
+		aaProfile := security.GetApparmorProfile()
+		aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
+		t.g.SetProcessApparmorProfile(aaProfile)
 		for _, capb := range security.GetCapabilities().GetDropCapabilities() {
 			t.g.DropProcessCapabilityEffective(capb)
 			t.g.DropProcessCapabilityAmbient(capb)

@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"syscall"
 
@@ -188,6 +189,7 @@ func (c *CLIClient) Attach(id string) error {
 
 func silentRun(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
+	runCmd.Stderr = os.Stderr
 
 	log.Printf("executing %v", cmd)
 	err := runCmd.Run()
