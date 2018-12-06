@@ -32,7 +32,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		return nil, status.Error(codes.InvalidArgument, "tty requires stdin to be true")
 	}
 
-	info, err := s.imageIndex.Find(req.Config.Image.Image)
+	info, err := s.imageIndex.Find(req.Config.GetImage().GetImage())
 	if err == index.ErrImageNotFound {
 		return nil, status.Error(codes.NotFound, "image not found")
 	}

@@ -91,13 +91,13 @@ func (c *CLIClient) Create(id, bundle string, flags ...string) error {
 	cmd := append(c.baseCmd, "create")
 	cmd = append(cmd, flags...)
 	cmd = append(cmd, "-b", bundle, id)
-	return silentRun(cmd)
+	return run(cmd)
 }
 
 // Start asks runtime to start container with passed id.
 func (c *CLIClient) Start(id string) error {
 	cmd := append(c.baseCmd, "start", id)
-	return silentRun(cmd)
+	return run(cmd)
 }
 
 // ExecSync executes a command inside a container synchronously until
@@ -172,24 +172,25 @@ func (c *CLIClient) Kill(id string, force bool) error {
 		sig = "SIGKILL"
 	}
 	cmd := append(c.baseCmd, "kill", "-s", sig, id)
-	return silentRun(cmd)
+	return run(cmd)
 }
 
 // Delete asks runtime to delete container with passed id.
 func (c *CLIClient) Delete(id string) error {
 	cmd := append(c.baseCmd, "delete", id)
-	return silentRun(cmd)
+	return run(cmd)
 }
 
 // Attach asks runtime attach to container standard streams.
 func (c *CLIClient) Attach(id string) error {
 	cmd := append(c.baseCmd, "attach", id)
-	return silentRun(cmd)
+	return run(cmd)
 }
 
-func silentRun(cmd []string) error {
+func run(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
 	runCmd.Stderr = os.Stderr
+	runCmd.Stderr = os.Stdout
 
 	log.Printf("executing %v", cmd)
 	err := runCmd.Run()
