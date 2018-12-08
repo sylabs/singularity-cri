@@ -104,6 +104,10 @@ func (p *Pod) Run() error {
 	}()
 
 	p.runOnce.Do(func() {
+		if err = p.validateConfig(); err != nil {
+			err = fmt.Errorf("invalid pod config: %v", err)
+			return
+		}
 		if err = p.prepareFiles(); err != nil {
 			err = fmt.Errorf("could not create pod directories: %v", err)
 			return
