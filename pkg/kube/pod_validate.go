@@ -22,7 +22,7 @@ func (p *Pod) validateConfig() error {
 	hasIPC := p.GetLinux().GetSecurityContext().GetNamespaceOptions().GetIpc() == k8s.NamespaceMode_POD
 	hasNET := p.GetLinux().GetSecurityContext().GetNamespaceOptions().GetNetwork() == k8s.NamespaceMode_POD
 
-	for sysctl, _ := range p.GetLinux().GetSysctls() {
+	for sysctl := range p.GetLinux().GetSysctls() {
 		for prefix, nsType := range sysctlToNs {
 			if strings.HasPrefix(sysctl, prefix) {
 				if (nsType == specs.IPCNamespace && !hasIPC) ||
