@@ -121,15 +121,15 @@ To test CRI in interactive mode we suggest the following workflow:
 	
 6. You can also run container that outputs some system info (good to smoke test CRI):
 	```bash
-	$ sudo crictl pull library://sashayakovtseva/test/test-info
+	$ sudo crictl pull cloud.sylabs.io/sashayakovtseva/test/test-info
 
 	# sudo crictl create <podID> nginx.json test-pod.json
 	$ sudo crictl create 0e0538d57a52d info-cont.json test-pod.json
 	bf040d311ca7d929ee20de4973df5c00aaf6f0e733feb695e985757686fb121b
 	
 	$ sudo crictl ps -a
-	CONTAINER ID        IMAGE                                      CREATED             STATE               NAME                ATTEMPT             POD ID
-	bf040d311ca7d       library://sashayakovtseva/test/test-info   10 seconds ago      Created             testcontainer       1                   0e0538d57a52d
+	CONTAINER ID        IMAGE                                    		  	CREATED             STATE               NAME                ATTEMPT             POD ID
+	bf040d311ca7d       cloud.sylabs.io/sashayakovtseva/test/test-info   	10 seconds ago      Created             testcontainer       1                   0e0538d57a52d
 
 	# sudo crictl start <containerID>
 	$ sudo crictl start bf040d311ca7d

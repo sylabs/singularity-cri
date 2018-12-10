@@ -15,7 +15,6 @@
 package image
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,7 +37,7 @@ func TestPullImage(t *testing.T) {
 		{
 			name: "docker image",
 			ref: &Reference{
-				uri:     "docker",
+				uri:     singularity.DockerDomain,
 				tags:    []string{"gcr.io/cri-tools/test-image-latest"},
 				digests: nil,
 			},
@@ -48,7 +47,7 @@ func TestPullImage(t *testing.T) {
 				size:   741376,
 				path:   "",
 				ref: &Reference{
-					uri:     "docker",
+					uri:     singularity.DockerDomain,
 					tags:    []string{"gcr.io/cri-tools/test-image-latest"},
 					digests: nil,
 				},
@@ -58,9 +57,9 @@ func TestPullImage(t *testing.T) {
 		{
 			name: "library image",
 			ref: &Reference{
-				uri:     "library",
+				uri:     singularity.LibraryDomain,
 				tags:    nil,
-				digests: []string{"library://sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
+				digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
 			},
 			expectImage: &Info{
 				id:     "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
@@ -68,42 +67,12 @@ func TestPullImage(t *testing.T) {
 				size:   5521408,
 				path:   filepath.Join(os.TempDir(), "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"),
 				ref: &Reference{
-					uri:     "library",
+					uri:     singularity.LibraryDomain,
 					tags:    nil,
-					digests: []string{"library://sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
+					digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
 				},
 			},
 			expectError: nil,
-		},
-		{
-			name: "shub image",
-			ref: &Reference{
-				uri:     "shub",
-				tags:    []string{"shub://vsoch/hello-world"},
-				digests: nil,
-			},
-			expectImage: &Info{
-				id:     "4d398430ceded6a261a2304df3e75efe558892ba94eec25d2392991fe3a13dce",
-				sha256: "4d398430ceded6a261a2304df3e75efe558892ba94eec25d2392991fe3a13dce",
-				size:   65347615,
-				path:   filepath.Join(os.TempDir(), "4d398430ceded6a261a2304df3e75efe558892ba94eec25d2392991fe3a13dce"),
-				ref: &Reference{
-					uri:     "shub",
-					tags:    []string{"shub://vsoch/hello-world"},
-					digests: nil,
-				},
-			},
-			expectError: nil,
-		},
-		{
-			name: "unknown image",
-			ref: &Reference{
-				uri:     "rkt",
-				tags:    []string{"rkt://vsoch/hello-world"},
-				digests: nil,
-			},
-			expectImage: nil,
-			expectError: fmt.Errorf("could not pull image: unknown image registry: rkt"),
 		},
 	}
 
@@ -114,7 +83,7 @@ func TestPullImage(t *testing.T) {
 			if image != nil {
 				require.NoError(t, image.Remove(), "could not remove image")
 			}
-			if tc.ref.uri == singularity.DockerProtocol {
+			if tc.ref.uri == singularity.DockerDomain {
 				image.id = ""
 				image.sha256 = ""
 				image.path = ""
@@ -238,7 +207,7 @@ func TestInfo_UnmarshalJSON(t *testing.T) {
 "sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
 "size":741376,
 "path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-"ref":{"uri":"docker","tags":["busybox:1.28"],"digests":null}}`
+"ref":{"uri":"docker.io","tags":["busybox:1.28"],"digests":null}}`
 
 	info := new(Info)
 	err := info.UnmarshalJSON([]byte(input))
@@ -249,14 +218,14 @@ func TestInfo_UnmarshalJSON(t *testing.T) {
 		size:   741376,
 		path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
 		ref: &Reference{
-			uri:  "docker",
+			uri:  singularity.DockerDomain,
 			tags: []string{"busybox:1.28"},
 		},
 	}, info)
 }
 
 func TestInfo_MarshalJSON(t *testing.T) {
-	expect := []byte(`{"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","size":741376,"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","ref":{"uri":"docker","tags":["busybox:1.28"],"digests":null}}`)
+	expect := []byte(`{"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","size":741376,"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","ref":{"uri":"docker.io","tags":["busybox:1.28"],"digests":null}}`)
 
 	info := &Info{
 		id:     "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
@@ -264,7 +233,7 @@ func TestInfo_MarshalJSON(t *testing.T) {
 		size:   741376,
 		path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
 		ref: &Reference{
-			uri:  "docker",
+			uri:  singularity.DockerDomain,
 			tags: []string{"busybox:1.28"},
 		},
 	}

@@ -62,12 +62,17 @@ func (r *Reference) UnmarshalJSON(data []byte) error {
 
 // ParseRef constructs image reference based on imgRef.
 func ParseRef(imgRef string) (*Reference, error) {
-	uri := singularity.DockerProtocol
+	uri := singularity.DockerDomain
 	image := imgRef
-	indx := strings.Index(imgRef, "://")
+	indx := strings.IndexByte(imgRef, '/')
 	if indx != -1 {
-		uri = image[:indx]
-		image = image[indx+3:]
+		switch image[:indx] {
+		case singularity.LibraryDomain:
+			uri = singularity.LibraryDomain
+			image = image[indx+1:]
+		case singularity.DockerDomain:
+			image = image[indx+1:]
+		}
 	}
 
 	ref := Reference{
@@ -75,15 +80,13 @@ func ParseRef(imgRef string) (*Reference, error) {
 	}
 
 	switch uri {
-	case singularity.ShubProtocol:
-		fallthrough
-	case singularity.LibraryProtocol:
+	case singularity.LibraryDomain:
 		if strings.Contains(image, "sha256.") {
 			ref.digests = append(ref.digests, imgRef)
 		} else {
 			ref.tags = append(ref.tags, NormalizedImageRef(imgRef))
 		}
-	case singularity.DockerProtocol:
+	case singularity.DockerDomain:
 		if strings.IndexByte(image, '@') != -1 {
 			ref.digests = append(ref.digests, image)
 		} else {
@@ -146,12 +149,7 @@ func (r *Reference) RemoveTag(tag string) {
 // NormalizedImageRef appends tag 'latest' if the passed ref
 // does not have any tag or digest already.
 func NormalizedImageRef(imgRef string) string {
-	image := imgRef
-	indx := strings.Index(imgRef, "://")
-	if indx != -1 {
-		image = imgRef[indx+3:]
-	}
-	i := strings.LastIndexByte(image, ':')
+	i := strings.LastIndexByte(imgRef, ':')
 	if i == -1 {
 		return imgRef + ":latest"
 	}
