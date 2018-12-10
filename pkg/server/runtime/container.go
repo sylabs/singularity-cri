@@ -34,7 +34,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 
 	info, err := s.imageIndex.Find(req.Config.GetImage().GetImage())
 	if err == index.ErrImageNotFound {
-		return nil, status.Error(codes.NotFound, "image not found")
+		return nil, status.Error(codes.NotFound, "image is not found")
 	}
 
 	pod, err := s.findPod(req.PodSandboxId)
@@ -62,13 +62,11 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 
 // StartContainer starts the container.
 func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartContainerRequest) (*k8s.StartContainerResponse, error) {
-	cont, err := s.containers.Find(req.ContainerId)
-	if err == index.ErrContainerNotFound {
-		return nil, status.Error(codes.NotFound, "container is not found")
-	}
+	cont, err := s.findContainer(req.ContainerId)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, err
 	}
+
 	err = cont.Start()
 	if err == kube.ErrContainerNotCreated {
 		return nil, status.Errorf(codes.InvalidArgument, "attempt to start container in %s state", cont.State())
@@ -84,12 +82,9 @@ func (s *SingularityRuntime) StartContainer(_ context.Context, req *k8s.StartCon
 // already been stopped. If a grace period is reached runtime will be asked
 // to kill container.
 func (s *SingularityRuntime) StopContainer(_ context.Context, req *k8s.StopContainerRequest) (*k8s.StopContainerResponse, error) {
-	cont, err := s.containers.Find(req.ContainerId)
-	if err == index.ErrContainerNotFound {
-		return nil, status.Error(codes.NotFound, "container is not found")
-	}
+	cont, err := s.findContainer(req.ContainerId)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, err
 	}
 
 	if err := cont.Stop(req.Timeout); err != nil {
@@ -122,12 +117,9 @@ func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *k8s.RemoveC
 // ContainerStatus returns status of the container.
 // If the container is not present, returns an error.
 func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.ContainerStatusRequest) (*k8s.ContainerStatusResponse, error) {
-	cont, err := s.containers.Find(req.ContainerId)
-	if err == index.ErrContainerNotFound {
-		return nil, status.Errorf(codes.NotFound, "pod not found")
-	}
+	cont, err := s.findContainer(req.ContainerId)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, err
 	}
 
 	info, err := s.imageIndex.Find(cont.GetImage().GetImage())
@@ -199,4 +191,15 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 		Containers: containers,
 	}, nil
 
+}
+
+func (s *SingularityRuntime) findContainer(id string) (*kube.Container, error) {
+	cont, err := s.containers.Find(id)
+	if err == index.ErrContainerNotFound {
+		return nil, status.Error(codes.NotFound, "container is not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	return cont, nil
 }

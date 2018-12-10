@@ -280,7 +280,7 @@
     "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "8293832a0ba49fad38ca7d296bf922fbc17e35d5"
+  revision = "49e3612b7d8928d339d45e41b32bf7dfe2239bcb"
   source = "github.com/cclerget/singularity"
 
 [[projects]]

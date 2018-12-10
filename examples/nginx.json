@@ -6,6 +6,7 @@
   "image": {
     "image": "nginx"
   },
+  "log_path": "nginx.log",
   "linux": {
     "security_context": {
       "namespace_options": {}
