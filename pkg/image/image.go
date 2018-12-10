@@ -137,13 +137,15 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 		pullURL = ref.digests[0]
 	}
 
+	pullURL = strings.TrimPrefix(pullURL, ref.uri+"/")
 	switch ref.uri {
-	case singularity.LibraryProtocol:
+	case singularity.LibraryDomain:
 		err = library.DownloadImage(pullPath, pullURL, singularity.LibraryURL, true, "")
-	case singularity.ShubProtocol:
+	case singularity.ShubDomain:
+		pullURL = "shub://" + pullURL
 		err = shub.DownloadImage(pullPath, pullURL, true, false)
-	case singularity.DockerProtocol:
-		remote := fmt.Sprintf("%s://%s", ref.uri, pullURL)
+	case singularity.DockerDomain:
+		remote := fmt.Sprintf("%s://%s", singularity.DockerProtocol, pullURL)
 		var errMsg bytes.Buffer
 		buildCmd := exec.Command(singularity.RuntimeName, "build", "-F", pullPath, remote)
 		buildCmd.Stderr = &errMsg
@@ -202,7 +204,7 @@ func (i *Info) Remove() error {
 
 // Verify verifies image signatures.
 func (i *Info) Verify() error {
-	if i.ref.URI() == singularity.DockerProtocol {
+	if i.ref.URI() == singularity.DockerDomain {
 		return nil
 	}
 	fimg, err := sif.LoadContainer(i.path, true)

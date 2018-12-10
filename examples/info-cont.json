@@ -4,7 +4,7 @@
     "attempt": 1
   },
   "image": {
-    "image": "library://sashayakovtseva/test/test-info"
+    "image": "cloud.sylabs.io/sashayakovtseva/test/test-info"
   },
   "command": ["./test"],
   "envs": [

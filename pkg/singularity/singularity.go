@@ -28,6 +28,12 @@ const (
 	// For more info refer to https://cloud.sylabs.io/library.
 	LibraryProtocol = "library"
 
+	LibraryDomain = "cloud.sylabs.io"
+
+	DockerDomain = "docker.io"
+
+	ShubDomain = "singularity-hub.org"
+
 	// ShubProtocol holds singularity hub base URI.
 	// For more info refer to https://singularity-hub.org.
 	ShubProtocol = "shub"

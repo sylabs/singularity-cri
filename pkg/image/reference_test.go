@@ -15,10 +15,10 @@
 package image
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/sylabs/cri/pkg/singularity"
 )
 
 func TestParseImageRef(t *testing.T) {
@@ -29,47 +29,41 @@ func TestParseImageRef(t *testing.T) {
 		expectError error
 	}{
 		{
-			name:        "invalid uri",
-			ref:         "rkt://library/ubuntu:16.4",
-			expect:      nil,
-			expectError: fmt.Errorf("unknown image registry: rkt"),
-		},
-		{
 			name: "library with tag",
-			ref:  "library://sashayakovtseva/test/image-server:1",
+			ref:  "cloud.sylabs.io/sashayakovtseva/test/image-server:1",
 			expect: &Reference{
-				uri:     "library",
-				tags:    []string{"library://sashayakovtseva/test/image-server:1"},
+				uri:     singularity.LibraryDomain,
+				tags:    []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:1"},
 				digests: nil,
 			},
 			expectError: nil,
 		},
 		{
 			name: "library without tag",
-			ref:  "library://sashayakovtseva/test/image-server",
+			ref:  "cloud.sylabs.io/sashayakovtseva/test/image-server",
 			expect: &Reference{
-				uri:     "library",
-				tags:    []string{"library://sashayakovtseva/test/image-server:latest"},
+				uri:     singularity.LibraryDomain,
+				tags:    []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:latest"},
 				digests: nil,
 			},
 			expectError: nil,
 		},
 		{
 			name: "library with digest",
-			ref:  "library://sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
+			ref:  "cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
 			expect: &Reference{
-				uri:     "library",
+				uri:     singularity.LibraryDomain,
 				tags:    nil,
-				digests: []string{"library://sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8"},
+				digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8"},
 			},
 			expectError: nil,
 		},
 		{
 			name: "shub without tag",
-			ref:  "shub://vsoch/singularity-hello-world",
+			ref:  "singularity-hub.org/vsoch/singularity-hello-world",
 			expect: &Reference{
-				uri:     "shub",
-				tags:    []string{"shub://vsoch/singularity-hello-world:latest"},
+				uri:     singularity.ShubDomain,
+				tags:    []string{"singularity-hub.org/vsoch/singularity-hello-world:latest"},
 				digests: nil,
 			},
 			expectError: nil,
@@ -78,7 +72,7 @@ func TestParseImageRef(t *testing.T) {
 			name: "docker without tag",
 			ref:  "gcr.io/cri-tools/test-image-tags",
 			expect: &Reference{
-				uri:     "docker",
+				uri:     singularity.DockerDomain,
 				tags:    []string{"gcr.io/cri-tools/test-image-tags:latest"},
 				digests: nil,
 			},
@@ -86,9 +80,9 @@ func TestParseImageRef(t *testing.T) {
 		},
 		{
 			name: "docker with tag",
-			ref:  "docker://gcr.io/cri-tools/test-image-tags:1",
+			ref:  "docker.io/gcr.io/cri-tools/test-image-tags:1",
 			expect: &Reference{
-				uri:     "docker",
+				uri:     singularity.DockerDomain,
 				tags:    []string{"gcr.io/cri-tools/test-image-tags:1"},
 				digests: nil,
 			},
@@ -96,9 +90,9 @@ func TestParseImageRef(t *testing.T) {
 		},
 		{
 			name: "docker with digest",
-			ref:  "docker://gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343",
+			ref:  "docker.io/gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343",
 			expect: &Reference{
-				uri:     "docker",
+				uri:     singularity.DockerDomain,
 				tags:    nil,
 				digests: []string{"gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343"},
 			},
@@ -137,19 +131,19 @@ func TestNormalizedImageRef(t *testing.T) {
 			expect: "gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343",
 		},
 		{
-			name:   "docker image with tag",
-			ref:    "library://sashayakovtseva/test/image-server:latest",
-			expect: "library://sashayakovtseva/test/image-server:latest",
+			name:   "library image with tag",
+			ref:    "cloud.sylabs.io/sashayakovtseva/test/image-server:latest",
+			expect: "cloud.sylabs.io/sashayakovtseva/test/image-server:latest",
 		},
 		{
 			name:   "library image without tag",
-			ref:    "library://sashayakovtseva/test/image-server",
-			expect: "library://sashayakovtseva/test/image-server:latest",
+			ref:    "cloud.sylabs.io/sashayakovtseva/test/image-server",
+			expect: "cloud.sylabs.io/sashayakovtseva/test/image-server:latest",
 		},
 		{
 			name:   "library image with digest",
-			ref:    "library://sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
-			expect: "library://sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
+			ref:    "cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
+			expect: "cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
 		},
 	}
 
