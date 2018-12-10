@@ -59,16 +59,6 @@ func TestParseImageRef(t *testing.T) {
 			expectError: nil,
 		},
 		{
-			name: "shub without tag",
-			ref:  "singularity-hub.org/vsoch/singularity-hello-world",
-			expect: &Reference{
-				uri:     singularity.ShubDomain,
-				tags:    []string{"singularity-hub.org/vsoch/singularity-hello-world:latest"},
-				digests: nil,
-			},
-			expectError: nil,
-		},
-		{
 			name: "docker without tag",
 			ref:  "gcr.io/cri-tools/test-image-tags",
 			expect: &Reference{

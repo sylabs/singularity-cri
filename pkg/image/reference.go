@@ -70,9 +70,6 @@ func ParseRef(imgRef string) (*Reference, error) {
 		case singularity.LibraryDomain:
 			uri = singularity.LibraryDomain
 			image = image[indx+1:]
-		case singularity.ShubDomain:
-			uri = singularity.ShubDomain
-			image = image[indx+1:]
 		case singularity.DockerDomain:
 			image = image[indx+1:]
 		}
@@ -83,8 +80,6 @@ func ParseRef(imgRef string) (*Reference, error) {
 	}
 
 	switch uri {
-	case singularity.ShubDomain:
-		fallthrough
 	case singularity.LibraryDomain:
 		if strings.Contains(image, "sha256.") {
 			ref.digests = append(ref.digests, imgRef)

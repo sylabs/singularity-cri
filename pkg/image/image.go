@@ -31,7 +31,6 @@ import (
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/sif/pkg/sif"
 	library "github.com/sylabs/singularity/pkg/client/library"
-	shub "github.com/sylabs/singularity/pkg/client/shub"
 	"github.com/sylabs/singularity/pkg/signing"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -141,9 +140,6 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	switch ref.uri {
 	case singularity.LibraryDomain:
 		err = library.DownloadImage(pullPath, pullURL, singularity.LibraryURL, true, "")
-	case singularity.ShubDomain:
-		pullURL = "shub://" + pullURL
-		err = shub.DownloadImage(pullPath, pullURL, true, false)
 	case singularity.DockerDomain:
 		remote := fmt.Sprintf("%s://%s", singularity.DockerProtocol, pullURL)
 		var errMsg bytes.Buffer

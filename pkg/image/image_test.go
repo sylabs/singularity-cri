@@ -74,26 +74,6 @@ func TestPullImage(t *testing.T) {
 			},
 			expectError: nil,
 		},
-		{
-			name: "shub image",
-			ref: &Reference{
-				uri:     singularity.ShubDomain,
-				tags:    []string{"singularity-hub.org/vsoch/hello-world"},
-				digests: nil,
-			},
-			expectImage: &Info{
-				id:     "4d398430ceded6a261a2304df3e75efe558892ba94eec25d2392991fe3a13dce",
-				sha256: "4d398430ceded6a261a2304df3e75efe558892ba94eec25d2392991fe3a13dce",
-				size:   65347615,
-				path:   filepath.Join(os.TempDir(), "4d398430ceded6a261a2304df3e75efe558892ba94eec25d2392991fe3a13dce"),
-				ref: &Reference{
-					uri:     "singularity-hub.org",
-					tags:    []string{"singularity-hub.org/vsoch/hello-world"},
-					digests: nil,
-				},
-			},
-			expectError: nil,
-		},
 	}
 
 	for _, tc := range tt {
@@ -103,7 +83,7 @@ func TestPullImage(t *testing.T) {
 			if image != nil {
 				require.NoError(t, image.Remove(), "could not remove image")
 			}
-			if tc.ref.uri == singularity.DockerProtocol {
+			if tc.ref.uri == singularity.DockerDomain {
 				image.id = ""
 				image.sha256 = ""
 				image.path = ""
