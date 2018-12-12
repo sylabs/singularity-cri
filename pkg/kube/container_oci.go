@@ -270,6 +270,24 @@ func (t *containerTranslator) configureProcess() {
 		aaProfile := security.GetApparmorProfile()
 		aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
 		t.g.SetProcessApparmorProfile(aaProfile)
+
+		var selinuxLabels []string
+		if security.GetSelinuxOptions().GetUser() != "" {
+			selinuxLabels = append(selinuxLabels, security.GetSelinuxOptions().GetUser())
+		}
+		if security.GetSelinuxOptions().GetRole() != "" {
+			selinuxLabels = append(selinuxLabels, security.GetSelinuxOptions().GetRole())
+		}
+		if security.GetSelinuxOptions().GetType() != "" {
+			selinuxLabels = append(selinuxLabels, security.GetSelinuxOptions().GetType())
+		}
+		if security.GetSelinuxOptions().GetLevel() != "" {
+			selinuxLabels = append(selinuxLabels, security.GetSelinuxOptions().GetLevel())
+		}
+		if len(selinuxLabels) != 0 {
+			t.g.SetProcessSelinuxLabel(strings.Join(selinuxLabels, ":"))
+		}
+
 		for _, capb := range security.GetCapabilities().GetDropCapabilities() {
 			t.g.DropProcessCapabilityEffective(capb)
 			t.g.DropProcessCapabilityAmbient(capb)
