@@ -211,6 +211,15 @@ func (p *Pod) MatchesFilter(filter *k8s.PodSandboxFilter) bool {
 	return true
 }
 
+// Containers return list or container IDs that are in this pod.
+func (p *Pod) Containers() []string {
+	var containers []string
+	for _, c := range p.containers {
+		containers = append(containers, c.ID())
+	}
+	return containers
+}
+
 func (p *Pod) addContainer(cont *Container) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

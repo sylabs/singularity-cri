@@ -78,11 +78,17 @@ func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *k8s.Remove
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	containers := pod.Containers() // save container IDs to cleanup index later
 	if err := pod.Remove(); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove pod: %v", err)
 	}
 	if err := s.pods.Remove(pod.ID()); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove pod from index: %v", err)
+	}
+	for _, containerID := range containers {
+		if err := s.containers.Remove(containerID); err != nil {
+			return nil, status.Errorf(codes.Internal, "could not remove container from index: %v", err)
+		}
 	}
 	return &k8s.RemovePodSandboxResponse{}, nil
 }
