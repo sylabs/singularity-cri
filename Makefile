@@ -2,26 +2,29 @@
 V := @
 
 # source/build locations
-BUILDDIR := ./vendor/github.com/singularityware/singularity/builddir
 BINDIR := ./bin
 SY_CRI := $(BINDIR)/sycri
+SY_CRI_SELINUX := $(BINDIR)/sycri-selinux
+
+.PHONY: build
+build: clean $(SY_CRI) $(SY_CRI_SELINUX)
 
 $(SY_CRI):
 	@echo " GO" $@
 	$(V)export GOOS=linux && go build -o $(SY_CRI) ./cmd/server
 
-.PHONY: build
-build: $(SY_CRI)
+$(SY_CRI_SELINUX):
+	@echo " GO" $@
+	$(V)export GOOS=linux && go build -tags 'selinux' -o $(SY_CRI_SELINUX) ./cmd/server
 
 .PHONY: clean
 clean:
 	@echo " CLEAN"
 	$(V)go clean
 	$(V)rm -rf $(BINDIR)
-	$(V)rm -rf $(BUILDDIR)
 
 .PHONY: test
-test: $(CONFIG_GO)
+test:
 	@export GOOS=linux && go test -v -cover ./...
 
 .PHONY: lint
