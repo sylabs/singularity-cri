@@ -23,6 +23,10 @@
   name = "github.com/kr/pty"
   version = "v1.1.3"
 
+[[constraint]]
+  name = "github.com/opencontainers/selinux"
+  version = "v1.0.0-rc1"
+
 # patched fork from github.com/golang/crypto
 [[override]]
   branch = "master"

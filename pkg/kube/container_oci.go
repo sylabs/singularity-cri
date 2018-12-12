@@ -56,9 +56,11 @@ func (t *containerTranslator) translate() (*specs.Spec, error) {
 	if err := t.configureMounts(); err != nil {
 		return nil, fmt.Errorf("could not configure mounts: %v", err)
 	}
+	if err := t.configureProcess(); err != nil {
+		return nil, fmt.Errorf("could not configure container process: %v", err)
+	}
 	t.configureNamespaces()
 	t.configureResources()
-	t.configureProcess()
 	t.configureAnnotations()
 	return t.g.Config, nil
 }
@@ -236,7 +238,7 @@ func (t *containerTranslator) configureResources() {
 	}
 }
 
-func (t *containerTranslator) configureProcess() {
+func (t *containerTranslator) configureProcess() error {
 	const (
 		runScript  = "/.singularity.d/runscript"
 		execScript = "/.singularity.d/actions/exec"
@@ -271,21 +273,8 @@ func (t *containerTranslator) configureProcess() {
 		aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
 		t.g.SetProcessApparmorProfile(aaProfile)
 
-		var selinuxLabels []string
-		if security.GetSelinuxOptions().GetUser() != "" {
-			selinuxLabels = append(selinuxLabels, security.GetSelinuxOptions().GetUser())
-		}
-		if security.GetSelinuxOptions().GetRole() != "" {
-			selinuxLabels = append(selinuxLabels, security.GetSelinuxOptions().GetRole())
-		}
-		if security.GetSelinuxOptions().GetType() != "" {
-			selinuxLabels = append(selinuxLabels, security.GetSelinuxOptions().GetType())
-		}
-		if security.GetSelinuxOptions().GetLevel() != "" {
-			selinuxLabels = append(selinuxLabels, security.GetSelinuxOptions().GetLevel())
-		}
-		if len(selinuxLabels) != 0 {
-			t.g.SetProcessSelinuxLabel(strings.Join(selinuxLabels, ":"))
+		if err := setupSELinux(&t.g, security.GetSelinuxOptions()); err != nil {
+			return err
 		}
 
 		for _, capb := range security.GetCapabilities().GetDropCapabilities() {
@@ -303,6 +292,7 @@ func (t *containerTranslator) configureProcess() {
 			t.g.AddProcessCapabilityPermitted(capb)
 		}
 	}
+	return nil
 }
 
 func (t *containerTranslator) configureAnnotations() {

@@ -15,8 +15,12 @@
 package kube
 
 import (
+	"fmt"
+
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
 type podTranslator struct {
@@ -64,6 +68,10 @@ func (t *podTranslator) translate() (*specs.Spec, error) {
 	}
 
 	security := t.pod.GetLinux().GetSecurityContext()
+	if err := setupSELinux(&t.g, security.GetSelinuxOptions()); err != nil {
+		return nil, err
+	}
+
 	t.g.SetupPrivileged(security.GetPrivileged())
 	t.g.SetRootReadonly(security.GetReadonlyRootfs())
 	t.g.SetProcessUID(uint32(security.GetRunAsUser().GetValue()))
@@ -73,4 +81,31 @@ func (t *podTranslator) translate() (*specs.Spec, error) {
 	}
 
 	return t.g.Config, nil
+}
+
+func setupSELinux(g *generate.Generator, options *k8s.SELinuxOption) error {
+	if options == nil {
+		return nil
+	}
+
+	var labels []string
+	if options.GetUser() != "" {
+		labels = append(labels, "user:"+options.GetUser())
+	}
+	if options.GetRole() != "" {
+		labels = append(labels, "role:"+options.GetRole())
+	}
+	if options.GetType() != "" {
+		labels = append(labels, "type:"+options.GetType())
+	}
+	if options.GetLevel() != "" {
+		labels = append(labels, "level:"+options.GetLevel())
+	}
+	processLabel, mountLabel, err := label.InitLabels(labels)
+	if err != nil {
+		return fmt.Errorf("could not init selinux labels: %v", err)
+	}
+	g.SetLinuxMountLabel(mountLabel)
+	g.SetProcessSelinuxLabel(processLabel)
+	return nil
 }

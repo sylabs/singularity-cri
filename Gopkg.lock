@@ -213,6 +213,17 @@
   version = "v0.8.0"
 
 [[projects]]
+  digest = "1:5c65c485fa22fdfd6937db07aaf879904a4745770ee416d8d1f2a1434dc2d8ce"
+  name = "github.com/opencontainers/selinux"
+  packages = [
+    "go-selinux",
+    "go-selinux/label",
+  ]
+  pruneopts = "UT"
+  revision = "ba1aefe8057f1d0cfb8e88d0ec1dc85925ef987d"
+  version = "v1.0.0-rc1"
+
+[[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
@@ -265,13 +276,12 @@
 
 [[projects]]
   branch = "master-oci"
-  digest = "1:258bd6c08489cbdf8b6fa5b0b44901b6e283b1ef26abc00f2980ab0c9a8fea77"
+  digest = "1:fa7075c1209cc51e7ad07751f858ba63e283d203f1aa182b8b41aa45c99f41ce"
   name = "github.com/sylabs/singularity"
   packages = [
     "internal/pkg/sylog",
     "internal/pkg/util/user",
     "pkg/client/library",
-    "pkg/client/shub",
     "pkg/ociruntime",
     "pkg/signing",
     "pkg/sypgp",
@@ -600,11 +610,11 @@
     "github.com/kubernetes-sigs/cri-o/utils",
     "github.com/opencontainers/runtime-spec/specs-go",
     "github.com/opencontainers/runtime-tools/generate",
+    "github.com/opencontainers/selinux/go-selinux/label",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "github.com/sylabs/sif/pkg/sif",
     "github.com/sylabs/singularity/pkg/client/library",
-    "github.com/sylabs/singularity/pkg/client/shub",
     "github.com/sylabs/singularity/pkg/ociruntime",
     "github.com/sylabs/singularity/pkg/signing",
     "github.com/sylabs/singularity/pkg/util/loop",
