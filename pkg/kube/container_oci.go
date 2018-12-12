@@ -266,32 +266,32 @@ func (t *containerTranslator) configureProcess() error {
 	for _, gid := range security.GetSupplementalGroups() {
 		t.g.AddProcessAdditionalGid(uint32(gid))
 	}
-	if security.GetPrivileged() {
-		t.g.SetupPrivileged(true)
-	} else {
-		aaProfile := security.GetApparmorProfile()
-		aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
-		t.g.SetProcessApparmorProfile(aaProfile)
 
-		if err := setupSELinux(&t.g, security.GetSelinuxOptions()); err != nil {
-			return err
-		}
+	aaProfile := security.GetApparmorProfile()
+	aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
+	t.g.SetProcessApparmorProfile(aaProfile)
 
-		for _, capb := range security.GetCapabilities().GetDropCapabilities() {
-			t.g.DropProcessCapabilityEffective(capb)
-			t.g.DropProcessCapabilityAmbient(capb)
-			t.g.DropProcessCapabilityBounding(capb)
-			t.g.DropProcessCapabilityInheritable(capb)
-			t.g.DropProcessCapabilityPermitted(capb)
-		}
-		for _, capb := range security.GetCapabilities().GetAddCapabilities() {
-			t.g.AddProcessCapabilityEffective(capb)
-			t.g.AddProcessCapabilityAmbient(capb)
-			t.g.AddProcessCapabilityBounding(capb)
-			t.g.AddProcessCapabilityInheritable(capb)
-			t.g.AddProcessCapabilityPermitted(capb)
-		}
+	if err := setupSELinux(&t.g, security.GetSelinuxOptions()); err != nil {
+		return err
 	}
+
+	for _, capb := range security.GetCapabilities().GetDropCapabilities() {
+		t.g.DropProcessCapabilityEffective(capb)
+		t.g.DropProcessCapabilityAmbient(capb)
+		t.g.DropProcessCapabilityBounding(capb)
+		t.g.DropProcessCapabilityInheritable(capb)
+		t.g.DropProcessCapabilityPermitted(capb)
+	}
+	for _, capb := range security.GetCapabilities().GetAddCapabilities() {
+		t.g.AddProcessCapabilityEffective(capb)
+		t.g.AddProcessCapabilityAmbient(capb)
+		t.g.AddProcessCapabilityBounding(capb)
+		t.g.AddProcessCapabilityInheritable(capb)
+		t.g.AddProcessCapabilityPermitted(capb)
+	}
+
+	// simply apply privileged at the end of the config
+	t.g.SetupPrivileged(security.GetPrivileged())
 	return nil
 }
 

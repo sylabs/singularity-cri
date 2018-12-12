@@ -16,6 +16,7 @@ package kube
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
@@ -72,7 +73,6 @@ func (t *podTranslator) translate() (*specs.Spec, error) {
 		return nil, err
 	}
 
-	t.g.SetupPrivileged(security.GetPrivileged())
 	t.g.SetRootReadonly(security.GetReadonlyRootfs())
 	t.g.SetProcessUID(uint32(security.GetRunAsUser().GetValue()))
 	t.g.SetProcessGID(uint32(security.GetRunAsGroup().GetValue()))
@@ -80,6 +80,8 @@ func (t *podTranslator) translate() (*specs.Spec, error) {
 		t.g.AddProcessAdditionalGid(uint32(gid))
 	}
 
+	// simply apply privileged at the end of the config
+	t.g.SetupPrivileged(security.GetPrivileged())
 	return t.g.Config, nil
 }
 
@@ -105,6 +107,8 @@ func setupSELinux(g *generate.Generator, options *k8s.SELinuxOption) error {
 	if err != nil {
 		return fmt.Errorf("could not init selinux labels: %v", err)
 	}
+	log.Printf("setting mount label to %q", mountLabel)
+	log.Printf("setting process selinux label to %q", processLabel)
 	g.SetLinuxMountLabel(mountLabel)
 	g.SetProcessSelinuxLabel(processLabel)
 	return nil
