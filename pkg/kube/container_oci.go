@@ -268,10 +268,16 @@ func (t *containerTranslator) configureProcess() error {
 	}
 
 	aaProfile := security.GetApparmorProfile()
+	selinuxOptions := security.GetSelinuxOptions()
+
+	if aaProfile != "" && selinuxOptions != nil {
+		return fmt.Errorf("cannot use both AppArmour profile and SELinux options")
+	}
+
 	aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
 	t.g.SetProcessApparmorProfile(aaProfile)
 
-	if err := setupSELinux(&t.g, security.GetSelinuxOptions()); err != nil {
+	if err := setupSELinux(&t.g, selinuxOptions); err != nil {
 		return err
 	}
 
