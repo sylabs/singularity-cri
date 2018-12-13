@@ -56,9 +56,11 @@ func (t *containerTranslator) translate() (*specs.Spec, error) {
 	if err := t.configureMounts(); err != nil {
 		return nil, fmt.Errorf("could not configure mounts: %v", err)
 	}
+	if err := t.configureProcess(); err != nil {
+		return nil, fmt.Errorf("could not configure container process: %v", err)
+	}
 	t.configureNamespaces()
 	t.configureResources()
-	t.configureProcess()
 	t.configureAnnotations()
 	return t.g.Config, nil
 }
@@ -236,7 +238,7 @@ func (t *containerTranslator) configureResources() {
 	}
 }
 
-func (t *containerTranslator) configureProcess() {
+func (t *containerTranslator) configureProcess() error {
 	const (
 		runScript  = "/.singularity.d/runscript"
 		execScript = "/.singularity.d/actions/exec"
@@ -264,27 +266,39 @@ func (t *containerTranslator) configureProcess() {
 	for _, gid := range security.GetSupplementalGroups() {
 		t.g.AddProcessAdditionalGid(uint32(gid))
 	}
-	if security.GetPrivileged() {
-		t.g.SetupPrivileged(true)
-	} else {
-		aaProfile := security.GetApparmorProfile()
-		aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
-		t.g.SetProcessApparmorProfile(aaProfile)
-		for _, capb := range security.GetCapabilities().GetDropCapabilities() {
-			t.g.DropProcessCapabilityEffective(capb)
-			t.g.DropProcessCapabilityAmbient(capb)
-			t.g.DropProcessCapabilityBounding(capb)
-			t.g.DropProcessCapabilityInheritable(capb)
-			t.g.DropProcessCapabilityPermitted(capb)
-		}
-		for _, capb := range security.GetCapabilities().GetAddCapabilities() {
-			t.g.AddProcessCapabilityEffective(capb)
-			t.g.AddProcessCapabilityAmbient(capb)
-			t.g.AddProcessCapabilityBounding(capb)
-			t.g.AddProcessCapabilityInheritable(capb)
-			t.g.AddProcessCapabilityPermitted(capb)
-		}
+
+	aaProfile := security.GetApparmorProfile()
+	selinuxOptions := security.GetSelinuxOptions()
+
+	if aaProfile != "" && selinuxOptions != nil {
+		return fmt.Errorf("cannot use both AppArmour profile and SELinux options")
 	}
+
+	aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
+	t.g.SetProcessApparmorProfile(aaProfile)
+
+	if err := setupSELinux(&t.g, selinuxOptions); err != nil {
+		return err
+	}
+
+	for _, capb := range security.GetCapabilities().GetDropCapabilities() {
+		t.g.DropProcessCapabilityEffective(capb)
+		t.g.DropProcessCapabilityAmbient(capb)
+		t.g.DropProcessCapabilityBounding(capb)
+		t.g.DropProcessCapabilityInheritable(capb)
+		t.g.DropProcessCapabilityPermitted(capb)
+	}
+	for _, capb := range security.GetCapabilities().GetAddCapabilities() {
+		t.g.AddProcessCapabilityEffective(capb)
+		t.g.AddProcessCapabilityAmbient(capb)
+		t.g.AddProcessCapabilityBounding(capb)
+		t.g.AddProcessCapabilityInheritable(capb)
+		t.g.AddProcessCapabilityPermitted(capb)
+	}
+
+	// simply apply privileged at the end of the config
+	t.g.SetupPrivileged(security.GetPrivileged())
+	return nil
 }
 
 func (t *containerTranslator) configureAnnotations() {
