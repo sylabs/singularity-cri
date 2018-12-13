@@ -73,6 +73,7 @@ func (t *podTranslator) translate() (*specs.Spec, error) {
 		return nil, err
 	}
 
+	t.g.SetLinuxCgroupsPath(t.pod.GetLinux().GetCgroupParent())
 	t.g.SetRootReadonly(security.GetReadonlyRootfs())
 	t.g.SetProcessUID(uint32(security.GetRunAsUser().GetValue()))
 	t.g.SetProcessGID(uint32(security.GetRunAsGroup().GetValue()))

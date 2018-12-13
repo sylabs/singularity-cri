@@ -51,7 +51,8 @@ To build server you can use Makefile:
 make build
 ```
 
-This will produce the _sycri_ binary with CRI server implementation appear in a bin directory.
+This will build the _sycri_ binary with CRI server implementation and _sycri-selinux_ with SELinux support.
+All the binaries may be found in a bin directory.
 
 To start CRI server simply run _sycri_ binary. By default CRI listens for requests on
 `unix:///var/run/singularity.sock` and stores image files at `/var/lib/singularity`. This behaviour may be configured
@@ -86,7 +87,6 @@ To test CRI in interactive mode we suggest the following workflow:
 
 3. Build and launch CRI server:
 	 ```bash
-	make clean && 
 	make && 
 	sudo PATH=$PATH ./bin/sycri
 	```
