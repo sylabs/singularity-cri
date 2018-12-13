@@ -2,6 +2,9 @@ package kube
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -18,6 +21,10 @@ var (
 	}
 )
 
+const (
+	defaultCgroup = "singularity-cri"
+)
+
 func (p *Pod) validateConfig() error {
 	hasIPC := p.GetLinux().GetSecurityContext().GetNamespaceOptions().GetIpc() == k8s.NamespaceMode_POD
 	hasNET := p.GetLinux().GetSecurityContext().GetNamespaceOptions().GetNetwork() == k8s.NamespaceMode_POD
@@ -31,6 +38,27 @@ func (p *Pod) validateConfig() error {
 				}
 			}
 		}
+	}
+
+	var err error
+	hostname := p.GetHostname()
+	if hostname == "" {
+		hostname, err = os.Hostname()
+		if err != nil {
+			return fmt.Errorf("could not get default hostname: %v", err)
+		}
+		log.Printf("setting pod hostname to default value %q", hostname)
+		p.Hostname = hostname
+	}
+
+	cgroupsPath := p.GetLinux().GetCgroupParent()
+	if cgroupsPath == "" {
+		cgroupsPath = filepath.Join(defaultCgroup, p.ID())
+		log.Printf("setting pod cgroup parent to default value %q", cgroupsPath)
+		if p.GetLinux() == nil {
+			p.Linux = new(k8s.LinuxPodSandboxConfig)
+		}
+		p.Linux.CgroupParent = cgroupsPath
 	}
 
 	return nil

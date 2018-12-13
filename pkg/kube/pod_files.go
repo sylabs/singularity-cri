@@ -17,7 +17,6 @@ package kube
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -128,22 +127,11 @@ func (p *Pod) addResolvConf() error {
 }
 
 func (p *Pod) addHostname() error {
-	var err error
-	hostname := p.GetHostname()
-	if hostname == "" {
-		hostname, err = os.Hostname()
-		if err != nil {
-			return fmt.Errorf("could not get default hostname: %v", err)
-		}
-		log.Printf("setting pod hostname to default value %q", hostname)
-		p.Hostname = hostname
-	}
-
 	host, err := os.OpenFile(p.hostnameFilePath(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", podHostnamePath, err)
 	}
-	fmt.Fprintln(host, hostname)
+	fmt.Fprintln(host, p.GetHostname())
 	if err = host.Close(); err != nil {
 		return fmt.Errorf("could not close %s: %v", podHostnamePath, err)
 	}
