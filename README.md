@@ -7,7 +7,7 @@ This repository contains Singularity implementation of [Kubernetes CRI](https://
 two separate services: runtime and image, each of which implements K8s RuntimeService and ImageService respectively.
 
 
-The CRI is currently under development and passes 52/71 [validation tests](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/validation.md).
+The CRI is currently under development and passes 57/71 [validation tests](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/validation.md).
 Note that used test suite is taken from master branch.
 
 ## Quick Start
@@ -87,6 +87,7 @@ To test CRI in interactive mode we suggest the following workflow:
 
 3. Build and launch CRI server:
 	 ```bash
+	make clean &&
 	make && 
 	sudo PATH=$PATH ./bin/sycri
 	```
