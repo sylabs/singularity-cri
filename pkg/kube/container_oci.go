@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -268,17 +267,11 @@ func (t *containerTranslator) configureProcess() error {
 		t.g.AddProcessAdditionalGid(uint32(gid))
 	}
 
-	aaProfile := security.GetApparmorProfile()
-	selinuxOptions := security.GetSelinuxOptions()
-
-	if aaProfile != "" && selinuxOptions != nil {
-		return fmt.Errorf("cannot use both AppArmour profile and SELinux options")
+	t.g.SetProcessApparmorProfile(security.GetApparmorProfile())
+	if err := setupSELinux(&t.g, security.GetSelinuxOptions()); err != nil {
+		return err
 	}
-
-	aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
-	t.g.SetProcessApparmorProfile(aaProfile)
-
-	if err := setupSELinux(&t.g, selinuxOptions); err != nil {
+	if err := setupSeccomp(&t.g, security.GetSeccompProfilePath()); err != nil {
 		return err
 	}
 

@@ -10,6 +10,14 @@
   version = "v3.5.1"
 
 [[projects]]
+  digest = "1:c62640a9661f9b620c7bf3aac98afd70c98aa09c75d95d92c2354c6942a4b66c"
+  name = "github.com/containers/storage"
+  packages = ["pkg/stringutils"]
+  pruneopts = "UT"
+  revision = "bf48aa83089daf297412ed006190322a04956679"
+  version = "v1.2"
+
+[[projects]]
   digest = "1:6f614c5193761d29b3184a170380672cafd025306261ce7810e2dd99907184c4"
   name = "github.com/coreos/go-systemd"
   packages = ["dbus"]
@@ -158,9 +166,12 @@
   version = "v1.1.3"
 
 [[projects]]
-  digest = "1:2a30dfecd2365b6fa246e68d18b9b0d13c7976cd481912824e580945cfd8a807"
+  digest = "1:73fb694b48f7fba82250f2b36edfe390fdd5397edccbae5f0536c65386314b48"
   name = "github.com/kubernetes-sigs/cri-o"
-  packages = ["utils"]
+  packages = [
+    "pkg/seccomp",
+    "utils",
+  ]
   pruneopts = "UT"
   revision = "c1db736895aaeb57b2d6f331e2fc8cec2d54078c"
   version = "v1.12.3"
@@ -238,6 +249,14 @@
   pruneopts = "UT"
   revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
   version = "v1.2.0"
+
+[[projects]]
+  digest = "1:76b02b3f516299ddfed21a4e7ce26cda0b9a57f14575bfe4aa2d644ea0e8e24c"
+  name = "github.com/seccomp/libseccomp-golang"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e3496e3a417d1dc9ecdceca5af2513271fed37a0"
+  version = "v0.9.0"
 
 [[projects]]
   digest = "1:69b1cc331fca23d702bd72f860c6a647afd0aa9fcbc1d0659b1365e26546dd70"
@@ -607,6 +626,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/kr/pty",
+    "github.com/kubernetes-sigs/cri-o/pkg/seccomp",
     "github.com/kubernetes-sigs/cri-o/utils",
     "github.com/opencontainers/runtime-spec/specs-go",
     "github.com/opencontainers/runtime-tools/generate",

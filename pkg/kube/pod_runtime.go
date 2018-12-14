@@ -109,7 +109,9 @@ func (p *Pod) terminate(force bool) error {
 	// We should call it when sync socket will no longer be used, and
 	// since multiple calls are fine with cancel func, call it at
 	// the end of terminate.
-	defer p.syncCancel()
+	if p.syncCancel != nil {
+		defer p.syncCancel()
+	}
 
 	if p.runtimeState == runtime.StateExited {
 		return nil

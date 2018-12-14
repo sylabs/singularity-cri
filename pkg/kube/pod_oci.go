@@ -16,8 +16,10 @@ package kube
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 
+	"github.com/kubernetes-sigs/cri-o/pkg/seccomp"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -72,6 +74,9 @@ func (t *podTranslator) translate() (*specs.Spec, error) {
 	if err := setupSELinux(&t.g, security.GetSelinuxOptions()); err != nil {
 		return nil, err
 	}
+	if err := setupSeccomp(&t.g, security.GetSeccompProfilePath()); err != nil {
+		return nil, err
+	}
 
 	t.g.SetLinuxCgroupsPath(t.pod.GetLinux().GetCgroupParent())
 	t.g.SetRootReadonly(security.GetReadonlyRootfs())
@@ -112,5 +117,35 @@ func setupSELinux(g *generate.Generator, options *k8s.SELinuxOption) error {
 	log.Printf("setting process selinux label to %q", processLabel)
 	g.SetLinuxMountLabel(mountLabel)
 	g.SetProcessSelinuxLabel(processLabel)
+	return nil
+}
+
+func setupSeccomp(g *generate.Generator, profile string) error {
+	if profile == "" {
+		return nil
+	}
+	if g.Config.Linux == nil {
+		g.Config.Linux = new(specs.Linux)
+	}
+	if profile == unconfinedSeccompProfile {
+		// drop any default config
+		g.Config.Linux.Seccomp = nil
+		return nil
+	}
+
+	data, err := ioutil.ReadFile(profile)
+	if err != nil {
+		return fmt.Errorf("could not read seccomp profile: %v", err)
+	}
+	if g.Config.Process == nil {
+		g.Config.Process = new(specs.Process)
+	}
+	if g.Config.Process.Capabilities == nil {
+		g.Config.Process.Capabilities = new(specs.LinuxCapabilities)
+	}
+	if err := seccomp.LoadProfileFromBytes(data, g); err != nil {
+		return fmt.Errorf("could not setup seccomp: %v", err)
+	}
+	log.Printf("seccomp config is %+v", g.Config.Linux.Seccomp)
 	return nil
 }

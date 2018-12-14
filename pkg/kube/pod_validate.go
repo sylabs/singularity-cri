@@ -61,5 +61,14 @@ func (p *Pod) validateConfig() error {
 		p.Linux.CgroupParent = cgroupsPath
 	}
 
+	security := p.GetLinux().GetSecurityContext()
+	if security != nil {
+		scProfile, err := prepareSeccompPath(security.GetSeccompProfilePath())
+		if err != nil {
+			return fmt.Errorf("invalid Seccomp profile path: %v", err)
+		}
+		security.SeccompProfilePath = scProfile
+	}
+
 	return nil
 }
