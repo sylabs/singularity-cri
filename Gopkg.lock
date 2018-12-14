@@ -630,6 +630,7 @@
     "github.com/kubernetes-sigs/cri-o/utils",
     "github.com/opencontainers/runtime-spec/specs-go",
     "github.com/opencontainers/runtime-tools/generate",
+    "github.com/opencontainers/runtime-tools/generate/seccomp",
     "github.com/opencontainers/selinux/go-selinux/label",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
