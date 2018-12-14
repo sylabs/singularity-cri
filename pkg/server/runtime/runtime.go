@@ -202,8 +202,9 @@ func (s *SingularityRuntime) ListContainerStats(context.Context, *k8s.ListContai
 }
 
 // UpdateRuntimeConfig updates the runtime configuration based on the given request.
-func (s *SingularityRuntime) UpdateRuntimeConfig(context.Context, *k8s.UpdateRuntimeConfigRequest) (*k8s.UpdateRuntimeConfigResponse, error) {
-	return &k8s.UpdateRuntimeConfigResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *SingularityRuntime) UpdateRuntimeConfig(ctx context.Context, req *k8s.UpdateRuntimeConfigRequest) (*k8s.UpdateRuntimeConfigResponse, error) {
+	log.Printf("ignoring runtime config update %v", req)
+	return &k8s.UpdateRuntimeConfigResponse{}, nil
 }
 
 // Status returns the status of the runtime.
