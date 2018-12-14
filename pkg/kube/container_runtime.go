@@ -112,7 +112,9 @@ func (c *Container) kill() error {
 	// We should call it when sync socket will no longer be used, and
 	// since multiple calls are fine with cancel func, call it at
 	// the end of kill.
-	defer c.syncCancel()
+	if c.syncCancel != nil {
+		defer c.syncCancel()
+	}
 
 	if c.runtimeState == runtime.StateExited {
 		return nil
