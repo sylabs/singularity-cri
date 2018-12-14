@@ -22,6 +22,7 @@ import (
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
+	"github.com/opencontainers/runtime-tools/generate/seccomp"
 	"golang.org/x/sys/unix"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -242,8 +243,6 @@ func (t *containerTranslator) configureProcess() error {
 	const (
 		runScript  = "/.singularity.d/runscript"
 		execScript = "/.singularity.d/actions/exec"
-
-		appArmorLocalhostPrefix = "localhost/"
 	)
 
 	for _, env := range t.cont.GetEnvs() {
@@ -267,27 +266,50 @@ func (t *containerTranslator) configureProcess() error {
 		t.g.AddProcessAdditionalGid(uint32(gid))
 	}
 
+	for _, capb := range security.GetCapabilities().GetDropCapabilities() {
+		if err := t.g.DropProcessCapabilityEffective(capb); err != nil {
+			return fmt.Errorf("could not drop capability: %v", err)
+		}
+		if err := t.g.DropProcessCapabilityAmbient(capb); err != nil {
+			return fmt.Errorf("could not drop capability: %v", err)
+		}
+		if err := t.g.DropProcessCapabilityBounding(capb); err != nil {
+			return fmt.Errorf("could not drop capability: %v", err)
+		}
+		if err := t.g.DropProcessCapabilityInheritable(capb); err != nil {
+			return fmt.Errorf("could not drop capability: %v", err)
+		}
+		if err := t.g.DropProcessCapabilityPermitted(capb); err != nil {
+			return fmt.Errorf("could not drop capability: %v", err)
+		}
+	}
+	for _, capb := range security.GetCapabilities().GetAddCapabilities() {
+		if err := t.g.AddProcessCapabilityEffective(capb); err != nil {
+			return fmt.Errorf("could not add capability: %v", err)
+		}
+		if err := t.g.AddProcessCapabilityAmbient(capb); err != nil {
+			return fmt.Errorf("could not add capability: %v", err)
+		}
+		if err := t.g.AddProcessCapabilityBounding(capb); err != nil {
+			return fmt.Errorf("could not add capability: %v", err)
+		}
+		if err := t.g.AddProcessCapabilityInheritable(capb); err != nil {
+			return fmt.Errorf("could not add capability: %v", err)
+		}
+		if err := t.g.AddProcessCapabilityPermitted(capb); err != nil {
+			return fmt.Errorf("could not add capability: %v", err)
+		}
+	}
+	if t.g.Config.Linux == nil {
+		t.g.Config.Linux = new(specs.Linux)
+	}
+	t.g.Config.Linux.Seccomp = seccomp.DefaultProfile(t.g.Config) // reload seccomp profile after capabilities setup
 	t.g.SetProcessApparmorProfile(security.GetApparmorProfile())
 	if err := setupSELinux(&t.g, security.GetSelinuxOptions()); err != nil {
 		return err
 	}
 	if err := setupSeccomp(&t.g, security.GetSeccompProfilePath()); err != nil {
 		return err
-	}
-
-	for _, capb := range security.GetCapabilities().GetDropCapabilities() {
-		t.g.DropProcessCapabilityEffective(capb)
-		t.g.DropProcessCapabilityAmbient(capb)
-		t.g.DropProcessCapabilityBounding(capb)
-		t.g.DropProcessCapabilityInheritable(capb)
-		t.g.DropProcessCapabilityPermitted(capb)
-	}
-	for _, capb := range security.GetCapabilities().GetAddCapabilities() {
-		t.g.AddProcessCapabilityEffective(capb)
-		t.g.AddProcessCapabilityAmbient(capb)
-		t.g.AddProcessCapabilityBounding(capb)
-		t.g.AddProcessCapabilityInheritable(capb)
-		t.g.AddProcessCapabilityPermitted(capb)
 	}
 
 	// simply apply privileged at the end of the config

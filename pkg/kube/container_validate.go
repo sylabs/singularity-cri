@@ -40,6 +40,11 @@ func (c *Container) validateConfig() error {
 		}
 		security.SeccompProfilePath = scProfile
 	}
+	caps := c.GetLinux().GetSecurityContext().GetCapabilities()
+	if caps != nil {
+		caps.AddCapabilities = prepareCapabilities(caps.AddCapabilities)
+		caps.DropCapabilities = prepareCapabilities(caps.DropCapabilities)
+	}
 	return nil
 }
 
@@ -58,4 +63,14 @@ func prepareSeccompPath(scProfile string) (string, error) {
 	scProfile = strings.TrimPrefix(scProfile, seccompLocalhostPrefix)
 	log.Printf("setting Seccomp profile to %q", scProfile)
 	return scProfile, nil
+}
+
+func prepareCapabilities(capabilities []string) []string {
+	const capPrefix = "CAP_"
+	for i, capb := range capabilities {
+		if !strings.HasPrefix(capb, capPrefix) {
+			capabilities[i] = capPrefix + capb
+		}
+	}
+	return capabilities
 }
