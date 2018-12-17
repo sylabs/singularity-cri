@@ -27,6 +27,10 @@
   name = "github.com/opencontainers/selinux"
   version = "v1.0.0-rc1"
 
+[[constraint]]
+  name = "github.com/opencontainers/runc"
+  version = "v1.0.0-rc6"
+
 # patched fork from github.com/golang/crypto
 [[override]]
   branch = "master"

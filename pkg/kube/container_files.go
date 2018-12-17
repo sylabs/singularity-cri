@@ -78,6 +78,9 @@ func (c *Container) addOCIBundle(image *image.Info) error {
 	if err != nil {
 		return fmt.Errorf("could not create rootfs directory for container: %v", err)
 	}
+	if err := c.prepareOverlay(image.Path()); err != nil {
+		return err
+	}
 	ociSpec, err := translateContainer(c, c.pod)
 	if err != nil {
 		return fmt.Errorf("could not generate oci spec for container: %v", err)
@@ -91,7 +94,7 @@ func (c *Container) addOCIBundle(image *image.Info) error {
 	if err != nil {
 		return fmt.Errorf("could not encode OCI config into json: %v", err)
 	}
-	return c.prepareOverlay(image.Path())
+	return nil
 }
 
 func (c *Container) prepareOverlay(imagePath string) error {
