@@ -146,6 +146,5 @@ func setupSeccomp(g *generate.Generator, profile string) error {
 	if err := seccomp.LoadProfileFromBytes(data, g); err != nil {
 		return fmt.Errorf("could not setup seccomp: %v", err)
 	}
-	log.Printf("seccomp config is %+v", g.Config.Linux.Seccomp)
 	return nil
 }
