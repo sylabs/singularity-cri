@@ -31,6 +31,15 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	if req.GetConfig().GetTty() && !req.GetConfig().GetStdin() {
 		return nil, status.Error(codes.InvalidArgument, "tty requires stdin to be true")
 	}
+	if req.GetConfig().GetLinux().GetSecurityContext().GetRunAsUser() != nil &&
+		req.GetConfig().GetLinux().GetSecurityContext().GetRunAsUsername() != "" {
+		return nil, status.Error(codes.InvalidArgument, "only one of RunAsUser and RunAsUsername can be specified at a time")
+	}
+	if req.GetConfig().GetLinux().GetSecurityContext().GetRunAsGroup() != nil &&
+		req.GetConfig().GetLinux().GetSecurityContext().GetRunAsUser() == nil &&
+		req.GetConfig().GetLinux().GetSecurityContext().GetRunAsUsername() == "" {
+		return nil, status.Error(codes.InvalidArgument, "RunAsGroup should only be specified when RunAsUser or RunAsUsername is specified")
+	}
 
 	info, err := s.imageIndex.Find(req.Config.GetImage().GetImage())
 	if err == index.ErrImageNotFound {
