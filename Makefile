@@ -4,18 +4,19 @@ V := @
 # source/build locations
 BINDIR := ./bin
 SY_CRI := $(BINDIR)/sycri
-SY_CRI_SELINUX := $(BINDIR)/sycri-selinux
 
 .PHONY: build
-build: clean $(SY_CRI) $(SY_CRI_SELINUX)
+build: $(SY_CRI)
 
+$(SY_CRI): SECCOMP := "$(shell echo '#include <seccomp.h>\nint main() { }' | gcc -x c -o /dev/null -lseccomp - >/dev/null 2>&1; echo $$?)"
 $(SY_CRI):
 	@echo " GO" $@
-	$(V)export GOOS=linux && go build -o $(SY_CRI) ./cmd/server
-
-$(SY_CRI_SELINUX):
-	@echo " GO" $@
-	$(V)export GOOS=linux && go build -tags 'selinux' -o $(SY_CRI_SELINUX) ./cmd/server
+	@if [ $(SECCOMP) -eq "0" ] ; then \
+		_=$(eval BUILD_TAGS = seccomp) ; \
+	else \
+		echo " WARNING: seccomp is not found, ignoring" ; \
+	fi
+	$(V)export GOOS=linux && go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
 .PHONY: clean
 clean:
@@ -25,11 +26,11 @@ clean:
 
 .PHONY: test
 test:
-	@export GOOS=linux && go test -v -cover ./...
+	$(V)export GOOS=linux && go test -v -cover ./...
 
 .PHONY: lint
 lint:
-	gometalinter --vendor --disable-all \
+	$(V)gometalinter --vendor --disable-all \
 	--enable=gofmt \
 	--enable=goimports \
 	--enable=vet \

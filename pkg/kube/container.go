@@ -169,6 +169,11 @@ func (c *Container) Create(info *image.Info) error {
 	}()
 
 	c.createOnce.Do(func() {
+		err = c.validateConfig()
+		if err != nil {
+			err = fmt.Errorf("invalid container config: %v", err)
+			return
+		}
 		err = c.addLogDirectory()
 		if err != nil {
 			err = fmt.Errorf("could not create log directory: %v", err)
