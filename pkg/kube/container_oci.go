@@ -346,6 +346,9 @@ func (t *containerTranslator) configureUser() error {
 	for _, gid := range containerUser.Sgids {
 		t.g.AddProcessAdditionalGid(uint32(gid))
 	}
+	for _, gid := range security.GetSupplementalGroups() {
+		t.g.AddProcessAdditionalGid(uint32(gid))
+	}
 	return nil
 }
 
