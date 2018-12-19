@@ -4,24 +4,19 @@ V := @
 # source/build locations
 BINDIR := ./bin
 SY_CRI := $(BINDIR)/sycri
-SY_CRI_SELINUX := $(BINDIR)/sycri-selinux
-SECCOMP := $(shell echo '\#include <seccomp.h>\nint main() { }' | gcc -x c -o /dev/null -lseccomp - >/dev/null 2>&1; echo $$?)
-BUILD_TAGS :=
-ifeq ($(SECCOMP), 0)
-	BUILD_TAGS += seccomp
-endif
-
 
 .PHONY: build
-build: $(SY_CRI) $(SY_CRI_SELINUX)
+build: $(SY_CRI)
 
+$(SY_CRI): SECCOMP := "$(shell echo '#include <seccomp.h>\nint main() { }' | gcc -x c -o /dev/null -lseccomp - >/dev/null 2>&1; echo $$?)"
 $(SY_CRI):
 	@echo " GO" $@
-	$(V)export GOOS=linux && go build -tags "$(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
-
-$(SY_CRI_SELINUX):
-	@echo " GO" $@
-	$(V)export GOOS=linux && go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI_SELINUX) ./cmd/server
+	@if [ $(SECCOMP) -eq "0" ] ; then \
+		_=$(eval BUILD_TAGS = seccomp) ; \
+	else \
+		echo " WARNING: seccomp is not found, ignoring" ; \
+	fi
+	$(V)export GOOS=linux && go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
 .PHONY: clean
 clean:
