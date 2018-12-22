@@ -99,17 +99,17 @@ func (c *Container) addOCIBundle(image *image.Info) error {
 
 func (c *Container) prepareOverlay(imagePath string) error {
 	var (
-		suidDir   = filepath.Join(c.bundlePath(), "suid")
-		lowerPath = filepath.Join(c.bundlePath(), "lower")
-		upperPath = filepath.Join(suidDir, "upper")
-		workPath  = filepath.Join(suidDir, "work")
+		overlayDir = filepath.Join(c.bundlePath(), "overlay")
+		lowerPath  = filepath.Join(c.bundlePath(), "lower")
+		upperPath  = filepath.Join(overlayDir, "upper")
+		workPath   = filepath.Join(overlayDir, "work")
 	)
 
 	// prepare upper and work directories
-	log.Printf("creating %s", suidDir)
-	err := os.Mkdir(suidDir, 0755)
+	log.Printf("creating %s", overlayDir)
+	err := os.Mkdir(overlayDir, 0755)
 	if err != nil {
-		return fmt.Errorf("could not create suid directory for overlay: %v", err)
+		return fmt.Errorf("could not create overlay parent directory: %v", err)
 	}
 	log.Printf("creating %s", upperPath)
 	err = os.Mkdir(upperPath, 0755)
@@ -121,13 +121,13 @@ func (c *Container) prepareOverlay(imagePath string) error {
 	if err != nil {
 		return fmt.Errorf("could not create working directory for overlay: %v", err)
 	}
-	err = syscall.Mount(suidDir, suidDir, "", syscall.MS_BIND, "")
+	err = syscall.Mount(overlayDir, overlayDir, "", syscall.MS_BIND, "")
 	if err != nil {
-		return fmt.Errorf("could not bind mount suid directory: %v", err)
+		return fmt.Errorf("could not bind mount overlay parent directory: %v", err)
 	}
-	err = syscall.Mount(suidDir, suidDir, "", syscall.MS_REMOUNT|syscall.MS_BIND, "")
+	err = syscall.Mount(overlayDir, overlayDir, "", syscall.MS_REMOUNT|syscall.MS_BIND, "")
 	if err != nil {
-		return fmt.Errorf("could not remount suid directory: %v", err)
+		return fmt.Errorf("could not remount overlay parent directory: %v", err)
 	}
 
 	// prepare image
@@ -218,9 +218,9 @@ func (c *Container) cleanupFiles(silent bool) error {
 	if err != nil && !silent {
 		return fmt.Errorf("could not umount image: %v", err)
 	}
-	err = syscall.Unmount(filepath.Join(c.bundlePath(), "suid"), 0)
+	err = syscall.Unmount(filepath.Join(c.bundlePath(), "overlay"), 0)
 	if err != nil && !silent {
-		return fmt.Errorf("could not umount suid dir: %v", err)
+		return fmt.Errorf("could not umount overlay parent directory: %v", err)
 	}
 	err = os.RemoveAll(filepath.Join(contInfoPath, c.id))
 	if err != nil && !silent {
