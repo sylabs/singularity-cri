@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "apparmor-test-9172cd97-044f-11e9-9e3c-080027fbb508",
+    "attempt": 2
+  },
+  "image": {
+    "image": "busybox:1.28"
+  },
+  "command": [
+    "touch",
+    "foo"
+  ],
+  "linux": {
+    "security_context": {
+      "apparmor_profile": "localhost/non-existant-profile"
+    }
+  }
+}
+
