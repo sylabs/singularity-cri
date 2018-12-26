@@ -4,7 +4,7 @@
     "attempt": 1
   },
   "image": {
-    "image": "sashayakovtseva/test-info:interactive"
+    "image": "docker.io/sashayakovtseva/test-info:interactive"
   },
   "command": ["./test"],
   "log_path": "interactive/1.log",
