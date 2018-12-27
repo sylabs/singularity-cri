@@ -29,7 +29,7 @@ func TestMergeString(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := MergeString(tc.s1, tc.s2)
+			actual := MergeString(tc.s1, tc.s2...)
 			require.ElementsMatch(t, tc.expect, actual)
 		})
 	}

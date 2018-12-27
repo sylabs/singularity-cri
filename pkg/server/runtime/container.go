@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
@@ -32,8 +33,8 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		return nil, status.Error(codes.InvalidArgument, "tty requires stdin to be true")
 	}
 
-	info, err := s.imageIndex.Find(req.Config.GetImage().GetImage())
-	if err == index.ErrNotFound {
+	info, err := s.images.Find(req.Config.GetImage().GetImage())
+	if err == image.ErrNotFound {
 		return nil, status.Error(codes.NotFound, "image is not found")
 	}
 
@@ -48,10 +49,17 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	if err != nil {
 		return nil, err
 	}
+	err = s.images.Borrow(info.ID(), cont.ID())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not borrow image: %v", err)
+	}
 
 	if err := cont.Create(info); err != nil {
 		if err := s.containers.Remove(cont.ID()); err != nil {
 			log.Printf("could not remove container from index: %v", err)
+		}
+		if err := s.images.Return(info.ID(), cont.ID()); err != nil {
+			log.Printf("could not return borrowed image: %v", err)
 		}
 		return nil, status.Errorf(codes.Internal, "could not create container: %v", err)
 	}
@@ -111,6 +119,9 @@ func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *k8s.RemoveC
 	if err := s.containers.Remove(cont.ID()); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove container from index: %v", err)
 	}
+	if err := s.images.Return(cont.GetImage().GetImage(), cont.ID()); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not return borrowed image: %v", err)
+	}
 	return &k8s.RemoveContainerResponse{}, nil
 }
 
@@ -122,7 +133,7 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 		return nil, err
 	}
 
-	info, err := s.imageIndex.Find(cont.GetImage().GetImage())
+	info, err := s.images.Find(cont.GetImage().GetImage())
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not get container image: %v", err)
 	}
@@ -168,7 +179,7 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 			return
 		}
 		if cont.MatchesFilter(req.Filter) {
-			info, err := s.imageIndex.Find(cont.GetImage().GetImage())
+			info, err := s.images.Find(cont.GetImage().GetImage())
 			if err != nil {
 				log.Printf("skipping container %s due to %v", cont.ID(), err)
 				return

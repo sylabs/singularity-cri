@@ -25,7 +25,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/server/image"
 	"github.com/sylabs/cri/pkg/server/runtime"
 	"github.com/sylabs/singularity/pkg/util/user-agent"
@@ -77,13 +76,14 @@ func main() {
 	defer lis.Close()
 
 	syscall.Umask(0)
-	imageIndex := index.NewImageIndex()
-	syImage, err := image.NewSingularityRegistry(f.storeDir, imageIndex)
+	syImage, err := image.NewSingularityRegistry(f.storeDir)
 	if err != nil {
 		log.Printf("Could not create Singularity image service: %v", err)
 		return
 	}
-	syRuntime, err := runtime.NewSingularityRuntime(f.streamAddr, imageIndex)
+	secretary := syImage.Secretary()
+
+	syRuntime, err := runtime.NewSingularityRuntime(f.streamAddr, secretary)
 	if err != nil {
 		log.Printf("Could not create Singularity runtime service: %v", err)
 		return

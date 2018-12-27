@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/sylabs/cri/pkg/image"
-	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,8 +39,8 @@ const registryInfoFile = "registry.json"
 
 // SingularityRegistry implements k8s ImageService interface.
 type SingularityRegistry struct {
-	storage string // path to image storage without trailing slash
-	images  *index.ImageIndex
+	storage string // path to image storage
+	shelf   *shelf
 
 	m        sync.Mutex
 	infoFile *os.File
@@ -49,7 +48,7 @@ type SingularityRegistry struct {
 
 // NewSingularityRegistry initializes and returns SingularityRuntime.
 // Singularity must be installed on the host otherwise it will return an error.
-func NewSingularityRegistry(storePath string, index *index.ImageIndex) (*SingularityRegistry, error) {
+func NewSingularityRegistry(storePath string) (*SingularityRegistry, error) {
 	_, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
@@ -62,7 +61,7 @@ func NewSingularityRegistry(storePath string, index *index.ImageIndex) (*Singula
 
 	registry := SingularityRegistry{
 		storage: storePath,
-		images:  index,
+		shelf:   newShelf(),
 	}
 
 	if err := os.MkdirAll(storePath, 0755); err != nil {
@@ -79,6 +78,13 @@ func NewSingularityRegistry(storePath string, index *index.ImageIndex) (*Singula
 	return &registry, nil
 }
 
+// Secretary return SingularityRegistry specific object that satisfies
+// image.Secretary and should be used to prevent images from removal if
+// they are used by containers.
+func (s *SingularityRegistry) Secretary() image.Secretary {
+	return s.shelf
+}
+
 // PullImage pulls an image with authentication config.
 func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageRequest) (*k8s.PullImageResponse, error) {
 	ref, err := image.ParseRef(req.Image.Image)
@@ -93,7 +99,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 		info.Remove()
 		return nil, status.Errorf(codes.InvalidArgument, "could not verify image: %v", err)
 	}
-	if err = s.images.Add(info); err != nil {
+	if err = s.shelf.add(info); err != nil {
 		info.Remove()
 		return nil, status.Errorf(codes.Internal, "could not index image: %v", err)
 	}
@@ -108,18 +114,24 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 // RemoveImage removes the image.
 // This call is idempotent, and does not return an error if the image has already been removed.
 func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveImageRequest) (*k8s.RemoveImageResponse, error) {
-	info, err := s.images.Find(req.Image.Image)
-	if err == index.ErrNotFound {
+	info, err := s.shelf.Find(req.Image.Image)
+	if err == image.ErrNotFound {
 		return &k8s.RemoveImageResponse{}, nil
 	}
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not find image: %v", err)
 	}
-	if err := info.Remove(); err != nil {
+
+	err = s.shelf.remove(info.ID())
+	if err == errIsBorrowed {
+		return nil, status.Errorf(codes.InvalidArgument, "could not remove image: %v", err)
+	}
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove image: %v", err)
 	}
-	if err := s.images.Remove(info.ID()); err != nil {
-		return nil, status.Errorf(codes.Internal, "could not remove image from index: %v", err)
+
+	if err := info.Remove(); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not remove image: %v", err)
 	}
 	if err = s.dumpInfo(); err != nil {
 		log.Printf("could not dump registry info: %v", err)
@@ -130,12 +142,24 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 // ImageStatus returns the status of the image. If the image is not
 // present, returns a response with ImageStatusResponse.Image set to nil.
 func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
-	info, err := s.images.Find(req.Image.Image)
-	if err == index.ErrNotFound {
+	info, err := s.shelf.Find(req.Image.Image)
+	if err == image.ErrNotFound {
 		return &k8s.ImageStatusResponse{}, nil
 	}
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not find image: %v", err)
+	}
+
+	var verboseInfo map[string]string
+	if req.Verbose {
+		usedBy, err := s.shelf.status(info.ID())
+		if err != nil {
+			log.Printf("could not populate verbose info: %v", err)
+		} else {
+			verboseInfo = map[string]string{
+				"usedBy": fmt.Sprintf("%v", usedBy),
+			}
+		}
 	}
 	return &k8s.ImageStatusResponse{
 		Image: &k8s.Image{
@@ -144,13 +168,19 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 			RepoDigests: info.Ref().Digests(),
 			Size_:       info.Size(),
 		},
+		Info: verboseInfo,
 	}, nil
 }
 
 // ListImages lists existing images.
 func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImagesRequest) (*k8s.ListImagesResponse, error) {
+	images, err := s.shelf.list()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not list shelf: %v", err)
+	}
+
 	var imgs []*k8s.Image
-	appendToResult := func(info *image.Info) {
+	for _, info := range images {
 		if info.Matches(req.Filter) {
 			imgs = append(imgs, &k8s.Image{
 				Id:          info.ID(),
@@ -160,7 +190,6 @@ func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImage
 			})
 		}
 	}
-	s.images.Iterate(appendToResult)
 	return &k8s.ListImagesResponse{
 		Images: imgs,
 	}, nil
@@ -237,7 +266,7 @@ func (s *SingularityRegistry) loadInfo() error {
 		if err != nil {
 			return fmt.Errorf("could not decode image: %v", err)
 		}
-		err = s.images.Add(info)
+		err = s.shelf.add(info)
 		if err != nil {
 			return fmt.Errorf("could not add decoded image to index: %v", err)
 		}
@@ -248,10 +277,15 @@ func (s *SingularityRegistry) loadInfo() error {
 
 // dumpInfo dumps registry into backup file.
 func (s *SingularityRegistry) dumpInfo() error {
+	images, err := s.shelf.list()
+	if err != nil {
+		return err
+	}
+
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	_, err := s.infoFile.Seek(0, io.SeekStart)
+	_, err = s.infoFile.Seek(0, io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("could not seek registry info file: %v", err)
 	}
@@ -259,11 +293,11 @@ func (s *SingularityRegistry) dumpInfo() error {
 	if err != nil {
 		return fmt.Errorf("could not reset file: %v", err)
 	}
+
 	enc := json.NewEncoder(s.infoFile)
-	encodeToFile := func(info *image.Info) {
+	for _, info := range images {
 		err = enc.Encode(info)
 	}
-	s.images.Iterate(encodeToFile)
 	if err != nil {
 		return fmt.Errorf("could not encode image  %v", err)
 	}

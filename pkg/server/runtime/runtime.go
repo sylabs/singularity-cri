@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
@@ -34,7 +35,7 @@ import (
 type SingularityRuntime struct {
 	singularity string
 	starter     string
-	imageIndex  *index.ImageIndex
+	images      image.Secretary
 	pods        *index.PodIndex
 	containers  *index.ContainerIndex
 
@@ -44,7 +45,7 @@ type SingularityRuntime struct {
 // NewSingularityRuntime initializes and returns SingularityRuntime.
 // Singularity must be installed on the host otherwise it will return an error.
 // SingularityRuntime depends on SingularityRegistry so it must not be nil.
-func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*SingularityRuntime, error) {
+func NewSingularityRuntime(streamURL string, imgSecretary image.Secretary) (*SingularityRuntime, error) {
 	sing, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
@@ -57,7 +58,7 @@ func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*Singu
 	runtime := &SingularityRuntime{
 		singularity: sing,
 		starter:     start,
-		imageIndex:  imgIndex,
+		images:      imgSecretary,
 		pods:        index.NewPodIndex(),
 		containers:  index.NewContainerIndex(),
 	}
