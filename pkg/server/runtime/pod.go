@@ -72,7 +72,7 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodS
 // already been removed.
 func (s *SingularityRuntime) RemovePodSandbox(_ context.Context, req *k8s.RemovePodSandboxRequest) (*k8s.RemovePodSandboxResponse, error) {
 	pod, err := s.pods.Find(req.PodSandboxId)
-	if err == index.ErrPodNotFound {
+	if err == index.ErrNotFound {
 		return &k8s.RemovePodSandboxResponse{}, nil
 	}
 	if err != nil {
@@ -157,7 +157,7 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodS
 
 func (s *SingularityRuntime) findPod(id string) (*kube.Pod, error) {
 	pod, err := s.pods.Find(id)
-	if err == index.ErrPodNotFound {
+	if err == index.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "pod is not found")
 	}
 	if err != nil {
