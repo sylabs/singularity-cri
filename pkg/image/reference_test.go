@@ -116,6 +116,11 @@ func TestNormalizedImageRef(t *testing.T) {
 			expect: "gcr.io/cri-tools/test-image-tags:latest",
 		},
 		{
+			name:   "docker image with domain",
+			ref:    "docker.io/cri-tools/test-image-tags",
+			expect: "cri-tools/test-image-tags:latest",
+		},
+		{
 			name:   "docker image with digest",
 			ref:    "gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343",
 			expect: "gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343",

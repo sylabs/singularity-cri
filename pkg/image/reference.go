@@ -147,8 +147,10 @@ func (r *Reference) RemoveTag(tag string) {
 }
 
 // NormalizedImageRef appends tag 'latest' if the passed ref
-// does not have any tag or digest already.
+// does not have any tag or digest already. It also trims
+// default docker domain prefix if present.
 func NormalizedImageRef(imgRef string) string {
+	imgRef = strings.TrimPrefix(imgRef, singularity.DockerDomain+"/")
 	i := strings.LastIndexByte(imgRef, ':')
 	if i == -1 {
 		return imgRef + ":latest"
