@@ -14,10 +14,12 @@ type Secretary interface {
 	// Find searches for image by id or reference. When image is
 	// not found ErrNotFound is returned.
 	Find(id string) (*Info, error)
-	// Borrow notifies that image is used by someone and should not be
+	// Borrow notifies that image with given id is used by an
+	// object (typically a container) identified by who and should not be
 	// removed until Return with the same parameters is called.
 	Borrow(id, who string) error
-	// Return notifies that image is no longer used by object who and
+	// Return notifies that image with given id is no longer used
+	// by an object object (typically a container) identified by who and
 	// may be safely removed if no one else needs it anymore.
 	Return(id, who string) error
 }
