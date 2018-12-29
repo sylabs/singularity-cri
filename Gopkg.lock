@@ -201,6 +201,14 @@
   version = "1.0.1"
 
 [[projects]]
+  digest = "1:eecbbd6bfbfbe1acdad4b22c4fd530ab569df1634deef359e40d2ee4f85057f9"
+  name = "github.com/opencontainers/runc"
+  packages = ["libcontainer/user"]
+  pruneopts = "UT"
+  revision = "ccb5efd37fb7c86364786e9137e22948751de7ed"
+  version = "v1.0.0-rc6"
+
+[[projects]]
   branch = "master"
   digest = "1:9376df698f00197a5c32ddd2e0b9489ea63de4371a3eb26fad29270e55b84c15"
   name = "github.com/opencontainers/runtime-spec"
@@ -628,6 +636,7 @@
     "github.com/kr/pty",
     "github.com/kubernetes-sigs/cri-o/pkg/seccomp",
     "github.com/kubernetes-sigs/cri-o/utils",
+    "github.com/opencontainers/runc/libcontainer/user",
     "github.com/opencontainers/runtime-spec/specs-go",
     "github.com/opencontainers/runtime-tools/generate",
     "github.com/opencontainers/runtime-tools/generate/seccomp",

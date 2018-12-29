@@ -78,6 +78,9 @@ func (c *Container) addOCIBundle(image *image.Info) error {
 	if err != nil {
 		return fmt.Errorf("could not create rootfs directory for container: %v", err)
 	}
+	if err := c.prepareOverlay(image.Path()); err != nil {
+		return err
+	}
 	ociSpec, err := translateContainer(c, c.pod)
 	if err != nil {
 		return fmt.Errorf("could not generate oci spec for container: %v", err)
@@ -91,20 +94,22 @@ func (c *Container) addOCIBundle(image *image.Info) error {
 	if err != nil {
 		return fmt.Errorf("could not encode OCI config into json: %v", err)
 	}
-	return c.prepareOverlay(image.Path())
+	return nil
 }
 
 func (c *Container) prepareOverlay(imagePath string) error {
 	var (
-		lowerPath = filepath.Join(c.bundlePath(), "lower")
-		upperPath = filepath.Join(c.bundlePath(), "upper")
-		workPath  = filepath.Join(c.bundlePath(), "work")
+		overlayDir = filepath.Join(c.bundlePath(), "overlay")
+		lowerPath  = filepath.Join(c.bundlePath(), "lower")
+		upperPath  = filepath.Join(overlayDir, "upper")
+		workPath   = filepath.Join(overlayDir, "work")
 	)
 
-	log.Printf("creating %s", lowerPath)
-	err := os.Mkdir(lowerPath, 0755)
+	// prepare upper and work directories
+	log.Printf("creating %s", overlayDir)
+	err := os.Mkdir(overlayDir, 0755)
 	if err != nil {
-		return fmt.Errorf("could not create lower directory for overlay: %v", err)
+		return fmt.Errorf("could not create overlay parent directory: %v", err)
 	}
 	log.Printf("creating %s", upperPath)
 	err = os.Mkdir(upperPath, 0755)
@@ -116,21 +121,35 @@ func (c *Container) prepareOverlay(imagePath string) error {
 	if err != nil {
 		return fmt.Errorf("could not create working directory for overlay: %v", err)
 	}
-
-	log.Printf("creating %s", c.rootfsPath())
-	err = os.Mkdir(c.rootfsPath(), 0755)
+	err = syscall.Mount(overlayDir, overlayDir, "", syscall.MS_BIND, "")
 	if err != nil {
-		return fmt.Errorf("could not create root directory for overlay: %v", err)
+		return fmt.Errorf("could not bind mount overlay parent directory: %v", err)
+	}
+	err = syscall.Mount(overlayDir, overlayDir, "", syscall.MS_REMOUNT|syscall.MS_BIND, "")
+	if err != nil {
+		return fmt.Errorf("could not remount overlay parent directory: %v", err)
 	}
 
+	// prepare image
+	log.Printf("creating %s", lowerPath)
+	err = os.Mkdir(lowerPath, 0755)
+	if err != nil {
+		return fmt.Errorf("could not create lower directory for overlay: %v", err)
+	}
 	err = mountImage(imagePath, lowerPath)
 	if err != nil {
 		return fmt.Errorf("could not mount image: %v", err)
 	}
 
+	// merge all together
+	log.Printf("creating %s", c.rootfsPath())
+	err = os.Mkdir(c.rootfsPath(), 0755)
+	if err != nil {
+		return fmt.Errorf("could not create rootfs directory: %v", err)
+	}
 	overlayOpts := fmt.Sprintf("lowerdir=%s,workdir=%s,upperdir=%s", lowerPath, workPath, upperPath)
 	log.Printf("mounting overlay with options: %v", overlayOpts)
-	err = syscall.Mount("overlay", c.rootfsPath(), "overlay", syscall.MS_NOSUID|syscall.MS_REC, overlayOpts)
+	err = syscall.Mount("overlay", c.rootfsPath(), "overlay", 0, overlayOpts)
 	if err != nil {
 		return fmt.Errorf("could not mount overlay: %v", err)
 	}
@@ -183,7 +202,7 @@ func mountImage(imagePath, targetPath string) error {
 	}
 
 	err = syscall.Mount(fmt.Sprintf("/dev/loop%d", devNum), targetPath,
-		"squashfs", syscall.MS_NOSUID|syscall.MS_RDONLY, "errors=remount-ro")
+		"squashfs", syscall.MS_RDONLY, "errors=remount-ro")
 	if err != nil {
 		return fmt.Errorf("could not mount loop device: %v", err)
 	}
@@ -191,13 +210,17 @@ func mountImage(imagePath, targetPath string) error {
 }
 
 func (c *Container) cleanupFiles(silent bool) error {
-	err := syscall.Unmount(filepath.Join(c.bundlePath(), "lower"), 0)
+	err := syscall.Unmount(c.rootfsPath(), 0)
+	if err != nil && !silent {
+		return fmt.Errorf("could not umount rootfs: %v", err)
+	}
+	err = syscall.Unmount(filepath.Join(c.bundlePath(), "lower"), 0)
 	if err != nil && !silent {
 		return fmt.Errorf("could not umount image: %v", err)
 	}
-	err = syscall.Unmount(c.rootfsPath(), 0)
+	err = syscall.Unmount(filepath.Join(c.bundlePath(), "overlay"), 0)
 	if err != nil && !silent {
-		return fmt.Errorf("could not umount rootfs: %v", err)
+		return fmt.Errorf("could not umount overlay parent directory: %v", err)
 	}
 	err = os.RemoveAll(filepath.Join(contInfoPath, c.id))
 	if err != nil && !silent {

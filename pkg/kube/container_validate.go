@@ -40,7 +40,7 @@ func (c *Container) validateConfig() error {
 		}
 		security.SeccompProfilePath = scProfile
 	}
-	caps := c.GetLinux().GetSecurityContext().GetCapabilities()
+	caps := security.GetCapabilities()
 	if caps != nil {
 		caps.AddCapabilities = prepareCapabilities(caps.AddCapabilities)
 		caps.DropCapabilities = prepareCapabilities(caps.DropCapabilities)

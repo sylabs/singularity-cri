@@ -18,8 +18,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
+	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/runtime-tools/generate/seccomp"
@@ -50,6 +52,9 @@ func translateContainer(cont *Container, pod *Pod) (*specs.Spec, error) {
 
 func (t *containerTranslator) translate() (*specs.Spec, error) {
 	t.configureImage()
+	if err := t.configureUser(); err != nil {
+		return nil, fmt.Errorf("could not configure user: %v", err)
+	}
 	if err := t.configureDevices(); err != nil {
 		return nil, fmt.Errorf("could not configure devices: %v", err)
 	}
@@ -259,12 +264,6 @@ func (t *containerTranslator) configureProcess() error {
 
 	security := t.cont.GetLinux().GetSecurityContext()
 	t.g.SetProcessNoNewPrivileges(security.GetNoNewPrivs())
-	t.g.SetProcessUsername(security.GetRunAsUsername())
-	t.g.SetProcessUID(uint32(security.GetRunAsUser().GetValue()))
-	t.g.SetProcessGID(uint32(security.GetRunAsGroup().GetValue()))
-	for _, gid := range security.GetSupplementalGroups() {
-		t.g.AddProcessAdditionalGid(uint32(gid))
-	}
 
 	for _, capb := range security.GetCapabilities().GetDropCapabilities() {
 		if err := t.g.DropProcessCapabilityEffective(capb); err != nil {
@@ -321,4 +320,51 @@ func (t *containerTranslator) configureAnnotations() {
 	for k, v := range t.cont.GetAnnotations() {
 		t.g.AddAnnotation(k, v)
 	}
+}
+
+func (t *containerTranslator) configureUser() error {
+	security := t.cont.GetLinux().GetSecurityContext()
+	var userParts []string
+	if security.GetRunAsUsername() != "" {
+		userParts = append(userParts, security.GetRunAsUsername())
+	}
+	if security.GetRunAsUser() != nil {
+		userParts = append(userParts, fmt.Sprintf("%d", security.GetRunAsUser().GetValue()))
+	}
+	if security.GetRunAsGroup() != nil {
+		userParts = append(userParts, fmt.Sprintf("%d", security.GetRunAsGroup().GetValue()))
+	}
+
+	userSpec := strings.Join(userParts, ":")
+	containerUser, err := getContainerUser(t.cont.rootfsPath(), userSpec)
+	if err != nil {
+		return err
+	}
+
+	t.g.SetProcessUID(uint32(containerUser.Uid))
+	t.g.SetProcessGID(uint32(containerUser.Gid))
+	for _, gid := range containerUser.Sgids {
+		t.g.AddProcessAdditionalGid(uint32(gid))
+	}
+	for _, gid := range security.GetSupplementalGroups() {
+		t.g.AddProcessAdditionalGid(uint32(gid))
+	}
+	return nil
+}
+
+func getContainerUser(rootfs, userSpec string) (*user.ExecUser, error) {
+	passwdFile, err := os.Open(filepath.Join(rootfs, "/etc/passwd"))
+	if err == nil {
+		defer passwdFile.Close()
+	}
+	groupFile, err := os.Open(filepath.Join(rootfs, "/etc/group"))
+	if err == nil {
+		defer groupFile.Close()
+	}
+
+	execUser, err := user.GetExecUser(userSpec, nil, passwdFile, groupFile)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user: %v", err)
+	}
+	return execUser, nil
 }
