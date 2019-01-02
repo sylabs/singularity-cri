@@ -15,7 +15,6 @@
 package image
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -24,10 +23,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/sylabs/cri/pkg/fs"
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/singularity"
@@ -168,48 +167,21 @@ func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImage
 
 // ImageFsInfo returns information of the filesystem that is used to store images.
 func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoRequest) (*k8s.ImageFsInfoResponse, error) {
-	mount, err := mountPoint(s.storage)
+	fsInfo, err := fs.Usage(s.storage)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not get storage mount point: %v", err)
+		return nil, status.Errorf(codes.Internal, "could not get fs usage: %v", err)
 	}
-
-	storeDir, err := os.Open(s.storage)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not open image storage: %v", err)
-	}
-	defer storeDir.Close()
-
-	fi, err := storeDir.Stat()
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not get storage info: %v", err)
-	}
-
-	fii, err := storeDir.Readdir(-1)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not read image storage info: %v", err)
-	}
-
-	var inodes uint64
-	var bytes int64
-	// assume no sub directories there as we store images our particular way
-	for _, fi := range fii {
-		inodes++
-		bytes += fi.Size()
-	}
-	// add directory info as well
-	inodes++
-	bytes += fi.Size()
 
 	fsUsage := &k8s.FilesystemUsage{
 		Timestamp: time.Now().UnixNano(),
 		FsId: &k8s.FilesystemIdentifier{
-			Mountpoint: mount,
+			Mountpoint: fsInfo.MountPoint,
 		},
 		UsedBytes: &k8s.UInt64Value{
-			Value: uint64(bytes),
+			Value: uint64(fsInfo.Bytes),
 		},
 		InodesUsed: &k8s.UInt64Value{
-			Value: inodes,
+			Value: uint64(fsInfo.Inodes),
 		},
 	}
 
@@ -268,37 +240,4 @@ func (s *SingularityRegistry) dumpInfo() error {
 		return fmt.Errorf("could not encode image  %v", err)
 	}
 	return nil
-}
-
-// mountPoint parses mountinfo and returns the path of the parent
-// mount point where provided path is mounted in
-func mountPoint(path string) (string, error) {
-	const (
-		mountInfoPath = "/proc/self/mountinfo"
-		defaultRoot   = "/"
-	)
-
-	p, err := os.Open(mountInfoPath)
-	if err != nil {
-		return "", fmt.Errorf("could not open %s: %v", mountInfoPath, err)
-	}
-	defer p.Close()
-
-	var mountPoints []string
-	scanner := bufio.NewScanner(p)
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		mountPoints = append(mountPoints, fields[4])
-	}
-
-	for path != defaultRoot {
-		for _, point := range mountPoints {
-			if point == path {
-				return point, nil
-			}
-		}
-		path = filepath.Dir(path)
-	}
-
-	return defaultRoot, nil
 }

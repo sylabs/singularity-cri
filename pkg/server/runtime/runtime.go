@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/sylabs/cri/pkg/index"
+	"github.com/sylabs/cri/pkg/kube"
 	"github.com/sylabs/cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -192,13 +193,48 @@ func (s *SingularityRuntime) PortForward(ctx context.Context, req *k8s.PortForwa
 
 // ContainerStats returns stats of the container. If the container does not
 // exist, the call returns an error.
-func (s *SingularityRuntime) ContainerStats(context.Context, *k8s.ContainerStatsRequest) (*k8s.ContainerStatsResponse, error) {
-	return &k8s.ContainerStatsResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *SingularityRuntime) ContainerStats(ctx context.Context, req *k8s.ContainerStatsRequest) (*k8s.ContainerStatsResponse, error) {
+	c, err := s.findContainer(req.ContainerId)
+	if err != nil {
+		return nil, err
+	}
+	stat, err := c.Stat()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not container stat: %v", err)
+	}
+
+	return &k8s.ContainerStatsResponse{
+		Stats: containerStats(c, stat),
+	}, nil
 }
 
 // ListContainerStats returns stats of all running containers.
-func (s *SingularityRuntime) ListContainerStats(context.Context, *k8s.ListContainerStatsRequest) (*k8s.ListContainerStatsResponse, error) {
-	return &k8s.ListContainerStatsResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.ListContainerStatsRequest) (*k8s.ListContainerStatsResponse, error) {
+	var containers []*k8s.ContainerStats
+
+	var filter *k8s.ContainerFilter
+	if req.Filter != nil {
+		filter = &k8s.ContainerFilter{
+			Id:            req.Filter.GetId(),
+			PodSandboxId:  req.Filter.GetPodSandboxId(),
+			LabelSelector: req.Filter.GetLabelSelector(),
+		}
+	}
+
+	appendContToResult := func(cont *kube.Container) {
+		if cont.MatchesFilter(filter) {
+			stat, err := cont.Stat()
+			if err != nil {
+				log.Printf("skipping container %s due to %v", cont.ID(), err)
+				return
+			}
+			containers = append(containers, containerStats(cont, stat))
+		}
+	}
+	s.containers.Iterate(appendContToResult)
+	return &k8s.ListContainerStatsResponse{
+		Stats: containers,
+	}, nil
 }
 
 // UpdateRuntimeConfig updates the runtime configuration based on the given request.
@@ -224,4 +260,40 @@ func (s *SingularityRuntime) Status(ctx context.Context, req *k8s.StatusRequest)
 			Conditions: conditions,
 		},
 	}, nil
+}
+
+func containerStats(c *kube.Container, stat *kube.ContainerStat) *k8s.ContainerStats {
+	now := time.Now().UnixNano()
+	return &k8s.ContainerStats{
+		Attributes: &k8s.ContainerAttributes{
+			Id:          c.ID(),
+			Metadata:    c.GetMetadata(),
+			Labels:      c.GetLabels(),
+			Annotations: c.GetAnnotations(),
+		},
+		Cpu: &k8s.CpuUsage{
+			Timestamp: now,
+			UsageCoreNanoSeconds: &k8s.UInt64Value{
+				Value: stat.CPU,
+			},
+		},
+		Memory: &k8s.MemoryUsage{
+			Timestamp: now,
+			WorkingSetBytes: &k8s.UInt64Value{
+				Value: stat.Memory,
+			},
+		},
+		WritableLayer: &k8s.FilesystemUsage{
+			Timestamp: now,
+			FsId: &k8s.FilesystemIdentifier{
+				Mountpoint: stat.Fs.MountPoint,
+			},
+			UsedBytes: &k8s.UInt64Value{
+				Value: uint64(stat.Fs.Bytes),
+			},
+			InodesUsed: &k8s.UInt64Value{
+				Value: uint64(stat.Fs.Inodes),
+			},
+		},
+	}
 }

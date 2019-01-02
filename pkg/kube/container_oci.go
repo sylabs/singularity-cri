@@ -225,7 +225,7 @@ func (t *containerTranslator) configureResources() {
 	res := t.cont.GetLinux().GetResources()
 	t.g.SetLinuxResourcesCPUMems(res.GetCpusetMems())
 	t.g.SetLinuxResourcesCPUCpus(res.GetCpusetCpus())
-	t.g.SetLinuxCgroupsPath(t.pod.GetLinux().GetCgroupParent())
+	t.g.SetLinuxCgroupsPath(filepath.Join(t.pod.GetLinux().GetCgroupParent(), t.cont.ID()))
 
 	if res.GetCpuPeriod() != 0 {
 		t.g.SetLinuxResourcesCPUPeriod(uint64(res.GetCpuPeriod()))

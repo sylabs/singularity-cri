@@ -36,24 +36,28 @@ const (
 	contOCIConfigPath = "config.json"
 )
 
+func (c *Container) baseDir() string {
+	return filepath.Join(contInfoPath, c.id)
+}
+
 // ociConfigPath returns path to container's config.json file.
 func (c *Container) ociConfigPath() string {
-	return filepath.Join(contInfoPath, c.id, contBundlePath, contOCIConfigPath)
+	return filepath.Join(c.baseDir(), contBundlePath, contOCIConfigPath)
 }
 
 // rootfsPath returns path to container's rootfs directory.
 func (c *Container) rootfsPath() string {
-	return filepath.Join(contInfoPath, c.id, contBundlePath, contRootfsPath)
+	return filepath.Join(c.baseDir(), contBundlePath, contRootfsPath)
 }
 
 // socketPath returns path to container's sync socket.
 func (c *Container) socketPath() string {
-	return filepath.Join(contInfoPath, c.id, contSocketPath)
+	return filepath.Join(c.baseDir(), contSocketPath)
 }
 
 // bundlePath returns path to container's filesystem bundle directory.
 func (c *Container) bundlePath() string {
-	return filepath.Join(contInfoPath, c.id, contBundlePath)
+	return filepath.Join(c.baseDir(), contBundlePath)
 }
 
 func (c *Container) addLogDirectory() error {

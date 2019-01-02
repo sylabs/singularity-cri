@@ -203,7 +203,6 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 	return &k8s.ListContainersResponse{
 		Containers: containers,
 	}, nil
-
 }
 
 func (s *SingularityRuntime) findContainer(id string) (*kube.Container, error) {
