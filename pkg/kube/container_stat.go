@@ -18,8 +18,8 @@ type ContainerStat struct {
 }
 
 // Stat fetches information about container resources usage. This method
-// implies that cpuacc and memory cgroups controllers are mounted on host
-// at /sys/fs/cgroups/cpu and  /sys/fs/cgroups/memory respectively.
+// implies that cpuacct and memory cgroups controllers are mounted on host
+// at /sys/fs/cgroups/cpuacct and  /sys/fs/cgroups/memory respectively.
 func (c *Container) Stat() (*ContainerStat, error) {
 	fsInfo, err := fs.Usage(c.baseDir())
 	if err != nil {
