@@ -209,7 +209,7 @@ func (i *Info) Verify() error {
 	}
 	defer fimg.UnloadContainer()
 
-	err = signing.Verify(i.path, singularity.KeysServer, 0, false, "")
+	err = signing.Verify(i.path, singularity.KeysServer, 0, false, "", true)
 	if err != nil && !strings.Contains(err.Error(), "no signatures found") {
 		return fmt.Errorf("SIF verification failed: %v", err)
 	}
