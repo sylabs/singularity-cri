@@ -318,16 +318,16 @@
   version = "v1.2.2"
 
 [[projects]]
-  digest = "1:09e7bb03b8a2f75d03f3674f528330e1f937e76faf14f58042cb7376b153d849"
+  digest = "1:89016522d62b3fe281177a0aaccf6f136aac0b053e36e908d542974ea91db675"
   name = "github.com/sylabs/sif"
   packages = ["pkg/sif"]
   pruneopts = "UT"
-  revision = "177b9338f1ab9123be5b6217740be1f0ce924206"
-  version = "v1.0.1"
+  revision = "39d9b2aa8931c90c87fa13c28677f2296e9ad91f"
+  version = "v1.0.2"
 
 [[projects]]
   branch = "master-oci"
-  digest = "1:fa7075c1209cc51e7ad07751f858ba63e283d203f1aa182b8b41aa45c99f41ce"
+  digest = "1:6f731427d6cad99c4f894b381507a554402dbdc9d27b4d730351b69b4cdc0764"
   name = "github.com/sylabs/singularity"
   packages = [
     "internal/pkg/sylog",
@@ -341,7 +341,7 @@
     "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "49e3612b7d8928d339d45e41b32bf7dfe2239bcb"
+  revision = "a10d735a2de734a38475125122659d7c5a5bca9f"
   source = "github.com/cclerget/singularity"
 
 [[projects]]
