@@ -52,17 +52,21 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	}
 
 	cont := kube.NewContainer(req.Config, pod)
-	// add to trunc index first not to cleanup if it fails later
-	err = s.containers.Add(cont)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := cont.Create(info); err != nil {
+	cleanupOnFailure := func() {
 		if err := s.containers.Remove(cont.ID()); err != nil {
 			log.Printf("could not remove container from index: %v", err)
 		}
+	}
+
+	if err := cont.Create(info); err != nil {
+		cleanupOnFailure()
 		return nil, status.Errorf(codes.Internal, "could not create container: %v", err)
+	}
+
+	err = s.containers.Add(cont)
+	if err != nil {
+		cleanupOnFailure()
+		return nil, err
 	}
 	return &k8s.CreateContainerResponse{
 		ContainerId: cont.ID(),
