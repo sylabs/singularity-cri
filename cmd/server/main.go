@@ -18,13 +18,12 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/server/image"
 	"github.com/sylabs/cri/pkg/server/runtime"
@@ -50,12 +49,12 @@ func readFlags() flags {
 }
 
 func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	start := time.Now()
 	resp, err := handler(ctx, req)
-	jsonReq, _ := json.Marshal(req)
-	jsonResp, _ := json.Marshal(resp)
-	log.Printf("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v\n\tDuration:%s\n",
-		info.FullMethod, jsonReq, jsonResp, err, time.Since(start))
+	if err != nil {
+		jsonReq, _ := json.Marshal(req)
+		jsonResp, _ := json.Marshal(resp)
+		glog.Errorf("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
+	}
 	return resp, err
 }
 
@@ -72,7 +71,7 @@ func main() {
 
 	lis, err := net.Listen("unix", f.socket)
 	if err != nil {
-		log.Fatalf("Could not start CRI listener: %v ", err)
+		glog.Fatalf("Could not start CRI listener: %v ", err)
 	}
 	defer lis.Close()
 
@@ -80,12 +79,12 @@ func main() {
 	imageIndex := index.NewImageIndex()
 	syImage, err := image.NewSingularityRegistry(f.storeDir, imageIndex)
 	if err != nil {
-		log.Printf("Could not create Singularity image service: %v", err)
+		glog.Errorf("Could not create Singularity image service: %v", err)
 		return
 	}
 	syRuntime, err := runtime.NewSingularityRuntime(f.streamAddr, imageIndex)
 	if err != nil {
-		log.Printf("Could not create Singularity runtime service: %v", err)
+		glog.Errorf("Could not create Singularity runtime service: %v", err)
 		return
 	}
 
@@ -93,14 +92,14 @@ func main() {
 	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
 	k8s.RegisterImageServiceServer(grpcServer, syImage)
 
-	log.Printf("Singularity CRI server started on %v", lis.Addr())
+	glog.Infof("Singularity CRI server started on %v", lis.Addr())
 	go grpcServer.Serve(lis)
 
 	<-exitCh
 
-	log.Println("Singularity CRI service exiting...")
+	glog.Info("Singularity CRI service exiting...")
 	if err := syRuntime.Shutdown(); err != nil {
-		log.Printf("error during singularity runtime service shutdown: %v", err)
+		glog.Errorf("Error during singularity runtime service shutdown: %v", err)
 	}
 	grpcServer.Stop()
 }
