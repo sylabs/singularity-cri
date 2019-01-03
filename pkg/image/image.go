@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/sif/pkg/sif"
@@ -124,7 +124,7 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	defer func() {
 		if err != nil {
 			if err := os.Remove(pullPath); err != nil {
-				log.Printf("could not remove temparary image file: %v", err)
+				glog.Errorf("could not remove temporary image file: %v", err)
 			}
 		}
 	}()
