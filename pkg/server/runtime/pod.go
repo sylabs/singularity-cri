@@ -17,8 +17,8 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"log"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
@@ -32,7 +32,7 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 	pod := kube.NewPod(req.Config)
 	cleanupOnFailure := func() {
 		if err := s.pods.Remove(pod.ID()); err != nil {
-			log.Printf("could not remove pod from index: %v", err)
+			glog.Errorf("could not remove pod from index: %v", err)
 		}
 	}
 	if err := pod.Run(); err != nil {
@@ -138,7 +138,7 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodS
 
 	appendPodToResult := func(pod *kube.Pod) {
 		if err := pod.UpdateState(); err != nil {
-			log.Printf("could not update pod state: %v", err)
+			glog.Errorf("could not update pod state: %v", err)
 			return
 		}
 		if pod.MatchesFilter(req.Filter) {

@@ -17,11 +17,11 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os/exec"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/kube"
 	"github.com/sylabs/cri/pkg/singularity"
@@ -74,7 +74,7 @@ func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*Singu
 	go func() {
 		err := streamingServer.Start(true)
 		if err != nil && err != http.ErrServerClosed {
-			log.Printf("streaming server error: %v", err)
+			glog.Infof("streaming server error: %v", err)
 		}
 	}()
 
@@ -225,7 +225,7 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 		if cont.MatchesFilter(filter) {
 			stat, err := cont.Stat()
 			if err != nil {
-				log.Printf("skipping container %s due to %v", cont.ID(), err)
+				glog.Warningf("skipping container %s due to %v", cont.ID(), err)
 				return
 			}
 			containers = append(containers, containerStats(cont, stat))
@@ -239,7 +239,7 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 
 // UpdateRuntimeConfig updates the runtime configuration based on the given request.
 func (s *SingularityRuntime) UpdateRuntimeConfig(ctx context.Context, req *k8s.UpdateRuntimeConfigRequest) (*k8s.UpdateRuntimeConfigResponse, error) {
-	log.Printf("ignoring runtime config update %v", req)
+	glog.Warningf("ignoring runtime config update %v", req)
 	return &k8s.UpdateRuntimeConfigResponse{}, nil
 }
 
