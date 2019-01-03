@@ -2,8 +2,9 @@ package kube
 
 import (
 	"fmt"
-	"log"
 	"strings"
+
+	"github.com/golang/glog"
 )
 
 const (
@@ -30,7 +31,7 @@ func (c *Container) validateConfig() error {
 			aaProfile = "" // do not specify anything in that case
 		}
 		aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
-		log.Printf("setting AppArmor profile to %q", aaProfile)
+		glog.Infof("setting AppArmor profile to %q", aaProfile)
 		security.ApparmorProfile = aaProfile
 	}
 	if security != nil {
@@ -61,7 +62,7 @@ func prepareSeccompPath(scProfile string) (string, error) {
 		return "", fmt.Errorf("custom profiles without %q prefix are not allowed", seccompLocalhostPrefix)
 	}
 	scProfile = strings.TrimPrefix(scProfile, seccompLocalhostPrefix)
-	log.Printf("setting Seccomp profile to %q", scProfile)
+	glog.Infof("setting Seccomp profile to %q", scProfile)
 	return scProfile, nil
 }
 

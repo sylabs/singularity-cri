@@ -17,7 +17,6 @@ package kube
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/sylabs/cri/pkg/image"
@@ -67,7 +66,6 @@ func (c *Container) Pid() int {
 }
 
 func (c *Container) expectState(expect runtime.State) error {
-	log.Printf("waiting for state %d...", expect)
 	c.runtimeState = <-c.syncChan
 	if c.runtimeState != expect {
 		return fmt.Errorf("unexpected container state: %v", c.runtimeState)

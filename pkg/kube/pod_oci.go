@@ -17,8 +17,8 @@ package kube
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 
+	"github.com/golang/glog"
 	"github.com/kubernetes-sigs/cri-o/pkg/seccomp"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
@@ -113,9 +113,9 @@ func setupSELinux(g *generate.Generator, options *k8s.SELinuxOption) error {
 	if err != nil {
 		return fmt.Errorf("could not init selinux labels: %v", err)
 	}
-	log.Printf("setting mount label to %q", mountLabel)
-	log.Printf("setting process selinux label to %q", processLabel)
+	glog.V(4).Infof("setting mount label to %q", mountLabel)
 	g.SetLinuxMountLabel(mountLabel)
+	glog.V(4).Infof("setting process selinux label to %q", processLabel)
 	g.SetProcessSelinuxLabel(processLabel)
 	return nil
 }

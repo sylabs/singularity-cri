@@ -19,11 +19,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os/exec"
 	"sync"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
@@ -157,13 +157,13 @@ func (c *Container) Create(info *image.Info) error {
 	defer func() {
 		if err != nil {
 			if err := c.kill(); err != nil {
-				log.Printf("could not kill container failed run: %v", err)
+				glog.Errorf("could not kill container after failed run: %v", err)
 			}
 			if err := c.cli.Delete(c.id); err != nil {
-				log.Printf("could not delete container: %v", err)
+				glog.Errorf("could not delete container: %v", err)
 			}
 			if err := c.cleanupFiles(true); err != nil {
-				log.Printf("could not cleanup bundle: %v", err)
+				glog.Errorf("could not cleanup bundle: %v", err)
 			}
 		}
 	}()
@@ -246,10 +246,10 @@ func (c *Container) Remove() error {
 		return fmt.Errorf("could not update container state: %v", err)
 	}
 	if err := c.kill(); err != nil {
-		log.Printf("could not kill container failed run: %v", err)
+		return fmt.Errorf("could not kill container: %v", err)
 	}
 	if err := c.cli.Delete(c.id); err != nil {
-		log.Printf("could not delete container: %v", err)
+		return fmt.Errorf("could not delete container: %v", err)
 	}
 	if err := c.cleanupFiles(false); err != nil {
 		return fmt.Errorf("could not cleanup container: %v", err)

@@ -17,11 +17,11 @@ package kube
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"syscall"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/sif/pkg/sif"
 	"github.com/sylabs/singularity/pkg/util/loop"
@@ -110,17 +110,17 @@ func (c *Container) prepareOverlay(imagePath string) error {
 	)
 
 	// prepare upper and work directories
-	log.Printf("creating %s", overlayDir)
+	glog.V(8).Infof("creating %s", overlayDir)
 	err := os.Mkdir(overlayDir, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create overlay parent directory: %v", err)
 	}
-	log.Printf("creating %s", upperPath)
+	glog.V(8).Infof("creating %s", upperPath)
 	err = os.Mkdir(upperPath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create upper directory for overlay: %v", err)
 	}
-	log.Printf("creating %s", workPath)
+	glog.V(8).Infof("creating %s", workPath)
 	err = os.Mkdir(workPath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create working directory for overlay: %v", err)
@@ -135,7 +135,7 @@ func (c *Container) prepareOverlay(imagePath string) error {
 	}
 
 	// prepare image
-	log.Printf("creating %s", lowerPath)
+	glog.V(8).Infof("creating %s", lowerPath)
 	err = os.Mkdir(lowerPath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create lower directory for overlay: %v", err)
@@ -146,13 +146,13 @@ func (c *Container) prepareOverlay(imagePath string) error {
 	}
 
 	// merge all together
-	log.Printf("creating %s", c.rootfsPath())
+	glog.V(8).Infof("creating %s", c.rootfsPath())
 	err = os.Mkdir(c.rootfsPath(), 0755)
 	if err != nil {
 		return fmt.Errorf("could not create rootfs directory: %v", err)
 	}
 	overlayOpts := fmt.Sprintf("lowerdir=%s,workdir=%s,upperdir=%s", lowerPath, workPath, upperPath)
-	log.Printf("mounting overlay with options: %v", overlayOpts)
+	glog.V(8).Infof("mounting overlay with options: %v", overlayOpts)
 	err = syscall.Mount("overlay", c.rootfsPath(), "overlay", 0, overlayOpts)
 	if err != nil {
 		return fmt.Errorf("could not mount overlay: %v", err)
@@ -167,7 +167,7 @@ func mountImage(imagePath, targetPath string) error {
 	}
 	defer func() {
 		if err := imageFile.Close(); err != nil {
-			log.Printf("could not close image file: %v", err)
+			glog.Errorf("could not close image file: %v", err)
 		}
 	}()
 

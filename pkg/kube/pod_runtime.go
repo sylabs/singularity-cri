@@ -17,7 +17,6 @@ package kube
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
@@ -96,7 +95,6 @@ func (p *Pod) Pid() int {
 }
 
 func (p *Pod) expectState(expect runtime.State) error {
-	log.Printf("waiting for state %d...", expect)
 	p.runtimeState = <-p.syncChan
 	if p.runtimeState != expect {
 		return fmt.Errorf("unexpected pod state: %v", p.runtimeState)

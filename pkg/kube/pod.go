@@ -17,9 +17,9 @@ package kube
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
+	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
 	"github.com/sylabs/cri/pkg/rand"
@@ -92,13 +92,13 @@ func (p *Pod) Run() error {
 	defer func() {
 		if err != nil {
 			if err := p.terminate(true); err != nil {
-				log.Printf("could not kill pod after failed run: %v", err)
+				glog.Errorf("could not kill pod after failed run: %v", err)
 			}
 			if err := p.cli.Delete(p.id); err != nil {
-				log.Printf("could not remove pod: %v", err)
+				glog.Errorf("could not remove pod: %v", err)
 			}
 			if err := p.cleanupFiles(true); err != nil {
-				log.Printf("could not cleanup pod after failed run: %v", err)
+				glog.Errorf("could not cleanup pod after failed run: %v", err)
 			}
 		}
 	}()
@@ -136,7 +136,7 @@ func (p *Pod) Stop() error {
 	}
 
 	for _, c := range p.containers {
-		log.Printf("forcibly stopping container %s", c.ID())
+		glog.V(4).Infof("forcibly stopping container %s", c.ID())
 		err := c.Stop(0)
 		if err != nil {
 			return fmt.Errorf("could not stop container %s: %v", c.ID(), err)
@@ -165,7 +165,7 @@ func (p *Pod) Remove() error {
 	}
 
 	for _, c := range p.containers {
-		log.Printf("removing container %s", c.ID())
+		glog.V(4).Infof("removing container %s", c.ID())
 		err := c.Remove()
 		if err != nil {
 			return fmt.Errorf("could not remove container %s: %v", c.ID(), err)
