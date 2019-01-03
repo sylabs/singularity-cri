@@ -17,7 +17,7 @@ type UsageInfo struct {
 func Usage(path string) (*UsageInfo, error) {
 	mount, err := MountPoint(path)
 	if err != nil {
-		return nil, fmt.Errorf("could not get mount point for: %v", err)
+		return nil, fmt.Errorf("could not get mount point: %v", err)
 	}
 
 	bytes, inodes, err := fetchStat(path)
