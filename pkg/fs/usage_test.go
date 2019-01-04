@@ -28,7 +28,7 @@ func TestUsage(t *testing.T) {
 	t.Run("non-existent path", func(t *testing.T) {
 		info, err := Usage("/proc/fake")
 		require.Nil(t, info)
-		require.Equal(t, fmt.Errorf("could not get mount point: could not resolve path /proc/fake: lstat /proc/fake: no such file or directory"),
+		require.Equal(t, fmt.Errorf("could not get mount point: lstat /proc/fake: no such file or directory"),
 			err)
 	})
 
