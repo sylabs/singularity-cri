@@ -211,7 +211,7 @@ func mountImage(imagePath, targetPath string) error {
 		return fmt.Errorf("could not set loop device status: %v", err)
 	}
 
-	glog.V(8).Infof("Mounting loop device #%d to %d", devNum, targetPath)
+	glog.V(8).Infof("Mounting loop device #%d to %s", devNum, targetPath)
 	err = syscall.Mount(fmt.Sprintf("/dev/loop%d", devNum), targetPath,
 		"squashfs", syscall.MS_RDONLY, "errors=remount-ro")
 	if err != nil {
