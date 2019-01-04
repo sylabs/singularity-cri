@@ -113,9 +113,9 @@ func setupSELinux(g *generate.Generator, options *k8s.SELinuxOption) error {
 	if err != nil {
 		return fmt.Errorf("could not init selinux labels: %v", err)
 	}
-	glog.V(4).Infof("setting mount label to %q", mountLabel)
+	glog.V(4).Infof("Setting mount label to %q", mountLabel)
 	g.SetLinuxMountLabel(mountLabel)
-	glog.V(4).Infof("setting process selinux label to %q", processLabel)
+	glog.V(4).Infof("Setting process selinux label to %q", processLabel)
 	g.SetProcessSelinuxLabel(processLabel)
 	return nil
 }

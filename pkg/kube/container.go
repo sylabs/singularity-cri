@@ -157,13 +157,13 @@ func (c *Container) Create(info *image.Info) error {
 	defer func() {
 		if err != nil {
 			if err := c.kill(); err != nil {
-				glog.Errorf("could not kill container after failed run: %v", err)
+				glog.Errorf("Could not kill container after failed run: %v", err)
 			}
 			if err := c.cli.Delete(c.id); err != nil {
-				glog.Errorf("could not delete container: %v", err)
+				glog.Errorf("Could not delete container: %v", err)
 			}
 			if err := c.cleanupFiles(true); err != nil {
-				glog.Errorf("could not cleanup bundle: %v", err)
+				glog.Errorf("Could not cleanup bundle: %v", err)
 			}
 		}
 	}()

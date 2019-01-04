@@ -31,7 +31,7 @@ func (c *Container) validateConfig() error {
 			aaProfile = "" // do not specify anything in that case
 		}
 		aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
-		glog.Infof("setting AppArmor profile to %q", aaProfile)
+		glog.Infof("Setting AppArmor profile to %q", aaProfile)
 		security.ApparmorProfile = aaProfile
 	}
 	if security != nil {
@@ -62,7 +62,7 @@ func prepareSeccompPath(scProfile string) (string, error) {
 		return "", fmt.Errorf("custom profiles without %q prefix are not allowed", seccompLocalhostPrefix)
 	}
 	scProfile = strings.TrimPrefix(scProfile, seccompLocalhostPrefix)
-	glog.Infof("setting Seccomp profile to %q", scProfile)
+	glog.Infof("Setting Seccomp profile to %q", scProfile)
 	return scProfile, nil
 }
 
