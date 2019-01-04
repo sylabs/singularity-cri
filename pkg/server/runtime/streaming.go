@@ -66,20 +66,20 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 
 		done := make(chan struct{})
 		go func() {
-			glog.V(4).Infof("resize start for %s", containerID)
+			glog.V(4).Infof("Resize start for %s", containerID)
 			for {
 				select {
 				case <-done:
-					glog.V(8).Infof("resize end for %s", containerID)
+					glog.V(8).Infof("Resize end for %s", containerID)
 					return
 				case size := <-resize:
-					glog.V(8).Infof("got resize event for %s: %+v", containerID, size)
+					glog.V(8).Infof("Got resize event for %s: %+v", containerID, size)
 					s := &pty.Winsize{
 						Cols: uint16(size.Width),
 						Rows: uint16(size.Height),
 					}
 					if err := pty.Setsize(master, s); err != nil {
-						glog.Errorf("could not resize terminal: %v", err)
+						glog.Errorf("Could not resize terminal: %v", err)
 					}
 				}
 			}
@@ -135,21 +135,21 @@ func (s *streamingRuntime) Attach(containerID string,
 	go func() {
 		socket := c.ControlSocket()
 		if socket == "" {
-			glog.Errorf("container didn't provide control socket: %v", err)
+			glog.Errorf("Container didn't provide control socket: %v", err)
 			return
 		}
 
-		glog.V(4).Infof("resize start for %s", containerID)
+		glog.V(4).Infof("Resize start for %s", containerID)
 		for {
 			select {
 			case <-done:
-				glog.V(8).Infof("resize end for %s", containerID)
+				glog.V(8).Infof("Resize end for %s", containerID)
 				return
 			case size := <-resize:
-				glog.V(8).Infof("got resize event for %s: %+v", containerID, size)
+				glog.V(8).Infof("Got resize event for %s: %+v", containerID, size)
 				ctrlSock, err := unix.Dial(socket)
 				if err != nil {
-					glog.Errorf("could not connect to control socket: %v", err)
+					glog.Errorf("Could not connect to control socket: %v", err)
 					continue
 				}
 				ctrl := ociruntime.Control{
@@ -160,7 +160,7 @@ func (s *streamingRuntime) Attach(containerID string,
 				}
 				err = json.NewEncoder(ctrlSock).Encode(&ctrl)
 				if err != nil {
-					glog.Errorf("could not send resize event to control socket: %v", err)
+					glog.Errorf("Could not send resize event to control socket: %v", err)
 				}
 				ctrlSock.Close()
 			}
@@ -176,7 +176,7 @@ func (s *streamingRuntime) Attach(containerID string,
 			}
 
 			_, err := io.Copy(out, attachSock)
-			glog.Errorf("stdout/stderr got error %v", err)
+			glog.Errorf("Could not copy stdout/stderr: %v", err)
 			errors <- err
 		}()
 	}
@@ -184,7 +184,7 @@ func (s *streamingRuntime) Attach(containerID string,
 		go func() {
 			// copy until ctrl-d hits
 			_, err := utils.CopyDetachable(attachSock, stdin, []byte{4})
-			glog.Errorf("stdin got error %v", err)
+			glog.Errorf("Could not copy stdin: %v", err)
 			errors <- err
 		}()
 	}
@@ -224,7 +224,7 @@ func (s *streamingRuntime) PortForward(podSandboxID string, port int32, stream i
 
 	args := []string{"-t", fmt.Sprintf("%d", p.Pid()), "-n", socatPath, "-", fmt.Sprintf("TCP4:localhost:%d", port)}
 	commandString := fmt.Sprintf("%s %s", nsenterPath, strings.Join(args, " "))
-	glog.V(4).Infof("executing port forwarding command: %s", commandString)
+	glog.V(4).Infof("Executing port forwarding command: %s", commandString)
 
 	var stderr bytes.Buffer
 	cmd := exec.Command(nsenterPath, args...)

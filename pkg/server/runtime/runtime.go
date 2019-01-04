@@ -74,7 +74,7 @@ func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*Singu
 	go func() {
 		err := streamingServer.Start(true)
 		if err != nil && err != http.ErrServerClosed {
-			glog.Infof("streaming server error: %v", err)
+			glog.Infof("Streaming server error: %v", err)
 		}
 	}()
 
@@ -225,7 +225,7 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 		if cont.MatchesFilter(filter) {
 			stat, err := cont.Stat()
 			if err != nil {
-				glog.Warningf("skipping container %s due to %v", cont.ID(), err)
+				glog.Warningf("Skipping container %s due to %v", cont.ID(), err)
 				return
 			}
 			containers = append(containers, containerStats(cont, stat))
@@ -239,7 +239,7 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 
 // UpdateRuntimeConfig updates the runtime configuration based on the given request.
 func (s *SingularityRuntime) UpdateRuntimeConfig(ctx context.Context, req *k8s.UpdateRuntimeConfigRequest) (*k8s.UpdateRuntimeConfigResponse, error) {
-	glog.Warningf("ignoring runtime config update %v", req)
+	glog.Warningf("Ignoring runtime config update %v", req)
 	return &k8s.UpdateRuntimeConfigResponse{}, nil
 }
 
