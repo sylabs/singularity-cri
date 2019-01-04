@@ -188,6 +188,8 @@ func (c *CLIClient) Attach(id string) error {
 	return run(cmd)
 }
 
+// UpdateContainerResources asks runtime to update container resources
+// according to the passed parameter.
 func (c *CLIClient) UpdateContainerResources(id string, req *specs.LinuxResources) error {
 	buf := bytes.NewBuffer(nil)
 	err := json.NewEncoder(buf).Encode(req)
@@ -200,7 +202,7 @@ func (c *CLIClient) UpdateContainerResources(id string, req *specs.LinuxResource
 	updCmd.Stderr = os.Stderr
 	updCmd.Stdin = buf
 
-	log.Printf("executing %v", cmd)
+	glog.V(4).Infof("executing %v", cmd)
 	err = updCmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not execute: %v", err)
