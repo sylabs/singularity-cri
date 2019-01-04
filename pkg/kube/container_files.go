@@ -233,7 +233,7 @@ func (c *Container) cleanupFiles(silent bool) error {
 		return fmt.Errorf("could not umount image: %v", err)
 	}
 	overlayPath := filepath.Join(c.bundlePath(), "overlay")
-	glog.V(8).Infof("Unmounting suid directories from %s ", overlayPath)
+	glog.V(8).Infof("Unmounting overlay directory from %s ", overlayPath)
 	err = syscall.Unmount(overlayPath, 0)
 	if err != nil && !silent {
 		return fmt.Errorf("could not umount overlay parent directory: %v", err)

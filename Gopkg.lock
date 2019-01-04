@@ -327,7 +327,7 @@
 
 [[projects]]
   branch = "master-oci"
-  digest = "1:a72d70c2d17401111ec80055c2bbeff943c7f0aa3581a3e0994fd4943cce072b"
+  digest = "1:eb32ae7d3f03aad5dc05a493748b1a4aadf59822a3caf4810c433dd453a9b836"
   name = "github.com/sylabs/singularity"
   packages = [
     "internal/pkg/sylog",
@@ -337,6 +337,7 @@
     "pkg/signing",
     "pkg/sypgp",
     "pkg/util/capabilities",
+    "pkg/util/fs/proc",
     "pkg/util/loop",
     "pkg/util/unix",
     "pkg/util/user-agent",
@@ -674,6 +675,7 @@
     "github.com/sylabs/singularity/pkg/client/library",
     "github.com/sylabs/singularity/pkg/ociruntime",
     "github.com/sylabs/singularity/pkg/signing",
+    "github.com/sylabs/singularity/pkg/util/fs/proc",
     "github.com/sylabs/singularity/pkg/util/capabilities",
     "github.com/sylabs/singularity/pkg/util/loop",
     "github.com/sylabs/singularity/pkg/util/unix",
