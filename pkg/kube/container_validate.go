@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	"github.com/sylabs/singularity/pkg/util/capabilities"
 )
 
 const (
@@ -80,12 +81,10 @@ func prepareSeccompPath(scProfile string) (string, error) {
 	return scProfile, nil
 }
 
-func prepareCapabilities(capabilities []string) []string {
-	const capPrefix = "CAP_"
-	for i, capb := range capabilities {
-		if !strings.HasPrefix(capb, capPrefix) {
-			capabilities[i] = capPrefix + capb
-		}
+func prepareCapabilities(caps []string) []string {
+	normalized, unknown := capabilities.Normalize(caps)
+	if len(unknown) != 0 {
+		glog.Warningf("Skipping unknown capabilities: %v", unknown)
 	}
-	return capabilities
+	return normalized
 }
