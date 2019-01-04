@@ -32,6 +32,20 @@ type Reference struct {
 	digests []string
 }
 
+// String returns first tag or digest found with origin domain as a prefix.
+func (r *Reference) String() string {
+	var ref string
+	if len(r.tags) > 0 {
+		ref = r.tags[0]
+	} else {
+		ref = r.digests[0]
+	}
+	if r.uri == singularity.DockerDomain {
+		ref = singularity.DockerDomain + "/" + ref
+	}
+	return ref
+}
+
 // MarshalJSON marshals Reference into a valid JSON.
 func (r *Reference) MarshalJSON() ([]byte, error) {
 	jsonRef := struct {
@@ -62,17 +76,10 @@ func (r *Reference) UnmarshalJSON(data []byte) error {
 
 // ParseRef constructs image reference based on imgRef.
 func ParseRef(imgRef string) (*Reference, error) {
+	imgRef = NormalizedImageRef(imgRef)
 	uri := singularity.DockerDomain
-	image := imgRef
-	indx := strings.IndexByte(imgRef, '/')
-	if indx != -1 {
-		switch image[:indx] {
-		case singularity.LibraryDomain:
-			uri = singularity.LibraryDomain
-			image = image[indx+1:]
-		case singularity.DockerDomain:
-			image = image[indx+1:]
-		}
+	if strings.HasPrefix(imgRef, singularity.LibraryDomain) {
+		uri = singularity.LibraryDomain
 	}
 
 	ref := Reference{
@@ -81,16 +88,16 @@ func ParseRef(imgRef string) (*Reference, error) {
 
 	switch uri {
 	case singularity.LibraryDomain:
-		if strings.Contains(image, "sha256.") {
+		if strings.Contains(imgRef, "sha256.") {
 			ref.digests = append(ref.digests, imgRef)
 		} else {
-			ref.tags = append(ref.tags, NormalizedImageRef(imgRef))
+			ref.tags = append(ref.tags, imgRef)
 		}
 	case singularity.DockerDomain:
-		if strings.IndexByte(image, '@') != -1 {
-			ref.digests = append(ref.digests, image)
+		if strings.IndexByte(imgRef, '@') != -1 {
+			ref.digests = append(ref.digests, imgRef)
 		} else {
-			ref.tags = append(ref.tags, NormalizedImageRef(image))
+			ref.tags = append(ref.tags, imgRef)
 		}
 	default:
 		return nil, fmt.Errorf("unknown image registry: %s", uri)
