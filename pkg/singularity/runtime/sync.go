@@ -59,19 +59,19 @@ func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 		for {
 			select {
 			case <-ctx.Done():
-				glog.V(8).Infof("context is done")
+				glog.V(8).Infof("Context is done")
 				return
 			case conn := <-nextConn(ln):
 				if conn == nil {
-					glog.Errorf("could not accept sync socket connection")
+					glog.Errorf("Could not accept sync socket connection")
 					return
 				}
 				state, err := readState(conn)
 				if err != nil {
-					glog.Errorf("could not read state at %s: %v", socket, err)
+					glog.Errorf("Could not read state at %s: %v", socket, err)
 					return
 				}
-				glog.V(4).Infof("received state %d at %s", state, socket)
+				glog.V(4).Infof("Received state %d at %s", state, socket)
 				syncChan <- state
 				if state == StateExited {
 					return
@@ -109,7 +109,7 @@ func nextConn(ln net.Listener) <-chan net.Conn {
 		defer close(next)
 		conn, err := ln.Accept()
 		if err != nil {
-			glog.Errorf("accept failed: %v", err)
+			glog.Errorf("Accept failed: %v", err)
 			return
 		}
 		next <- conn
