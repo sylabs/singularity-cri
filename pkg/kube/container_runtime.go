@@ -17,9 +17,9 @@ package kube
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
 )
@@ -67,7 +67,6 @@ func (c *Container) Pid() int {
 }
 
 func (c *Container) expectState(expect runtime.State) error {
-	log.Printf("waiting for state %d...", expect)
 	c.runtimeState = <-c.syncChan
 	if c.runtimeState != expect {
 		return fmt.Errorf("unexpected container state: %v", c.runtimeState)
@@ -101,6 +100,7 @@ func (c *Container) terminate(timeout int64) error {
 			return fmt.Errorf("unexpected container state: %v", c.runtimeState)
 		}
 	case <-time.After(time.Second * time.Duration(timeout)):
+		glog.V(4).Infof("Termination timeout for container %s exceeded", c.ID())
 		return c.kill()
 	}
 
@@ -120,6 +120,7 @@ func (c *Container) kill() error {
 		return nil
 	}
 
+	glog.V(4).Infof("Forcibly stopping container %s", c.ID())
 	err := c.cli.Kill(c.id, true)
 	if err != nil {
 		return fmt.Errorf("could not kill container: %v", err)

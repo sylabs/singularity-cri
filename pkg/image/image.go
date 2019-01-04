@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/sif/pkg/sif"
@@ -124,19 +124,12 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	defer func() {
 		if err != nil {
 			if err := os.Remove(pullPath); err != nil {
-				log.Printf("could not remove temparary image file: %v", err)
+				glog.Errorf("Could not remove temporary image file: %v", err)
 			}
 		}
 	}()
 
-	var pullURL string
-	if len(ref.tags) > 0 {
-		pullURL = ref.tags[0]
-	} else {
-		pullURL = ref.digests[0]
-	}
-
-	pullURL = strings.TrimPrefix(pullURL, ref.uri+"/")
+	pullURL := strings.TrimPrefix(ref.String(), ref.uri+"/")
 	switch ref.uri {
 	case singularity.LibraryDomain:
 		err = library.DownloadImage(pullPath, pullURL, singularity.LibraryURL, true, "")
@@ -210,7 +203,12 @@ func (i *Info) Verify() error {
 	defer fimg.UnloadContainer()
 
 	err = signing.Verify(i.path, singularity.KeysServer, 0, false, "", true)
-	if err != nil && !strings.Contains(err.Error(), "no signatures found") {
+
+	noSignatures := strings.Contains(err.Error(), "no signatures found")
+	if noSignatures {
+		glog.V(4).Infof("Image %s is not signed", i.ref)
+	}
+	if err != nil && !noSignatures {
 		return fmt.Errorf("SIF verification failed: %v", err)
 	}
 	return nil

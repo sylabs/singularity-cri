@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"syscall"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 )
@@ -114,7 +114,7 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*E
 	runCmd.Stdout = &stdout
 	runCmd.Stderr = &stderr
 
-	log.Printf("executing %v", cmd)
+	glog.V(4).Infof("Executing %v", cmd)
 	err := runCmd.Run()
 	var exitCode int32
 	exitErr, ok := err.(*exec.ExitError)
@@ -160,7 +160,7 @@ func (c *CLIClient) PrepareExec(ctx context.Context, id string, args ...string) 
 	cmd = append(cmd, id, execScript)
 	cmd = append(cmd, args...)
 
-	log.Printf("will execute %v", cmd)
+	glog.V(4).Infof("Prepared %v", cmd)
 	return exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 }
 
@@ -191,7 +191,7 @@ func run(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
 	runCmd.Stderr = os.Stderr
 
-	log.Printf("executing %v", cmd)
+	glog.V(4).Infof("Executing %v", cmd)
 	err := runCmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not execute: %v", err)

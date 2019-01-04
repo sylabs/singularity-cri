@@ -17,8 +17,8 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"log"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/kube"
 	"google.golang.org/grpc/codes"
@@ -54,7 +54,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	cont := kube.NewContainer(req.Config, pod)
 	cleanupOnFailure := func() {
 		if err := s.containers.Remove(cont.ID()); err != nil {
-			log.Printf("could not remove container from index: %v", err)
+			glog.Errorf("Could not remove container from index: %v", err)
 		}
 	}
 
@@ -177,13 +177,13 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 
 	appendContToResult := func(cont *kube.Container) {
 		if err := cont.UpdateState(); err != nil {
-			log.Printf("could not fetch container %s: %v", cont.ID(), err)
+			glog.Errorf("Could not fetch container %s: %v", cont.ID(), err)
 			return
 		}
 		if cont.MatchesFilter(req.Filter) {
 			info, err := s.imageIndex.Find(cont.GetImage().GetImage())
 			if err != nil {
-				log.Printf("skipping container %s due to %v", cont.ID(), err)
+				glog.Warningf("Skipping container %s due to %v", cont.ID(), err)
 				return
 			}
 			containers = append(containers, &k8s.Container{

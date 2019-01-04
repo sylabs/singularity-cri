@@ -659,6 +659,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/containerd/cgroups",
+    "github.com/golang/glog",
     "github.com/kr/pty",
     "github.com/kubernetes-sigs/cri-o/pkg/seccomp",
     "github.com/kubernetes-sigs/cri-o/utils",
