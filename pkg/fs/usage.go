@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/sylabs/singularity/pkg/util/fs/proc"
 )
 
 // UsageInfo holds metrics on fs usage.
@@ -29,7 +31,7 @@ type UsageInfo struct {
 
 // Usage collects fs usage for specific location, often a directory.
 func Usage(path string) (*UsageInfo, error) {
-	mount, err := MountPoint(path)
+	mount, err := proc.ParentMount(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not get mount point: %v", err)
 	}
