@@ -26,7 +26,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
+	"github.com/sylabs/cri/pkg/fs"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/sif/pkg/sif"
@@ -191,7 +193,33 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 
 // Remove removes image from the host filesystem.
 func (i *Info) Remove() error {
-	err := os.Remove(i.path)
+	const devDir = "/dev"
+
+	stat, err := os.Stat(i.path)
+	if err != nil {
+		return fmt.Errorf("could not stat image: %v", err)
+	}
+	sys := stat.Sys().(*syscall.Stat_t)
+
+	loopDevs, err := filepath.Glob(filepath.Join(devDir, "loop*"))
+	if err != nil {
+		return fmt.Errorf("could not search loop devices: %v", err)
+	}
+
+	fd, err := fs.Lock(devDir)
+	if err != nil {
+		return fmt.Errorf("could not lock %s: %v", devDir, err)
+	}
+
+	for _, loopDev := range loopDevs {
+		// todo get device
+	}
+
+	if err := fs.Release(fd); err != nil {
+		// todo add logging
+	}
+
+	err = os.Remove(i.path)
 	if err != nil {
 		return fmt.Errorf("could not remove image: %v", err)
 	}
