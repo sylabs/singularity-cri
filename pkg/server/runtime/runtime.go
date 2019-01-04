@@ -91,7 +91,7 @@ func (s *SingularityRuntime) Shutdown() error {
 	return nil
 }
 
-// Version returns the runtime name, runtime version and runtime API version
+// Version returns the runtime name, runtime version and runtime API version.
 func (s *SingularityRuntime) Version(context.Context, *k8s.VersionRequest) (*k8s.VersionResponse, error) {
 	const kubeAPIVersion = "0.1.0"
 
@@ -109,8 +109,16 @@ func (s *SingularityRuntime) Version(context.Context, *k8s.VersionRequest) (*k8s
 }
 
 // UpdateContainerResources updates ContainerConfig of the container.
-func (s *SingularityRuntime) UpdateContainerResources(context.Context, *k8s.UpdateContainerResourcesRequest) (*k8s.UpdateContainerResourcesResponse, error) {
-	return &k8s.UpdateContainerResourcesResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *SingularityRuntime) UpdateContainerResources(ctx context.Context, req *k8s.UpdateContainerResourcesRequest) (*k8s.UpdateContainerResourcesResponse, error) {
+	cont, err := s.findContainer(req.ContainerId)
+	if err != nil {
+		return nil, err
+	}
+	err = cont.UpdateResources(req.GetLinux())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not update container resources: %v", err)
+	}
+	return &k8s.UpdateContainerResourcesResponse{}, nil
 }
 
 // ReopenContainerLog asks runtime to reopen the stdout/stderr log file

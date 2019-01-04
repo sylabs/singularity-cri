@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"syscall"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 )
@@ -185,6 +186,26 @@ func (c *CLIClient) Delete(id string) error {
 func (c *CLIClient) Attach(id string) error {
 	cmd := append(c.baseCmd, "attach", id)
 	return run(cmd)
+}
+
+func (c *CLIClient) UpdateContainerResources(id string, req *specs.LinuxResources) error {
+	buf := bytes.NewBuffer(nil)
+	err := json.NewEncoder(buf).Encode(req)
+	if err != nil {
+		return fmt.Errorf("could not encode update request: %v", err)
+	}
+
+	cmd := append(c.baseCmd, "update", "--from-file", "-", id)
+	updCmd := exec.Command(cmd[0], cmd[1:]...)
+	updCmd.Stderr = os.Stderr
+	updCmd.Stdin = buf
+
+	log.Printf("executing %v", cmd)
+	err = updCmd.Run()
+	if err != nil {
+		return fmt.Errorf("could not execute: %v", err)
+	}
+	return nil
 }
 
 func run(cmd []string) error {
