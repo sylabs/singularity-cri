@@ -27,8 +27,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/sylabs/singularity/pkg/util/loop"
-
 	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
@@ -36,6 +34,7 @@ import (
 	library "github.com/sylabs/singularity/pkg/client/library"
 	"github.com/sylabs/singularity/pkg/signing"
 	"github.com/sylabs/singularity/pkg/util/fs/lock"
+	"github.com/sylabs/singularity/pkg/util/loop"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
