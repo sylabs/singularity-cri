@@ -44,6 +44,10 @@ const (
 	IDLen = 64
 )
 
+// ErrImageIsUsed is returned when trying to remove an image that
+// is used by at least one container.
+var ErrImageIsUsed = fmt.Errorf("image is being used")
+
 // Info represents image stored on the host filesystem.
 type Info struct {
 	id     string
@@ -197,7 +201,7 @@ func (i *Info) Remove() error {
 	}
 	imgSys := stat.Sys().(*syscall.Stat_t)
 
-	loopDevs, err := filepath.Glob(filepath.Join(devDir, "loop*"))
+	loopDevs, err := filepath.Glob(filepath.Join(devDir, "loop[0-9]*"))
 	if err != nil {
 		return fmt.Errorf("could not search loop devices: %v", err)
 	}
@@ -225,7 +229,7 @@ func (i *Info) Remove() error {
 	}
 
 	if isUsed {
-		return fmt.Errorf("image is being used")
+		return ErrImageIsUsed
 	}
 
 	err = os.Remove(i.path)

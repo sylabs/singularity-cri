@@ -114,7 +114,11 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not find image: %v", err)
 	}
-	if err := info.Remove(); err != nil {
+	err = info.Remove()
+	if err == image.ErrImageIsUsed {
+		return nil, status.Errorf(codes.FailedPrecondition, "could not remove image: %v", err)
+	}
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove image: %v", err)
 	}
 	if err := s.images.Remove(info.ID()); err != nil {
