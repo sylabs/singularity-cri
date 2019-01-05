@@ -27,13 +27,15 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/sylabs/singularity/pkg/util/loop"
+
 	"github.com/golang/glog"
-	"github.com/sylabs/cri/pkg/fs"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/sif/pkg/sif"
 	library "github.com/sylabs/singularity/pkg/client/library"
 	"github.com/sylabs/singularity/pkg/signing"
+	"github.com/sylabs/singularity/pkg/util/fs/lock"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -188,28 +190,42 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 func (i *Info) Remove() error {
 	const devDir = "/dev"
 
+	var isUsed bool
 	stat, err := os.Stat(i.path)
 	if err != nil {
 		return fmt.Errorf("could not stat image: %v", err)
 	}
-	sys := stat.Sys().(*syscall.Stat_t)
+	imgSys := stat.Sys().(*syscall.Stat_t)
 
 	loopDevs, err := filepath.Glob(filepath.Join(devDir, "loop*"))
 	if err != nil {
 		return fmt.Errorf("could not search loop devices: %v", err)
 	}
 
-	fd, err := fs.Lock(devDir)
+	fd, err := lock.Exclusive(devDir)
 	if err != nil {
 		return fmt.Errorf("could not lock %s: %v", devDir, err)
 	}
 
 	for _, loopDev := range loopDevs {
-		// todo get device
+		devSys, err := loop.GetStatusFromPath(loopDev)
+		if err != nil {
+			glog.Warningf("Skipping device %s due to error: %v", loopDev, err)
+			continue
+		}
+		if devSys.Inode == imgSys.Ino &&
+			devSys.Device == imgSys.Dev {
+			isUsed = true
+			break
+		}
 	}
 
-	if err := fs.Release(fd); err != nil {
-		// todo add logging
+	if err := lock.Release(fd); err != nil {
+		glog.Errorf("Could not release %s: %v", devDir, err)
+	}
+
+	if isUsed {
+		return fmt.Errorf("image is being used")
 	}
 
 	err = os.Remove(i.path)

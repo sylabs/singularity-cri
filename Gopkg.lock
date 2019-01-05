@@ -677,6 +677,7 @@
     "github.com/sylabs/singularity/pkg/ociruntime",
     "github.com/sylabs/singularity/pkg/signing",
     "github.com/sylabs/singularity/pkg/util/capabilities",
+    "github.com/sylabs/singularity/pkg/util/fs/lock",
     "github.com/sylabs/singularity/pkg/util/fs/proc",
     "github.com/sylabs/singularity/pkg/util/loop",
     "github.com/sylabs/singularity/pkg/util/unix",
