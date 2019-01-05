@@ -188,27 +188,23 @@ func mountImage(imagePath, targetPath string) error {
 	if err != nil {
 		return fmt.Errorf("could not get fs type: %v", err)
 	}
-
 	if fstype != sif.FsSquash {
 		return fmt.Errorf("unsuported image fs type: %v", fstype)
 	}
-	info := &loop.Info64{
-		Offset:    uint64(part.Fileoff),
-		SizeLimit: uint64(part.Filelen),
-		Flags:     uint32(loop.FlagsAutoClear),
-	}
 
+	loopDev := loop.Device{
+		MaxLoopDevices: 256,
+		Info: &loop.Info64{
+			Offset:    uint64(part.Fileoff),
+			SizeLimit: uint64(part.Filelen),
+			Flags:     uint32(loop.FlagsAutoClear),
+		},
+	}
 	var devNum int
-	var loopdev loop.Device
-	loopdev.MaxLoopDevices = 256
 	glog.V(8).Infof("Attaching %s to loop device #%d", imagePath, devNum)
-	err = loopdev.AttachFromFile(imageFile, os.O_RDWR, &devNum)
+	err = loopDev.AttachFromFile(imageFile, os.O_RDWR, &devNum)
 	if err != nil {
 		return fmt.Errorf("could not attach image to loop device: %v", err)
-	}
-	err = loopdev.SetStatus(info)
-	if err != nil {
-		return fmt.Errorf("could not set loop device status: %v", err)
 	}
 
 	glog.V(8).Infof("Mounting loop device #%d to %s", devNum, targetPath)
