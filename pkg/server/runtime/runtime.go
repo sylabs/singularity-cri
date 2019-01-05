@@ -17,11 +17,11 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os/exec"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/kube"
 	"github.com/sylabs/cri/pkg/singularity"
@@ -74,7 +74,7 @@ func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*Singu
 	go func() {
 		err := streamingServer.Start(true)
 		if err != nil && err != http.ErrServerClosed {
-			log.Printf("streaming server error: %v", err)
+			glog.Infof("Streaming server error: %v", err)
 		}
 	}()
 
@@ -91,7 +91,7 @@ func (s *SingularityRuntime) Shutdown() error {
 	return nil
 }
 
-// Version returns the runtime name, runtime version and runtime API version
+// Version returns the runtime name, runtime version and runtime API version.
 func (s *SingularityRuntime) Version(context.Context, *k8s.VersionRequest) (*k8s.VersionResponse, error) {
 	const kubeAPIVersion = "0.1.0"
 
@@ -109,8 +109,16 @@ func (s *SingularityRuntime) Version(context.Context, *k8s.VersionRequest) (*k8s
 }
 
 // UpdateContainerResources updates ContainerConfig of the container.
-func (s *SingularityRuntime) UpdateContainerResources(context.Context, *k8s.UpdateContainerResourcesRequest) (*k8s.UpdateContainerResourcesResponse, error) {
-	return &k8s.UpdateContainerResourcesResponse{}, status.Errorf(codes.Unimplemented, "not implemented")
+func (s *SingularityRuntime) UpdateContainerResources(ctx context.Context, req *k8s.UpdateContainerResourcesRequest) (*k8s.UpdateContainerResourcesResponse, error) {
+	cont, err := s.findContainer(req.ContainerId)
+	if err != nil {
+		return nil, err
+	}
+	err = cont.UpdateResources(req.GetLinux())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not update container resources: %v", err)
+	}
+	return &k8s.UpdateContainerResourcesResponse{}, nil
 }
 
 // ReopenContainerLog asks runtime to reopen the stdout/stderr log file
@@ -225,7 +233,7 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 		if cont.MatchesFilter(filter) {
 			stat, err := cont.Stat()
 			if err != nil {
-				log.Printf("skipping container %s due to %v", cont.ID(), err)
+				glog.Warningf("Skipping container %s due to %v", cont.ID(), err)
 				return
 			}
 			containers = append(containers, containerStats(cont, stat))
@@ -239,7 +247,7 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 
 // UpdateRuntimeConfig updates the runtime configuration based on the given request.
 func (s *SingularityRuntime) UpdateRuntimeConfig(ctx context.Context, req *k8s.UpdateRuntimeConfigRequest) (*k8s.UpdateRuntimeConfigResponse, error) {
-	log.Printf("ignoring runtime config update %v", req)
+	glog.Warningf("Ignoring runtime config update %v", req)
 	return &k8s.UpdateRuntimeConfigResponse{}, nil
 }
 

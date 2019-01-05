@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
 )
@@ -49,43 +50,49 @@ func (p *Pod) namespacePath(nsType specs.LinuxNamespaceType) string {
 	return ""
 }
 
+func (p *Pod) baseDir() string {
+	return filepath.Join(podInfoPath, p.id)
+}
+
 // hostnameFilePath returns path to pod's hostname file.
 func (p *Pod) hostnameFilePath() string {
-	return filepath.Join(podInfoPath, p.id, podHostnamePath)
+	return filepath.Join(p.baseDir(), podHostnamePath)
 }
 
 // resolvConfFilePath returns path to pod's resolv.conf file.
 func (p *Pod) resolvConfFilePath() string {
-	return filepath.Join(podInfoPath, p.id, podResolvConfPath)
+	return filepath.Join(p.baseDir(), podResolvConfPath)
 }
 
 // bundlePath returns path to pod's filesystem bundle directory.
 func (p *Pod) bundlePath() string {
-	return filepath.Join(podInfoPath, p.id, podBundlePath)
+	return filepath.Join(p.baseDir(), podBundlePath)
 }
 
 // rootfsPath returns path to pod's rootfs directory.
 func (p *Pod) rootfsPath() string {
-	return filepath.Join(podInfoPath, p.id, podBundlePath, podRootfsPath)
+	return filepath.Join(p.baseDir(), podBundlePath, podRootfsPath)
 }
 
 // ociConfigPath returns path to pod's config.json file.
 func (p *Pod) ociConfigPath() string {
-	return filepath.Join(podInfoPath, p.id, podBundlePath, podOCIConfigPath)
+	return filepath.Join(p.baseDir(), podBundlePath, podOCIConfigPath)
 }
 
 // socketPath returns path to pod's sync socket.
 func (p *Pod) socketPath() string {
-	return filepath.Join(podInfoPath, p.id, podSocketPath)
+	return filepath.Join(p.baseDir(), podSocketPath)
 }
 
 // bindNamespacePath returns path to pod's namespace file of the passed type.
 func (p *Pod) bindNamespacePath(nsType specs.LinuxNamespaceType) string {
-	return filepath.Join(podInfoPath, p.id, podNsStorePath, string(nsType))
+	return filepath.Join(p.baseDir(), podNsStorePath, string(nsType))
 }
 
 func (p *Pod) prepareFiles() error {
-	err := os.MkdirAll(filepath.Join(podInfoPath, p.id, podNsStorePath), 0755)
+	nsStorePath := filepath.Join(p.baseDir(), podNsStorePath)
+	glog.V(8).Infof("Creating %s", nsStorePath)
+	err := os.MkdirAll(nsStorePath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create directory for pod: %v", err)
 	}
@@ -107,6 +114,7 @@ func (p *Pod) addResolvConf() error {
 		return nil
 	}
 
+	glog.V(8).Infof("Creating resolv.conf file %s", p.resolvConfFilePath())
 	resolv, err := os.OpenFile(p.resolvConfFilePath(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", podResolvConfPath, err)
@@ -127,6 +135,7 @@ func (p *Pod) addResolvConf() error {
 }
 
 func (p *Pod) addHostname() error {
+	glog.V(8).Infof("Creating hostname file %s", p.hostnameFilePath())
 	host, err := os.OpenFile(p.hostnameFilePath(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", podHostnamePath, err)
@@ -143,7 +152,7 @@ func (p *Pod) addLogDirectory() error {
 	if logDir == "" {
 		return nil
 	}
-
+	glog.V(8).Infof("Creating log directory %s", logDir)
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", logDir, err)
@@ -152,6 +161,7 @@ func (p *Pod) addLogDirectory() error {
 }
 
 func (p *Pod) addOCIBundle() error {
+	glog.V(8).Infof("Creating %s", p.rootfsPath())
 	err := os.MkdirAll(p.rootfsPath(), 0755)
 	if err != nil {
 		return fmt.Errorf("could not create rootfs directory for pod: %v", err)
@@ -160,6 +170,7 @@ func (p *Pod) addOCIBundle() error {
 	if err != nil {
 		return fmt.Errorf("could not generate OCI spec for pod: %v", err)
 	}
+	glog.V(8).Infof("Creating oci config %s", p.ociConfigPath())
 	config, err := os.OpenFile(p.ociConfigPath(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create OCI config file: %v", err)
@@ -176,15 +187,18 @@ func (p *Pod) addOCIBundle() error {
 // If silent is true then any errors occurred during cleanupFiles are ignored.
 func (p *Pod) cleanupFiles(silent bool) error {
 	for _, ns := range p.namespaces {
+		glog.V(8).Infof("Removing binded namespace %s", ns.Path)
 		err := namespace.Remove(ns)
 		if err != nil && !silent {
 			return fmt.Errorf("could not remove namespace: %v", err)
 		}
 	}
-	err := os.RemoveAll(filepath.Join(podInfoPath, p.id))
+	glog.V(8).Infof("Removing pod base directory %s", p.baseDir())
+	err := os.RemoveAll(p.baseDir())
 	if err != nil && !silent {
 		return fmt.Errorf("could not cleanup pod: %v", err)
 	}
+	glog.V(8).Infof("Removing pod log directory %s", p.GetLogDirectory())
 	err = os.RemoveAll(p.GetLogDirectory())
 	if err != nil && !silent {
 		return fmt.Errorf("could not remove log directory: %v", err)

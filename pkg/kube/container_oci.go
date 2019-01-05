@@ -265,39 +265,8 @@ func (t *containerTranslator) configureProcess() error {
 	security := t.cont.GetLinux().GetSecurityContext()
 	t.g.SetProcessNoNewPrivileges(security.GetNoNewPrivs())
 
-	for _, capb := range security.GetCapabilities().GetDropCapabilities() {
-		if err := t.g.DropProcessCapabilityEffective(capb); err != nil {
-			return fmt.Errorf("could not drop capability: %v", err)
-		}
-		if err := t.g.DropProcessCapabilityAmbient(capb); err != nil {
-			return fmt.Errorf("could not drop capability: %v", err)
-		}
-		if err := t.g.DropProcessCapabilityBounding(capb); err != nil {
-			return fmt.Errorf("could not drop capability: %v", err)
-		}
-		if err := t.g.DropProcessCapabilityInheritable(capb); err != nil {
-			return fmt.Errorf("could not drop capability: %v", err)
-		}
-		if err := t.g.DropProcessCapabilityPermitted(capb); err != nil {
-			return fmt.Errorf("could not drop capability: %v", err)
-		}
-	}
-	for _, capb := range security.GetCapabilities().GetAddCapabilities() {
-		if err := t.g.AddProcessCapabilityEffective(capb); err != nil {
-			return fmt.Errorf("could not add capability: %v", err)
-		}
-		if err := t.g.AddProcessCapabilityAmbient(capb); err != nil {
-			return fmt.Errorf("could not add capability: %v", err)
-		}
-		if err := t.g.AddProcessCapabilityBounding(capb); err != nil {
-			return fmt.Errorf("could not add capability: %v", err)
-		}
-		if err := t.g.AddProcessCapabilityInheritable(capb); err != nil {
-			return fmt.Errorf("could not add capability: %v", err)
-		}
-		if err := t.g.AddProcessCapabilityPermitted(capb); err != nil {
-			return fmt.Errorf("could not add capability: %v", err)
-		}
+	if err := t.configureCapabilities(); err != nil {
+		return err
 	}
 	if t.g.Config.Linux == nil {
 		t.g.Config.Linux = new(specs.Linux)
@@ -313,6 +282,48 @@ func (t *containerTranslator) configureProcess() error {
 
 	// simply apply privileged at the end of the config
 	t.g.SetupPrivileged(security.GetPrivileged())
+	return nil
+}
+
+func (t *containerTranslator) configureCapabilities() error {
+	security := t.cont.GetLinux().GetSecurityContext()
+	addCapabilities := security.GetCapabilities().GetAddCapabilities()
+	dropCapabilities := security.GetCapabilities().GetDropCapabilities()
+
+	for _, capb := range addCapabilities {
+		if err := t.g.AddProcessCapabilityEffective(capb); err != nil {
+			return fmt.Errorf("could not add effective capability: %v", err)
+		}
+		if err := t.g.AddProcessCapabilityAmbient(capb); err != nil {
+			return fmt.Errorf("could not add ambient capability: %v", err)
+		}
+		if err := t.g.AddProcessCapabilityBounding(capb); err != nil {
+			return fmt.Errorf("could not add bounding capability: %v", err)
+		}
+		if err := t.g.AddProcessCapabilityInheritable(capb); err != nil {
+			return fmt.Errorf("could not add inheritable capability: %v", err)
+		}
+		if err := t.g.AddProcessCapabilityPermitted(capb); err != nil {
+			return fmt.Errorf("could not add permitted capability: %v", err)
+		}
+	}
+	for _, capb := range dropCapabilities {
+		if err := t.g.DropProcessCapabilityEffective(capb); err != nil {
+			return fmt.Errorf("could not drop effective capability: %v", err)
+		}
+		if err := t.g.DropProcessCapabilityAmbient(capb); err != nil {
+			return fmt.Errorf("could not drop ambient capability: %v", err)
+		}
+		if err := t.g.DropProcessCapabilityBounding(capb); err != nil {
+			return fmt.Errorf("could not drop bounding capability: %v", err)
+		}
+		if err := t.g.DropProcessCapabilityInheritable(capb); err != nil {
+			return fmt.Errorf("could not drop inheritable capability: %v", err)
+		}
+		if err := t.g.DropProcessCapabilityPermitted(capb); err != nil {
+			return fmt.Errorf("could not drop permitted capability: %v", err)
+		}
+	}
 	return nil
 }
 

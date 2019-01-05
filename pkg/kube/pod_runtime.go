@@ -17,8 +17,8 @@ package kube
 import (
 	"context"
 	"fmt"
-	"log"
 
+	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
@@ -96,7 +96,6 @@ func (p *Pod) Pid() int {
 }
 
 func (p *Pod) expectState(expect runtime.State) error {
-	log.Printf("waiting for state %d...", expect)
 	p.runtimeState = <-p.syncChan
 	if p.runtimeState != expect {
 		return fmt.Errorf("unexpected pod state: %v", p.runtimeState)
@@ -117,6 +116,11 @@ func (p *Pod) terminate(force bool) error {
 		return nil
 	}
 
+	if force {
+		glog.V(4).Infof("Forcibly stopping pod %s", p.ID())
+	} else {
+		glog.V(4).Infof("Terminating pod %s", p.ID())
+	}
 	err := p.cli.Kill(p.id, force)
 	if err != nil {
 		return fmt.Errorf("could not terminate pod: %v", err)

@@ -21,11 +21,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"syscall"
 
+	"github.com/golang/glog"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/singularity"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 )
@@ -114,7 +115,7 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*E
 	runCmd.Stdout = &stdout
 	runCmd.Stderr = &stderr
 
-	log.Printf("executing %v", cmd)
+	glog.V(4).Infof("Executing %v", cmd)
 	err := runCmd.Run()
 	var exitCode int32
 	exitErr, ok := err.(*exec.ExitError)
@@ -160,7 +161,7 @@ func (c *CLIClient) PrepareExec(ctx context.Context, id string, args ...string) 
 	cmd = append(cmd, id, execScript)
 	cmd = append(cmd, args...)
 
-	log.Printf("will execute %v", cmd)
+	glog.V(4).Infof("Prepared %v", cmd)
 	return exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 }
 
@@ -187,11 +188,33 @@ func (c *CLIClient) Attach(id string) error {
 	return run(cmd)
 }
 
+// UpdateContainerResources asks runtime to update container resources
+// according to the passed parameter.
+func (c *CLIClient) UpdateContainerResources(id string, req *specs.LinuxResources) error {
+	buf := bytes.NewBuffer(nil)
+	err := json.NewEncoder(buf).Encode(req)
+	if err != nil {
+		return fmt.Errorf("could not encode update request: %v", err)
+	}
+
+	cmd := append(c.baseCmd, "update", "--from-file", "-", id)
+	updCmd := exec.Command(cmd[0], cmd[1:]...)
+	updCmd.Stderr = os.Stderr
+	updCmd.Stdin = buf
+
+	glog.V(4).Infof("executing %v", cmd)
+	err = updCmd.Run()
+	if err != nil {
+		return fmt.Errorf("could not execute: %v", err)
+	}
+	return nil
+}
+
 func run(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
 	runCmd.Stderr = os.Stderr
 
-	log.Printf("executing %v", cmd)
+	glog.V(4).Infof("Executing %v", cmd)
 	err := runCmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not execute: %v", err)
