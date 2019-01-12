@@ -20,8 +20,9 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
+	"github.com/sylabs/cri/pkg/network"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/ociruntime"
@@ -53,6 +54,8 @@ type Pod struct {
 	cli        *runtime.CLIClient
 	syncChan   <-chan runtime.State
 	syncCancel context.CancelFunc
+
+	networkConfig *network.PodNetworkConfig
 }
 
 // NewPod constructs Pod instance. Pod is thread safe to use.

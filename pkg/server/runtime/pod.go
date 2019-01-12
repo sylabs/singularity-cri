@@ -39,6 +39,13 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 		cleanupOnFailure()
 		return nil, status.Errorf(codes.Internal, "could not run pod: %v", err)
 	}
+
+	// bring up network interface if requested
+	if err := pod.SetUpNetwork(s.networkManager); err != nil {
+		cleanupOnFailure()
+		return nil, status.Errorf(codes.Internal, "could not set up pod network interface: %v", err)
+	}
+
 	err := s.pods.Add(pod)
 	if err != nil {
 		cleanupOnFailure()
@@ -63,6 +70,12 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodS
 	if err != nil {
 		return nil, err
 	}
+
+	// tear down network interface
+	if err := pod.TearDownNetwork(s.networkManager); err != nil {
+		glog.Warningf("could not tear down network interface: %v", err)
+	}
+
 	if err := pod.Stop(); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not stop pod: %v", err)
 	}
@@ -119,7 +132,7 @@ func (s *SingularityRuntime) PodSandboxStatus(_ context.Context, req *k8s.PodSan
 			Metadata:  pod.GetMetadata(),
 			State:     pod.State(),
 			CreatedAt: pod.CreatedAt(),
-			Network:   nil, // todo later
+			Network:   pod.NetworkStatus(),
 			Linux: &k8s.LinuxPodSandboxStatus{
 				Namespaces: &k8s.Namespace{
 					Options: pod.GetLinux().GetSecurityContext().GetNamespaceOptions(),

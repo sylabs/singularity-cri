@@ -18,12 +18,49 @@
   revision = "39b18af02c4120960f517a3a4c2588fabb61d02c"
 
 [[projects]]
+  digest = "1:fe3f893dc4d7c53ee3bf3be59921ce540600dde90818c143f1b9a89f8667a547"
+  name = "github.com/containernetworking/cni"
+  packages = [
+    "libcni",
+    "pkg/invoke",
+    "pkg/types",
+    "pkg/types/020",
+    "pkg/types/current",
+    "pkg/version",
+  ]
+  pruneopts = "UT"
+  revision = "a7885cb6f8ab03fba07852ded351e4f5e7a112bf"
+  version = "v0.6.0"
+
+[[projects]]
+  digest = "1:fd799dc0a3ab8c792e9e9f621d81e95d8d875a2695d258a047ab1d16e7388511"
+  name = "github.com/containernetworking/plugins"
+  packages = [
+    "pkg/ip",
+    "pkg/ns",
+    "pkg/utils/hwaddr",
+    "plugins/ipam/host-local/backend",
+    "plugins/ipam/host-local/backend/allocator",
+  ]
+  pruneopts = "UT"
+  revision = "9ebe139e77e82afb122e335328007bca86905ae4"
+  version = "v0.7.4"
+
+[[projects]]
   digest = "1:c62640a9661f9b620c7bf3aac98afd70c98aa09c75d95d92c2354c6942a4b66c"
   name = "github.com/containers/storage"
   packages = ["pkg/stringutils"]
   pruneopts = "UT"
   revision = "bf48aa83089daf297412ed006190322a04956679"
   version = "v1.2"
+
+[[projects]]
+  digest = "1:536efb6849eb903912acbec0183e1b34e31cc75217b44988aedde59ad249c693"
+  name = "github.com/coreos/go-iptables"
+  packages = ["iptables"]
+  pruneopts = "UT"
+  revision = "47f22b0dd3355c0ba570ba12b0b8a36bf214c04b"
+  version = "v0.4.0"
 
 [[projects]]
   digest = "1:6f614c5193761d29b3184a170380672cafd025306261ce7810e2dd99907184c4"
@@ -327,12 +364,14 @@
 
 [[projects]]
   branch = "master-oci"
-  digest = "1:d85ebdcac60dfb042e7d4910817c9dfb143b2be5606d7e7b92b1ba2dd78d9028"
+  digest = "1:e45d1a9ca2b1ae3fdc848d8f0b43d2329277617bf86572a2f9290d6ca342adc7"
   name = "github.com/sylabs/singularity"
   packages = [
     "internal/pkg/sylog",
+    "internal/pkg/util/env",
     "internal/pkg/util/user",
     "pkg/client/library",
+    "pkg/network",
     "pkg/ociruntime",
     "pkg/signing",
     "pkg/sypgp",
@@ -344,7 +383,7 @@
     "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "58997882dd33043eac93992c13338e25ed01cc32"
+  revision = "3985e1e1229ba9ff59678c874ee3c5c0e430ee10"
   source = "github.com/cclerget/singularity"
 
 [[projects]]
@@ -362,6 +401,25 @@
   pruneopts = "UT"
   revision = "666120de432aea38ab06bd5c818f04f4129882c9"
   version = "v2.2.6"
+
+[[projects]]
+  digest = "1:2d9d06cb9d46dacfdbb45f8575b39fc0126d083841a29d4fbf8d97708f43107e"
+  name = "github.com/vishvananda/netlink"
+  packages = [
+    ".",
+    "nl",
+  ]
+  pruneopts = "UT"
+  revision = "a2ad57a690f3caf3015351d2d6e1c0b95c349752"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:e4e30678fb2560b5c62f6308c5023d6c294fc7713216fa379411cc74465e866f"
+  name = "github.com/vishvananda/netns"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "13995c7128ccc8e51e9a6bd2b551020a27180abd"
 
 [[projects]]
   branch = "master"
@@ -661,6 +719,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/containerd/cgroups",
+    "github.com/containernetworking/cni/libcni",
     "github.com/golang/glog",
     "github.com/kr/pty",
     "github.com/kubernetes-sigs/cri-o/pkg/seccomp",
@@ -674,6 +733,7 @@
     "github.com/stretchr/testify/require",
     "github.com/sylabs/sif/pkg/sif",
     "github.com/sylabs/singularity/pkg/client/library",
+    "github.com/sylabs/singularity/pkg/network",
     "github.com/sylabs/singularity/pkg/ociruntime",
     "github.com/sylabs/singularity/pkg/signing",
     "github.com/sylabs/singularity/pkg/util/capabilities",
