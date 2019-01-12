@@ -163,6 +163,10 @@ func (m *Manager) SetUpPod(podNetworkConfig *PodNetworkConfig) error {
 	}
 	if podNetworkConfig.PortMappings != nil {
 		for _, pm := range podNetworkConfig.PortMappings {
+			hostport := pm.HostPort
+			if hostport == 0 {
+				hostport = pm.ContainerPort
+			}
 			args += fmt.Sprintf(";portmap=%d:%d/%s", pm.HostPort, pm.ContainerPort, strings.ToLower(pm.Protocol.String()))
 		}
 	}
