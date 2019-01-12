@@ -167,7 +167,7 @@ func (m *Manager) SetUpPod(podNetworkConfig *PodNetworkConfig) error {
 			if hostport == 0 {
 				hostport = pm.ContainerPort
 			}
-			args += fmt.Sprintf(";portmap=%d:%d/%s", pm.HostPort, pm.ContainerPort, strings.ToLower(pm.Protocol.String()))
+			args += fmt.Sprintf(";portmap=%d:%d/%s", hostport, pm.ContainerPort, strings.ToLower(pm.Protocol.String()))
 		}
 	}
 	glog.Infof("Network args: %s", args)
