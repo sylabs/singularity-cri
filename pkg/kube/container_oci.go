@@ -246,8 +246,7 @@ func (t *containerTranslator) configureResources() {
 
 func (t *containerTranslator) configureProcess() error {
 	const (
-		runScript  = "/.singularity.d/runscript"
-		execScript = "/.singularity.d/actions/exec"
+		runScript = "/.singularity.d/actions/run"
 	)
 
 	for _, env := range t.cont.GetEnvs() {
@@ -257,10 +256,7 @@ func (t *containerTranslator) configureProcess() error {
 	t.g.SetProcessTerminal(t.cont.GetTty())
 
 	args := append(t.cont.GetCommand(), t.cont.GetArgs()...)
-	if len(args) == 0 {
-		args = []string{runScript}
-	}
-	t.g.SetProcessArgs(append([]string{execScript}, args...))
+	t.g.SetProcessArgs(append([]string{runScript}, args...))
 
 	security := t.cont.GetLinux().GetSecurityContext()
 	t.g.SetProcessNoNewPrivileges(security.GetNoNewPrivs())
