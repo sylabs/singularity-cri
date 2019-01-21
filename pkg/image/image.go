@@ -128,6 +128,7 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 // Pull pulls image referenced by ref and saves it to the passed location.
 func Pull(location string, ref *Reference) (img *Info, err error) {
 	pullPath := filepath.Join(location, "."+rand.GenerateID(64))
+	glog.V(8).Infof("Pulling to temporary file %s", pullPath)
 	defer func() {
 		if err != nil {
 			if err := os.Remove(pullPath); err != nil {
@@ -176,7 +177,13 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	}
 	checksum := fmt.Sprintf("%x", h.Sum(nil))
 
+	err = pulled.Close()
+	if err != nil {
+		return nil, fmt.Errorf("could not close pulled image: %v", err)
+	}
+
 	path := filepath.Join(location, checksum)
+	glog.V(8).Infof("Renaming %s to %s", pullPath, path)
 	err = os.Rename(pullPath, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not save pulled image: %v", err)
@@ -196,6 +203,8 @@ func (i *Info) Remove() error {
 	const devDir = "/dev"
 
 	var isUsed bool
+
+	glog.V(8).Infof("Checking if %s is being used", i.path)
 	stat, err := os.Stat(i.path)
 	if err != nil {
 		return fmt.Errorf("could not stat image: %v", err)
@@ -206,11 +215,19 @@ func (i *Info) Remove() error {
 	if err != nil {
 		return fmt.Errorf("could not search loop devices: %v", err)
 	}
+	glog.V(8).Infof("Loop devices to check are %v", loopDevs)
 
+	glog.V(4).Infof("Setting lock on %s", devDir)
 	fd, err := lock.Exclusive(devDir)
 	if err != nil {
 		return fmt.Errorf("could not lock %s: %v", devDir, err)
 	}
+	defer func() {
+		glog.V(4).Infof("Releasing lock on %s", devDir)
+		if err := lock.Release(fd); err != nil {
+			glog.Errorf("Could not release %s: %v", devDir, err)
+		}
+	}()
 
 	for _, loopDev := range loopDevs {
 		devSys, err := loop.GetStatusFromPath(loopDev)
@@ -223,10 +240,6 @@ func (i *Info) Remove() error {
 			isUsed = true
 			break
 		}
-	}
-
-	if err := lock.Release(fd); err != nil {
-		glog.Errorf("Could not release %s: %v", devDir, err)
 	}
 
 	if isUsed {
