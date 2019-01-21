@@ -139,9 +139,11 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	pullURL := strings.TrimPrefix(ref.String(), ref.uri+"/")
 	switch ref.uri {
 	case singularity.LibraryDomain:
+		glog.Infof("Pulling library image %s", pullURL)
 		err = library.DownloadImage(pullPath, pullURL, singularity.LibraryURL, true, "")
 	case singularity.DockerDomain:
 		remote := fmt.Sprintf("%s://%s", singularity.DockerProtocol, pullURL)
+		glog.Infof("Building from Docker image %s", remote)
 		var errMsg bytes.Buffer
 		buildCmd := exec.Command(singularity.RuntimeName, "build", "-F", pullPath, remote)
 		buildCmd.Stderr = &errMsg
