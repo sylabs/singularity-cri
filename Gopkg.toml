@@ -12,8 +12,7 @@
 
 [[constraint]]
   name = "github.com/sylabs/singularity"
-  source = "github.com/cclerget/singularity"
-  branch = "master-oci"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/sylabs/sif"
