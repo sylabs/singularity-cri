@@ -55,7 +55,7 @@ func SmokeTestImageIndex(t *testing.T) {
 
 	t.Run("search empty index", func(t *testing.T) {
 		found, err := indx.Find(img1.ID())
-		require.Equal(t, ErrImageNotFound, err, "empty index didn't return ErrImageNotFound")
+		require.Equal(t, ErrNotFound, err, "empty index didn't return ErrImageNotFound")
 		require.Nil(t, found, "empty index returned image")
 	})
 
@@ -88,7 +88,7 @@ func SmokeTestImageIndex(t *testing.T) {
 		require.ElementsMatch(t, found.Ref().Digests(), img3.Ref().Digests(), "index returned wrong image")
 
 		found, err = indx.Find("nonExistentID")
-		require.Equal(t, ErrImageNotFound, err, "empty index didn't return ErrImageNotFound")
+		require.Equal(t, ErrNotFound, err, "empty index didn't return ErrImageNotFound")
 		require.Nil(t, found, "empty index returned image")
 	})
 
@@ -97,7 +97,7 @@ func SmokeTestImageIndex(t *testing.T) {
 		require.NoError(t, err, "could not remove image from index")
 
 		found, err := indx.Find(img2.ID())
-		require.Equal(t, ErrImageNotFound, err, "empty index didn't return ErrImageNotFound")
+		require.Equal(t, ErrNotFound, err, "empty index didn't return ErrImageNotFound")
 		require.Nil(t, found, "index returned unexpected image")
 	})
 

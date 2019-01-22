@@ -42,7 +42,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	}
 
 	info, err := s.imageIndex.Find(req.Config.GetImage().GetImage())
-	if err == index.ErrImageNotFound {
+	if err == index.ErrNotFound {
 		return nil, status.Error(codes.NotFound, "image is not found")
 	}
 
@@ -111,7 +111,7 @@ func (s *SingularityRuntime) StopContainer(_ context.Context, req *k8s.StopConta
 // must not return an error if the container has already been removed.
 func (s *SingularityRuntime) RemoveContainer(_ context.Context, req *k8s.RemoveContainerRequest) (*k8s.RemoveContainerResponse, error) {
 	cont, err := s.containers.Find(req.ContainerId)
-	if err == index.ErrContainerNotFound {
+	if err == index.ErrNotFound {
 		return &k8s.RemoveContainerResponse{}, nil
 	}
 	if err != nil {
@@ -207,7 +207,7 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 
 func (s *SingularityRuntime) findContainer(id string) (*kube.Container, error) {
 	cont, err := s.containers.Find(id)
-	if err == index.ErrContainerNotFound {
+	if err == index.ErrNotFound {
 		return nil, status.Error(codes.NotFound, "container is not found")
 	}
 	if err != nil {

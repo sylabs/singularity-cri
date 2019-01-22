@@ -108,7 +108,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 // This call is idempotent, and does not return an error if the image has already been removed.
 func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveImageRequest) (*k8s.RemoveImageResponse, error) {
 	info, err := s.images.Find(req.Image.Image)
-	if err == index.ErrImageNotFound {
+	if err == index.ErrNotFound {
 		return &k8s.RemoveImageResponse{}, nil
 	}
 	if err != nil {
@@ -130,7 +130,7 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 // present, returns a response with ImageStatusResponse.Image set to nil.
 func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
 	info, err := s.images.Find(req.Image.Image)
-	if err == index.ErrImageNotFound {
+	if err == index.ErrNotFound {
 		return &k8s.ImageStatusResponse{}, nil
 	}
 	if err != nil {

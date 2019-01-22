@@ -26,11 +26,6 @@ type ContainerIndex struct {
 	indx *truncindex.TruncIndex
 }
 
-var (
-	// ErrContainerNotFound returned when container is not found in index.
-	ErrContainerNotFound = fmt.Errorf("container not found")
-)
-
 // NewContainerIndex returns new ContainerIndex ready to use.
 func NewContainerIndex() *ContainerIndex {
 	return &ContainerIndex{
@@ -43,7 +38,7 @@ func NewContainerIndex() *ContainerIndex {
 func (i *ContainerIndex) Find(id string) (*kube.Container, error) {
 	item, err := i.indx.Get(id)
 	if err == truncindex.ErrNotFound {
-		return nil, ErrContainerNotFound
+		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("could not search index: %v", err)
