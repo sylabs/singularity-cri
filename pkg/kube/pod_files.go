@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 
 	"github.com/golang/glog"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/namespace"
 )
 
