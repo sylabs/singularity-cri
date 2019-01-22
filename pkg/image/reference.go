@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/sylabs/cri/pkg/singularity"
+	"github.com/sylabs/cri/pkg/slice"
 )
 
 // Reference holds parsed content of image reference.
@@ -129,28 +130,28 @@ func (r *Reference) Tags() []string {
 func (r *Reference) AddDigests(digests []string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.digests = mergeStrSlice(r.digests, digests)
+	r.digests = slice.MergeString(r.digests, digests...)
 }
 
 // AddTags adds tags to image reference making sure no duplicates appear.
 func (r *Reference) AddTags(tags []string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.tags = mergeStrSlice(r.tags, tags)
+	r.tags = slice.MergeString(r.tags, tags...)
 }
 
 // RemoveDigest removes digest from reference.
 func (r *Reference) RemoveDigest(digest string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.digests = removeFromSlice(r.digests, digest)
+	r.digests = slice.RemoveFromString(r.digests, digest)
 }
 
 // RemoveTag removes tag from reference.
 func (r *Reference) RemoveTag(tag string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.tags = removeFromSlice(r.tags, tag)
+	r.tags = slice.RemoveFromString(r.tags, tag)
 }
 
 // NormalizedImageRef appends tag 'latest' if the passed ref
@@ -163,27 +164,4 @@ func NormalizedImageRef(imgRef string) string {
 		return imgRef + ":latest"
 	}
 	return imgRef
-}
-
-func mergeStrSlice(t1, t2 []string) []string {
-	unique := make(map[string]struct{})
-	for _, tag := range append(t1, t2...) {
-		unique[tag] = struct{}{}
-	}
-	merged := make([]string, 0, len(unique))
-	for str := range unique {
-		merged = append(merged, str)
-	}
-	return merged
-}
-
-// removeFromSlice returns passed slice without first occurrence of element v.
-// It does not make a copy of a passed slice.
-func removeFromSlice(a []string, v string) []string {
-	for i, str := range a {
-		if str == v {
-			return append(a[:i], a[i+1:]...)
-		}
-	}
-	return a
 }
