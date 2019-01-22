@@ -22,7 +22,6 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
-	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/sif/pkg/sif"
 	"github.com/sylabs/singularity/pkg/util/loop"
 )
@@ -78,13 +77,13 @@ func (c *Container) addLogDirectory() error {
 	return nil
 }
 
-func (c *Container) addOCIBundle(image *image.Info) error {
+func (c *Container) addOCIBundle() error {
 	glog.V(8).Infof("Creating bundle directory %s", c.bundlePath())
 	err := os.MkdirAll(c.bundlePath(), 0755)
 	if err != nil {
 		return fmt.Errorf("could not create bundle directory for container: %v", err)
 	}
-	if err := c.prepareOverlay(image.Path()); err != nil {
+	if err := c.prepareOverlay(c.imgInfo.Path()); err != nil {
 		return err
 	}
 	ociSpec, err := translateContainer(c, c.pod)

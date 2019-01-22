@@ -20,12 +20,11 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/sylabs/cri/pkg/image"
 	"github.com/sylabs/cri/pkg/singularity/runtime"
 )
 
-func (c *Container) spawnOCIContainer(imgInfo *image.Info) error {
-	err := c.addOCIBundle(imgInfo)
+func (c *Container) spawnOCIContainer() error {
+	err := c.addOCIBundle()
 	if err != nil {
 		return fmt.Errorf("could not create oci bundle: %v", err)
 	}

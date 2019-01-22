@@ -51,14 +51,14 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		return nil, err
 	}
 
-	cont := kube.NewContainer(req.Config, pod)
+	cont := kube.NewContainer(req.Config, pod, info)
 	cleanupOnFailure := func() {
 		if err := s.containers.Remove(cont.ID()); err != nil {
 			glog.Errorf("Could not remove container from index: %v", err)
 		}
 	}
 
-	if err := cont.Create(info); err != nil {
+	if err := cont.Create(); err != nil {
 		cleanupOnFailure()
 		return nil, status.Errorf(codes.Internal, "could not create container: %v", err)
 	}
@@ -135,10 +135,6 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 		return nil, err
 	}
 
-	info, err := s.imageIndex.Find(cont.GetImage().GetImage())
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "could not get container image: %v", err)
-	}
 	if err := cont.UpdateState(); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not update container state: %v", err)
 	}
@@ -159,7 +155,7 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 			FinishedAt:  cont.FinishedAt(),
 			ExitCode:    cont.ExitCode(),
 			Image:       cont.GetImage(),
-			ImageRef:    info.ID(),
+			ImageRef:    cont.ImageID(),
 			Reason:      cont.ExitDescription(),
 			Message:     cont.ExitDescription(),
 			Labels:      cont.GetLabels(),
@@ -181,17 +177,12 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 			return
 		}
 		if cont.MatchesFilter(req.Filter) {
-			info, err := s.imageIndex.Find(cont.GetImage().GetImage())
-			if err != nil {
-				glog.Warningf("Skipping container %s due to %v", cont.ID(), err)
-				return
-			}
 			containers = append(containers, &k8s.Container{
 				Id:           cont.ID(),
 				PodSandboxId: cont.PodID(),
 				Metadata:     cont.GetMetadata(),
 				Image:        cont.GetImage(),
-				ImageRef:     info.ID(),
+				ImageRef:     cont.ImageID(),
 				State:        cont.State(),
 				CreatedAt:    cont.CreatedAt(),
 				Labels:       cont.GetLabels(),

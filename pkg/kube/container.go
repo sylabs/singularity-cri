@@ -48,7 +48,8 @@ var (
 type Container struct {
 	id string
 	*k8s.ContainerConfig
-	pod *Pod
+	pod     *Pod
+	imgInfo *image.Info
 
 	runtimeState runtime.State
 	ociState     *ociruntime.State
@@ -64,12 +65,13 @@ type Container struct {
 }
 
 // NewContainer constructs Container instance. Container is thread safe to use.
-func NewContainer(config *k8s.ContainerConfig, pod *Pod) *Container {
+func NewContainer(config *k8s.ContainerConfig, pod *Pod, info *image.Info) *Container {
 	contID := rand.GenerateID(ContainerIDLen)
 	return &Container{
 		id:              contID,
 		ContainerConfig: config,
 		pod:             pod,
+		imgInfo:         info,
 		cli:             runtime.NewCLIClient(),
 	}
 }
@@ -151,11 +153,17 @@ func (c *Container) LogPath() string {
 	return c.logPath
 }
 
+// ImageID returns id of the container base image.
+func (c *Container) ImageID() string {
+	return c.imgInfo.ID()
+}
+
 // Create creates container inside a pod from the image.
-func (c *Container) Create(info *image.Info) error {
+func (c *Container) Create() error {
 	var err error
 	defer func() {
 		if err != nil {
+			c.imgInfo.Return(c.ID())
 			if err := c.kill(); err != nil {
 				glog.Errorf("Could not kill container after failed run: %v", err)
 			}
@@ -179,7 +187,8 @@ func (c *Container) Create(info *image.Info) error {
 			err = fmt.Errorf("could not create log directory: %v", err)
 			return
 		}
-		err = c.spawnOCIContainer(info)
+		c.imgInfo.Borrow(c.ID())
+		err = c.spawnOCIContainer()
 		if err != nil {
 			err = fmt.Errorf("could not spawn container: %v", err)
 			return
@@ -254,6 +263,7 @@ func (c *Container) Remove() error {
 	if err := c.cleanupFiles(false); err != nil {
 		return fmt.Errorf("could not cleanup container: %v", err)
 	}
+	c.imgInfo.Return(c.ID())
 	c.pod.removeContainer(c)
 	c.isRemoved = true
 	return nil

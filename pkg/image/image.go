@@ -25,10 +25,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/rand"
 	"github.com/sylabs/cri/pkg/singularity"
+	"github.com/sylabs/cri/pkg/slice"
 	"github.com/sylabs/sif/pkg/sif"
 	library "github.com/sylabs/singularity/pkg/client/library"
 	"github.com/sylabs/singularity/pkg/signing"
@@ -40,6 +42,9 @@ const (
 	IDLen = 64
 )
 
+// ErrIsUsed notifies that image is currently being used by someone.
+var ErrIsUsed = fmt.Errorf("image is being used")
+
 // Info represents image stored on the host filesystem.
 type Info struct {
 	id     string
@@ -47,6 +52,9 @@ type Info struct {
 	size   uint64
 	path   string
 	ref    *Reference
+
+	mu     sync.RWMutex
+	usedBy []string
 }
 
 // ID returns id of an image.
@@ -80,6 +88,36 @@ func (i *Info) Ref() *Reference {
 // was used to pull image.
 func (i *Info) SetRef(ref *Reference) {
 	i.ref = ref
+}
+
+// Borrow notifies that image is used by some container and should
+// not be removed until Return with the same parameters is called.
+// This method is thread-safe to use.
+func (i *Info) Borrow(who string) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	i.usedBy = slice.MergeString(i.usedBy, who)
+}
+
+// Return notifies that image is no longer used by a container and
+// may be safely removed if no one else needs it anymore.
+// This method is thread-safe to use.
+func (i *Info) Return(who string) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	i.usedBy = slice.RemoveFromString(i.usedBy, who)
+}
+
+// UsedBy returns list of container ids that use this image.
+func (i *Info) UsedBy() []string {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+
+	usedBy := make([]string, len(i.usedBy))
+	copy(usedBy, i.usedBy)
+	return usedBy
 }
 
 // MarshalJSON marshals Info into a valid JSON.
@@ -182,8 +220,16 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	}, nil
 }
 
-// Remove removes image from the host filesystem.
+// Remove removes image from the host filesystem. It makes sure
+// no one relies on image file and if this check fails it returns ErrIsUsed error.
 func (i *Info) Remove() error {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+
+	if len(i.usedBy) > 0 {
+		return ErrIsUsed
+	}
+
 	err := os.Remove(i.path)
 	if err != nil {
 		return fmt.Errorf("could not remove image: %v", err)

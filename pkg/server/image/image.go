@@ -114,7 +114,11 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not find image: %v", err)
 	}
-	if err := info.Remove(); err != nil {
+	err = info.Remove()
+	if err == image.ErrIsUsed {
+		return nil, status.Errorf(codes.FailedPrecondition, "unable to remove image: %v", err)
+	}
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove image: %v", err)
 	}
 	if err := s.images.Remove(info.ID()); err != nil {
@@ -136,6 +140,14 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not find image: %v", err)
 	}
+
+	var verboseInfo map[string]string
+	if req.Verbose {
+		verboseInfo = map[string]string{
+			"usedBy": fmt.Sprintf("%v", info.UsedBy()),
+		}
+	}
+
 	return &k8s.ImageStatusResponse{
 		Image: &k8s.Image{
 			Id:          info.ID(),
@@ -143,6 +155,7 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 			RepoDigests: info.Ref().Digests(),
 			Size_:       info.Size(),
 		},
+		Info: verboseInfo,
 	}, nil
 }
 
