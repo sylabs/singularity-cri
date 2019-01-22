@@ -26,7 +26,7 @@ clean:
 
 .PHONY: test
 test:
-	$(V)GOOS=linux go test -v -cover ./...
+	$(V)GOOS=linux go test -v -coverprofile=cover.out ./...
 
 .PHONY: lint
 lint:

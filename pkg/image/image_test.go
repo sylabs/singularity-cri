@@ -15,6 +15,7 @@
 package image
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -89,6 +90,78 @@ func TestPullImage(t *testing.T) {
 				image.path = ""
 			}
 			require.Equal(t, tc.expectImage, image, "image mismatch")
+		})
+	}
+}
+
+func TestInfo_Remove(t *testing.T) {
+	useragent.InitValue("singularity", "3.0.0")
+
+	tt := []struct {
+		name         string
+		borrow       []string
+		ret          []string
+		expectUsedBy []string
+		expectError  error
+	}{
+		{
+			name:        "not used",
+			borrow:      nil,
+			ret:         nil,
+			expectError: nil,
+		},
+		{
+			name:         "used and returned",
+			borrow:       []string{"first_container"},
+			ret:          []string{"first_container"},
+			expectUsedBy: nil,
+			expectError:  nil,
+		},
+		{
+			name:         "used and not returned",
+			borrow:       []string{"first_container"},
+			ret:          nil,
+			expectUsedBy: []string{"first_container"},
+			expectError:  ErrIsUsed,
+		},
+		{
+			name:         "multiple return",
+			borrow:       []string{"first_container", "second_container"},
+			ret:          []string{"first_container", "second_container"},
+			expectUsedBy: nil,
+			expectError:  nil,
+		},
+		{
+			name:         "multiple without return",
+			borrow:       []string{"first_container", "second_container"},
+			ret:          []string{"second_container"},
+			expectUsedBy: []string{"first_container"},
+			expectError:  ErrIsUsed,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			f, err := ioutil.TempFile("", "")
+			require.NoError(t, err, "could not create temp image file")
+
+			t.Logf("temp file %s", f.Name())
+			defer os.Remove(f.Name())
+			defer f.Close()
+
+			image := &Info{
+				path: f.Name(),
+			}
+			for _, b := range tc.borrow {
+				image.Borrow(b)
+			}
+			for _, r := range tc.ret {
+				image.Return(r)
+			}
+			actual := image.UsedBy()
+			require.ElementsMatch(t, tc.expectUsedBy, actual)
+			err = image.Remove()
+			require.Equal(t, tc.expectError, err)
 		})
 	}
 }
