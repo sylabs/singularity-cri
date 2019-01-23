@@ -40,11 +40,11 @@ type Manager struct {
 	sync.RWMutex
 	defaultNetwork *libcni.NetworkConfigList
 	cniPath        *snetwork.CNIPath
-	podCidr        string
+	podCIDR        string
 }
 
-// PodNetworkConfig contains/defines POD network configuration.
-type PodNetworkConfig struct {
+// PodConfig contains/defines POD network configuration.
+type PodConfig struct {
 	ID           string
 	Namespace    string
 	Name         string
@@ -82,16 +82,16 @@ func (m *Manager) checkInit() error {
 	ipRanges := false
 	for _, plugin := range m.defaultNetwork.Plugins {
 		if plugin.Network.Capabilities["ipRanges"] {
-			if m.podCidr == "" {
+			if m.podCIDR == "" {
 				return fmt.Errorf("no PodCIDR set")
 			}
 			ipRanges = true
 			break
 		}
 	}
-	if !ipRanges && m.podCidr != "" {
-		glog.Infof("Reset pod CIDR, network plugin don't support it")
-		m.podCidr = ""
+	if !ipRanges && m.podCIDR != "" {
+		glog.Infof("Resetting pod CIDR, network plugin doesn't support it")
+		m.podCIDR = ""
 	}
 	return nil
 }
@@ -116,32 +116,29 @@ func (m *Manager) setDefaultNetwork() error {
 }
 
 // SetUpPod bring up POD network interface.
-func (m *Manager) SetUpPod(podNetworkConfig *PodNetworkConfig) error {
+func (m *Manager) SetUpPod(podConfig *PodConfig) error {
 	err := m.checkInit()
 	if err != nil {
 		return err
 	}
-	if podNetworkConfig == nil {
+	if podConfig == nil {
 		return fmt.Errorf("nil POD configuration")
 	}
-	if podNetworkConfig.ID == "" {
+	if podConfig.ID == "" {
 		return fmt.Errorf("empty ID")
 	}
-	if podNetworkConfig.NsPath == "" {
+	if podConfig.NsPath == "" {
 		return fmt.Errorf("empty network namespace path")
 	}
-	if podNetworkConfig.Name == "" {
+	if podConfig.Name == "" {
 		return fmt.Errorf("empty POD name")
 	}
-	if podNetworkConfig.Name == "" {
-		return fmt.Errorf("empty POD name")
-	}
-	if podNetworkConfig.Namespace == "" {
+	if podConfig.Namespace == "" {
 		return fmt.Errorf("empty POD namespace name")
 	}
 
 	cfg := []*libcni.NetworkConfigList{m.defaultNetwork}
-	podNetworkConfig.Setup, err = snetwork.NewSetupFromConfig(cfg, podNetworkConfig.ID, podNetworkConfig.NsPath, m.cniPath)
+	podConfig.Setup, err = snetwork.NewSetupFromConfig(cfg, podConfig.ID, podConfig.NsPath, m.cniPath)
 	if err != nil {
 		return err
 	}
@@ -149,20 +146,20 @@ func (m *Manager) SetUpPod(podNetworkConfig *PodNetworkConfig) error {
 	args := fmt.Sprintf("%s:", cfg[0].Name)
 	for i, kv := range [][2]string{
 		{"IgnoreUnknown", "1"},
-		{"K8S_POD_NAMESPACE", podNetworkConfig.Namespace},
-		{"K8S_POD_NAME", podNetworkConfig.Name},
-		{"K8S_POD_INFRA_CONTAINER_ID", podNetworkConfig.ID},
+		{"K8S_POD_NAMESPACE", podConfig.Namespace},
+		{"K8S_POD_NAME", podConfig.Name},
+		{"K8S_POD_INFRA_CONTAINER_ID", podConfig.ID},
 	} {
 		if i > 0 {
 			args += ";"
 		}
 		args += fmt.Sprintf("%s=%s", kv[0], kv[1])
 	}
-	if m.podCidr != "" {
-		args += fmt.Sprintf(";ipRange=%s", m.podCidr)
+	if m.podCIDR != "" {
+		args += fmt.Sprintf(";ipRange=%s", m.podCIDR)
 	}
-	if podNetworkConfig.PortMappings != nil {
-		for _, pm := range podNetworkConfig.PortMappings {
+	if podConfig.PortMappings != nil {
+		for _, pm := range podConfig.PortMappings {
 			hostport := pm.HostPort
 			if hostport == 0 {
 				hostport = pm.ContainerPort
@@ -171,24 +168,24 @@ func (m *Manager) SetUpPod(podNetworkConfig *PodNetworkConfig) error {
 		}
 	}
 	glog.Infof("Network args: %s", args)
-	if err := podNetworkConfig.Setup.SetArgs([]string{args}); err != nil {
+	if err := podConfig.Setup.SetArgs([]string{args}); err != nil {
 		return err
 	}
-	if err := podNetworkConfig.Setup.AddNetworks(); err != nil {
+	if err := podConfig.Setup.AddNetworks(); err != nil {
 		return err
 	}
 	return nil
 }
 
 // TearDownPod tears down POD network interface.
-func (m *Manager) TearDownPod(podNetworkConfig *PodNetworkConfig) error {
+func (m *Manager) TearDownPod(podConfig *PodConfig) error {
 	if err := m.checkInit(); err != nil {
 		return err
 	}
-	if podNetworkConfig.Setup == nil {
+	if podConfig.Setup == nil {
 		return fmt.Errorf("nil network setup")
 	}
-	return podNetworkConfig.Setup.DelNetworks()
+	return podConfig.Setup.DelNetworks()
 }
 
 // Status returns an error if the network manager is not initialized.
@@ -199,8 +196,8 @@ func (m *Manager) Status() error {
 // SetPodCIDR updates POD CIDR.
 func (m *Manager) SetPodCIDR(cidr string) {
 	m.Lock()
-	if m.podCidr == "" {
-		m.podCidr = cidr
+	if m.podCIDR == "" {
+		m.podCIDR = cidr
 	}
 	m.Unlock()
 	m.checkInit()

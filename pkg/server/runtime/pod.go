@@ -73,7 +73,7 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodS
 
 	// tear down network interface
 	if err := pod.TearDownNetwork(s.networkManager); err != nil {
-		glog.Warningf("could not tear down network interface: %v", err)
+		glog.Warningf("Could not tear down network interface: %v", err)
 	}
 
 	if err := pod.Stop(); err != nil {

@@ -40,20 +40,23 @@ func (p *Pod) SetUpNetwork(manager *network.Manager) error {
 	if nsPath == "" {
 		return nil
 	}
-	config := &network.PodNetworkConfig{
+	p.networkConfig = &network.PodConfig{
 		ID:           p.ID(),
 		Namespace:    p.GetMetadata().Namespace,
 		Name:         p.GetMetadata().Name,
 		NsPath:       nsPath,
 		PortMappings: p.GetPortMappings(),
 	}
-	return manager.SetUpPod(config)
+	return manager.SetUpPod(p.networkConfig)
 }
 
 // TearDownNetwork tears down network interface previously
 // set inside POD network namespace.
 func (p *Pod) TearDownNetwork(manager *network.Manager) error {
-	if p.networkConfig == nil && p.networkConfig.Setup == nil {
+	if p.networkConfig == nil {
+		return nil
+	}
+	if p.networkConfig.Setup == nil {
 		return nil
 	}
 	return manager.TearDownPod(p.networkConfig)

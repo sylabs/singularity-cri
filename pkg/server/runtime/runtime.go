@@ -85,7 +85,7 @@ func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*Singu
 
 	runtime.networkManager = &network.Manager{}
 	if err := runtime.networkManager.Init(nil); err != nil {
-		glog.Warningf("network manager error: %v", err)
+		glog.Warningf("Network manager error: %v", err)
 	}
 
 	return runtime, nil
@@ -260,7 +260,7 @@ func (s *SingularityRuntime) UpdateRuntimeConfig(ctx context.Context, req *k8s.U
 	if config == nil {
 		return &k8s.UpdateRuntimeConfigResponse{}, nil
 	}
-	if s.networkManager != nil && config.NetworkConfig.PodCidr != "" {
+	if config.NetworkConfig.PodCidr != "" {
 		s.networkManager.SetPodCIDR(config.NetworkConfig.PodCidr)
 	}
 	return &k8s.UpdateRuntimeConfigResponse{}, nil
