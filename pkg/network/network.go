@@ -103,7 +103,7 @@ func (m *Manager) setDefaultNetwork() error {
 	}
 	netConfList, err := snetwork.GetAllNetworkConfigList(m.cniPath)
 	if err != nil {
-		return fmt.Errorf("no CNI network configuration found in %s", m.cniPath.Conf)
+		return fmt.Errorf("could not get networks: %v", err)
 	}
 	if len(netConfList) == 0 {
 		return fmt.Errorf("no CNI network configuration found in %s", m.cniPath.Conf)
