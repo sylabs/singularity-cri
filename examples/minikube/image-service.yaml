@@ -12,7 +12,6 @@ spec:
       name: net-pod
       namespace: default
     spec:
-      hostNetwork: true
       containers:
       - name: image-server
         image: cloud.sylabs.io/sashayakovtseva/test/image-server
