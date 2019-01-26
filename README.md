@@ -65,10 +65,11 @@ sudo PATH=$PATH make test
 
 ## Important notes
 
-Images coming not from Singularity library are built upon pulling. According to SIF build timestamp will be included 
-into each particular SIF built making it impossible to distinguish tags pointing to the same image. See this 
-[issue](https://github.com/sylabs/cri/issues/15) for more details.
-
+Because images external to the Library are in a format other than SIF, when pulled they are converted to this native
+format for use by Singularity. Each time a SIF file is created through this conversion process a timestamp is
+automatically generated and captured as SIF metadata. Unfortunately, changes in the timestamp result in uniquely
+tagged images - even though the only difference is the timestamp in the SIF metadata. This matter has been classified
+as a known issue for documentation; refer to [issue](https://github.com/sylabs/cri/issues/15) for additional details.
 
 ## Developers guide
 
