@@ -20,9 +20,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/golang/glog"
@@ -34,6 +34,10 @@ import (
 const (
 	execScript = "/.singularity.d/actions/exec"
 )
+
+// ErrNotFound us returned when Singularity OCI engine responds with
+// corresponding error message and exit status 255
+var ErrNotFound = fmt.Errorf("no instance found for provided name")
 
 type (
 	// CLIClient is a type for convenient interaction with
@@ -58,25 +62,49 @@ func NewCLIClient() *CLIClient {
 	return &CLIClient{baseCmd: []string{singularity.RuntimeName, "-q", "oci"}}
 }
 
-// State returns state of a container with passed id.
+// State returns state of a container with passed id. If runtime fails
+// to find object with given id, ErrNotFound is returned.
 func (c *CLIClient) State(id string) (*ociruntime.State, error) {
 	cmd := append(c.baseCmd, "state", id)
-
-	var cliResp bytes.Buffer
 	stateCmd := exec.Command(cmd[0], cmd[1:]...)
-	stateCmd.Stderr = ioutil.Discard
-	stateCmd.Stdout = &cliResp
 
-	if err := stateCmd.Run(); err != nil {
+	cliResp, err := stateCmd.Output()
+	if err != nil {
+		if eErr, ok := err.(*exec.ExitError); ok {
+			if strings.Contains(string(eErr.Stderr), "no instance found") {
+				return nil, ErrNotFound
+			}
+			return nil, fmt.Errorf("could not query state: %s", eErr.Stderr)
+		}
 		return nil, fmt.Errorf("could not query state: %v", err)
 	}
 
 	var state *ociruntime.State
-	err := json.Unmarshal(cliResp.Bytes(), &state)
+	err = json.Unmarshal(cliResp, &state)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode state: %v", err)
 	}
 	return state, nil
+}
+
+// Delete asks runtime to delete container with passed id. If runtime fails
+// to find object with given id, ErrNotFound is returned.
+func (c *CLIClient) Delete(id string) error {
+	cmd := append(c.baseCmd, "delete", id)
+	deleteCmd := exec.Command(cmd[0], cmd[1:]...)
+
+	_, err := deleteCmd.Output()
+	if err != nil {
+		if eErr, ok := err.(*exec.ExitError); ok {
+			if strings.Contains(string(eErr.Stderr), "no instance found") {
+				return ErrNotFound
+			}
+			return fmt.Errorf("could not delete instance %s: %s", id, eErr.Stderr)
+		}
+		return fmt.Errorf("could not delete instance %s: %s", id, err)
+	}
+
+	return nil
 }
 
 // Run is helper for running Create and Start is a row.
@@ -173,12 +201,6 @@ func (c *CLIClient) Kill(id string, force bool) error {
 		sig = "SIGKILL"
 	}
 	cmd := append(c.baseCmd, "kill", "-s", sig, id)
-	return run(cmd)
-}
-
-// Delete asks runtime to delete container with passed id.
-func (c *CLIClient) Delete(id string) error {
-	cmd := append(c.baseCmd, "delete", id)
 	return run(cmd)
 }
 

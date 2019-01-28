@@ -250,18 +250,20 @@ func (c *Container) Remove() error {
 	if c.isRemoved {
 		return nil
 	}
-
-	if err := c.UpdateState(); err != nil {
+	err := c.UpdateState()
+	if err != nil && err != runtime.ErrNotFound {
 		return fmt.Errorf("could not update container state: %v", err)
 	}
-	if err := c.kill(); err != nil {
-		return fmt.Errorf("could not kill container: %v", err)
-	}
-	if err := c.cli.Delete(c.id); err != nil {
-		return fmt.Errorf("could not delete container: %v", err)
+	if err == nil {
+		if err := c.kill(); err != nil {
+			return fmt.Errorf("could not kill container: %v", err)
+		}
+		if err := c.cli.Delete(c.id); err != nil && err != runtime.ErrNotFound {
+			return fmt.Errorf("could not delete container: %v", err)
+		}
 	}
 	if err := c.cleanupFiles(false); err != nil {
-		return fmt.Errorf("could not cleanup container: %v", err)
+		glog.Errorf("Container cleanup failed: %v", err)
 	}
 	c.imgInfo.Return(c.ID())
 	c.pod.removeContainer(c)
