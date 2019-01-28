@@ -24,6 +24,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/index"
 	"github.com/sylabs/cri/pkg/kube"
+	"github.com/sylabs/cri/pkg/network"
 	"github.com/sylabs/cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,6 +41,8 @@ type SingularityRuntime struct {
 	containers  *index.ContainerIndex
 
 	streaming streaming.Server
+
+	networkManager *network.Manager
 }
 
 // NewSingularityRuntime initializes and returns SingularityRuntime.
@@ -79,6 +82,12 @@ func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*Singu
 	}()
 
 	runtime.streaming = streamingServer
+
+	runtime.networkManager = &network.Manager{}
+	if err := runtime.networkManager.Init(nil); err != nil {
+		glog.Warningf("Network manager error: %v", err)
+	}
+
 	return runtime, nil
 }
 
@@ -247,7 +256,13 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 
 // UpdateRuntimeConfig updates the runtime configuration based on the given request.
 func (s *SingularityRuntime) UpdateRuntimeConfig(ctx context.Context, req *k8s.UpdateRuntimeConfigRequest) (*k8s.UpdateRuntimeConfigResponse, error) {
-	glog.Warningf("Ignoring runtime config update %v", req)
+	config := req.GetRuntimeConfig()
+	if config == nil {
+		return &k8s.UpdateRuntimeConfigResponse{}, nil
+	}
+	if config.NetworkConfig.PodCidr != "" {
+		s.networkManager.SetPodCIDR(config.NetworkConfig.PodCidr)
+	}
 	return &k8s.UpdateRuntimeConfigResponse{}, nil
 }
 
@@ -262,7 +277,11 @@ func (s *SingularityRuntime) Status(ctx context.Context, req *k8s.StatusRequest)
 		Status: true,
 	}
 	conditions := []*k8s.RuntimeCondition{runtimeReady, networkReady}
-
+	if err := s.networkManager.Status(); err != nil {
+		networkReady.Status = false
+		networkReady.Reason = "NetworkNotReady"
+		networkReady.Message = fmt.Sprintf("sycri: network is not ready: %v", err)
+	}
 	return &k8s.StatusResponse{
 		Status: &k8s.RuntimeStatus{
 			Conditions: conditions,

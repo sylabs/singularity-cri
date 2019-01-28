@@ -200,11 +200,11 @@ func mountImage(imagePath, targetPath string) error {
 		},
 	}
 	var devNum int
-	glog.V(8).Infof("Attaching %s to loop device #%d", imagePath, devNum)
 	err = loopDev.AttachFromFile(imageFile, os.O_RDWR, &devNum)
 	if err != nil {
 		return fmt.Errorf("could not attach image to loop device: %v", err)
 	}
+	glog.V(8).Infof("Attached %s to loop device #%d", imagePath, devNum)
 
 	glog.V(8).Infof("Mounting loop device #%d to %s", devNum, targetPath)
 	err = syscall.Mount(fmt.Sprintf("/dev/loop%d", devNum), targetPath,

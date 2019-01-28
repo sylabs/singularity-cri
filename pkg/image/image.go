@@ -159,6 +159,7 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 // Pull pulls image referenced by ref and saves it to the passed location.
 func Pull(location string, ref *Reference) (img *Info, err error) {
 	pullPath := filepath.Join(location, "."+rand.GenerateID(64))
+	glog.V(8).Infof("Pulling to temporary file %s", pullPath)
 	defer func() {
 		if err != nil {
 			if err := os.Remove(pullPath); err != nil {
@@ -205,7 +206,13 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	}
 	checksum := fmt.Sprintf("%x", h.Sum(nil))
 
+	err = pulled.Close()
+	if err != nil {
+		return nil, fmt.Errorf("could not close pulled image: %v", err)
+	}
+
 	path := filepath.Join(location, checksum)
+	glog.V(8).Infof("Renaming %s to %s", pullPath, path)
 	err = os.Rename(pullPath, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not save pulled image: %v", err)
