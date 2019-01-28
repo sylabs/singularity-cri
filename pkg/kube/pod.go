@@ -165,7 +165,6 @@ func (p *Pod) Remove() error {
 	}
 
 	for _, c := range p.containers {
-		glog.V(8).Infof("Pod has %d containers", len(p.containers))
 		err := c.Remove()
 		if err != nil {
 			return fmt.Errorf("could not remove container %s: %v", c.ID(), err)
