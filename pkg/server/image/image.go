@@ -108,13 +108,17 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 // This call is idempotent, and does not return an error if the image has already been removed.
 func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveImageRequest) (*k8s.RemoveImageResponse, error) {
 	info, err := s.images.Find(req.Image.Image)
-	if err == index.ErrImageNotFound {
+	if err == index.ErrNotFound {
 		return &k8s.RemoveImageResponse{}, nil
 	}
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not find image: %v", err)
 	}
-	if err := info.Remove(); err != nil {
+	err = info.Remove()
+	if err == image.ErrIsUsed {
+		return nil, status.Errorf(codes.FailedPrecondition, "unable to remove image: %v", err)
+	}
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove image: %v", err)
 	}
 	if err := s.images.Remove(info.ID()); err != nil {
@@ -130,12 +134,20 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 // present, returns a response with ImageStatusResponse.Image set to nil.
 func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageStatusRequest) (*k8s.ImageStatusResponse, error) {
 	info, err := s.images.Find(req.Image.Image)
-	if err == index.ErrImageNotFound {
+	if err == index.ErrNotFound {
 		return &k8s.ImageStatusResponse{}, nil
 	}
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not find image: %v", err)
 	}
+
+	var verboseInfo map[string]string
+	if req.Verbose {
+		verboseInfo = map[string]string{
+			"usedBy": fmt.Sprintf("%v", info.UsedBy()),
+		}
+	}
+
 	return &k8s.ImageStatusResponse{
 		Image: &k8s.Image{
 			Id:          info.ID(),
@@ -143,6 +155,7 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 			RepoDigests: info.Ref().Digests(),
 			Size_:       info.Size(),
 		},
+		Info: verboseInfo,
 	}, nil
 }
 

@@ -30,11 +30,6 @@ type ImageIndex struct {
 	refToID map[string]string
 }
 
-var (
-	// ErrImageNotFound returned when expectImage is not found in index.
-	ErrImageNotFound = fmt.Errorf("image not found")
-)
-
 // NewImageIndex returns new ImageIndex ready to use.
 func NewImageIndex() *ImageIndex {
 	return &ImageIndex{
@@ -45,13 +40,13 @@ func NewImageIndex() *ImageIndex {
 
 // Find searches for expectImage info by its ID or prefix or any of tags.
 // This method may return error if prefix is not long enough to identify expectImage uniquely.
-// If image is not fount ErrImageNotFound is returned.
+// If image is not found ErrNotFound is returned.
 func (i *ImageIndex) Find(id string) (*image.Info, error) {
 	info, err := i.find(id)
-	if err == ErrImageNotFound {
+	if err == ErrNotFound {
 		id = i.readRef(image.NormalizedImageRef(id))
 		if id == "" {
-			return nil, ErrImageNotFound
+			return nil, ErrNotFound
 		}
 		info, err = i.find(id)
 	}
@@ -62,10 +57,10 @@ func (i *ImageIndex) Find(id string) (*image.Info, error) {
 // If image with the same ID already exists it updates old image info appropriately.
 func (i *ImageIndex) Add(image *image.Info) error {
 	oldImage, err := i.Find(image.ID())
-	if err != nil && err != ErrImageNotFound {
+	if err != nil && err != ErrNotFound {
 		return fmt.Errorf("could not find old image: %v", err)
 	}
-	if err == ErrImageNotFound {
+	if err == ErrNotFound {
 		return i.add(image)
 	}
 	return i.merge(oldImage, image)
@@ -98,7 +93,7 @@ func (i *ImageIndex) Iterate(handler func(image *image.Info)) {
 func (i *ImageIndex) find(id string) (*image.Info, error) {
 	item, err := i.indx.Get(id)
 	if err == truncindex.ErrNotFound {
-		return nil, ErrImageNotFound
+		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("could not search index: %v", err)

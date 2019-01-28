@@ -145,8 +145,6 @@ func (p *Pod) Stop() error {
 		}
 	}
 
-	// todo reclaim resources somewhere here
-
 	err := p.terminate(false)
 	if err != nil {
 		return fmt.Errorf("could not stop pod process: %v", err)
@@ -167,6 +165,7 @@ func (p *Pod) Remove() error {
 	}
 
 	for _, c := range p.containers {
+		glog.V(8).Infof("Pod has %d containers", len(p.containers))
 		err := c.Remove()
 		if err != nil {
 			return fmt.Errorf("could not remove container %s: %v", c.ID(), err)
@@ -176,11 +175,11 @@ func (p *Pod) Remove() error {
 	if err := p.terminate(true); err != nil {
 		return fmt.Errorf("could not kill pod process: %v", err)
 	}
-	if err := p.cli.Delete(p.id); err != nil {
+	if err := p.cli.Delete(p.id); err != nil && err != runtime.ErrNotFound {
 		return fmt.Errorf("could not remove pod: %v", err)
 	}
 	if err := p.cleanupFiles(false); err != nil {
-		return fmt.Errorf("could not cleanup pod: %v", err)
+		glog.Errorf("Pod cleanup failed: %v", err)
 	}
 	p.isRemoved = true
 	return nil

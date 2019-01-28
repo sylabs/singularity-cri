@@ -27,8 +27,8 @@ type PodIndex struct {
 }
 
 var (
-	// ErrPodNotFound returned when pod is not found in index.
-	ErrPodNotFound = fmt.Errorf("pod not found")
+	// ErrNotFound is returned when object is not found in index.
+	ErrNotFound = fmt.Errorf("not found")
 )
 
 // NewPodIndex returns new PodIndex ready to use.
@@ -43,7 +43,7 @@ func NewPodIndex() *PodIndex {
 func (i *PodIndex) Find(id string) (*kube.Pod, error) {
 	item, err := i.indx.Get(id)
 	if err == truncindex.ErrNotFound {
-		return nil, ErrPodNotFound
+		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("could not search index: %v", err)
