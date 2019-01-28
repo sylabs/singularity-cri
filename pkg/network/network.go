@@ -165,7 +165,7 @@ func (m *Manager) SetUpPod(podConfig *PodConfig) error {
 			args += fmt.Sprintf(";portmap=%d:%d/%s", hostport, pm.ContainerPort, strings.ToLower(pm.Protocol.String()))
 		}
 	}
-	glog.Infof("Network args: %s", args)
+	glog.V(4).Infof("Network for pod %s args: %s", podConfig.ID, args)
 	if err := podConfig.Setup.SetArgs([]string{args}); err != nil {
 		return err
 	}

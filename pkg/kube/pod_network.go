@@ -15,6 +15,8 @@
 package kube
 
 import (
+	"fmt"
+
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/cri/pkg/network"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -59,5 +61,10 @@ func (p *Pod) TearDownNetwork(manager *network.Manager) error {
 	if p.networkConfig.Setup == nil {
 		return nil
 	}
-	return manager.TearDownPod(p.networkConfig)
+	err := manager.TearDownPod(p.networkConfig)
+	if err != nil {
+		return fmt.Errorf("could not tear down network: %v", err)
+	}
+	p.networkConfig.Setup = nil
+	return nil
 }
