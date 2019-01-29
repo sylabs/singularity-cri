@@ -42,25 +42,27 @@ make lint
 ```
 
 
-## Running and testing
+## Installing
 
-To build server you can use Makefile:
+To install CRI run the following:
 
 ```bash
-make build
+make && sudo make install
 ```
 
-This will build the _sycri_ binary with CRI server implementation and _sycri-selinux_ with SELinux support.
-All the binaries may be found in a bin directory.
+This will build the _sycri_ binary with CRI server implementation and download _fakesh_ binary that is required to
+run containers built from scratch. After installation you will see both binaries in
+`/usr/local/bin`.
+
 
 To start CRI server simply run _sycri_ binary. By default CRI listens for requests on
 `unix:///var/run/singularity.sock` and stores image files at `/var/lib/singularity`. This behaviour may be configured
-with flags, run `./sycri -h` for more details.
+with flags, run `sycri -h` for more details.
 
 ##
 To run unit tests you can use Makefile:
 ```bash
-sudo PATH=$PATH make test
+sudo make test
 ```
 
 ## Important notes
@@ -92,11 +94,12 @@ To test CRI in interactive mode we suggest the following workflow:
 	```
 	For details on all options available see [`crictl install page`](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/crictl.md#install-crictl).
 
-3. Build and launch CRI server:
+3. Build and launch CRI server (optional: specify desired log level with `-v` flag):
 	 ```bash
 	make clean &&
 	make && 
-	sudo PATH=$PATH ./bin/sycri
+	sudo make install &&
+	sudo sycri -v=10
 	```
 
 4. In separate terminal run nginx pod:
@@ -206,11 +209,12 @@ To test CRI in interactive mode we suggest the following workflow:
 
 	The quickest way to cleanup is simply pod removal:
 	```bash
+	# sudo crictl stopp <podID>
+	$ sudo crictl stopp 0e0538d57a52d
+	
 	# sudo crictl rmp <podID>
 	$ sudo crictl rmp 0e0538d57a52d
 	```
-
-	Note: If you prefer more gentle cleanup you can stop and remove containers first and then stop and remove corresponding pod.
 
 ## Resources
 

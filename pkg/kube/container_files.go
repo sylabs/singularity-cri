@@ -35,7 +35,7 @@ const (
 	contRootfsPath    = "rootfs/"
 	contOCIConfigPath = "config.json"
 
-	fakeShPath = "/usr/local/libexec/singularity/bin/fakesh"
+	fakeShPath = "/usr/local/bin/sycri-bin/fakesh"
 )
 
 func (c *Container) baseDir() string {

@@ -5,9 +5,9 @@ BIN_DIR := ./bin
 SY_CRI := $(BIN_DIR)/sycri
 FAKE_SH := $(BIN_DIR)/fakesh
 
-INSTALL_DIR := /usr/local/libexec/singularity/bin
+INSTALL_DIR := /usr/local/bin
 SY_CRI_INSTALL := $(INSTALL_DIR)/sycri
-FAKE_SH_INSTALL := $(INSTALL_DIR)/fakesh
+FAKE_SH_INSTALL := $(INSTALL_DIR)/sycri-bin/fakesh
 
 
 all: $(SY_CRI) $(FAKE_SH)
