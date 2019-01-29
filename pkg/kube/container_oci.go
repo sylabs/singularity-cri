@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -256,6 +257,11 @@ func (t *containerTranslator) configureProcess() error {
 	t.g.SetProcessTerminal(t.cont.GetTty())
 
 	args := append(t.cont.GetCommand(), t.cont.GetArgs()...)
+	for i, arg := range args {
+		if strings.ContainsRune(arg, ' ') {
+			args[i] = strconv.Quote(arg)
+		}
+	}
 	t.g.SetProcessArgs(append([]string{runScript}, args...))
 
 	security := t.cont.GetLinux().GetSecurityContext()
