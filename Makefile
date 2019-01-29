@@ -1,10 +1,14 @@
 # silent build
 V := @
 
-# source/build locations
 BIN_DIR := ./bin
 SY_CRI := $(BIN_DIR)/sycri
 FAKE_SH := $(BIN_DIR)/fakesh
+
+INSTALL_DIR := /usr/local/libexec/singularity/bin
+SY_CRI_INSTALL := $(INSTALL_DIR)/sycri
+FAKE_SH_INSTALL := $(INSTALL_DIR)/fakesh
+
 
 all: $(SY_CRI) $(FAKE_SH)
 
@@ -20,15 +24,33 @@ $(SY_CRI):
 
 $(FAKE_SH): ARCH := `uname -p`
 $(FAKE_SH):
-	@echo " $(ARCH) FAKE SH"
+	@echo " $(ARCH) SHELL"
 	$(V)wget -O $(FAKE_SH) https://busybox.net/downloads/binaries/1.21.1/busybox-$(ARCH) 2> /dev/null
 	$(V)chmod +x $(FAKE_SH)
+
+install: $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL)
+
+$(SY_CRI_INSTALL):
+	@echo " INSTALL" $@
+	$(V)install -d $(@D)
+	$(V)install -m 0755 $(SY_CRI) $(SY_CRI_INSTALL)
+
+
+$(FAKE_SH_INSTALL):
+	@echo " INSTALL" $@
+	$(V)install -d $(@D)
+	$(V)install -m 0755 $(FAKE_SH) $(FAKE_SH_INSTALL)
 
 .PHONY: clean
 clean:
 	@echo " CLEAN"
 	$(V)go clean
 	$(V)rm -rf $(BIN_DIR)
+
+.PHONY: uninstall
+uninstall:
+	@echo " UNINSTALL"
+	$(V)rm -rf $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL)
 
 .PHONY: test
 test:
