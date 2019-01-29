@@ -22,7 +22,7 @@ $(SY_CRI):
 	fi
 	$(V)export GOOS=linux && go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
-$(FAKE_SH): ARCH := `uname -p`
+$(FAKE_SH): ARCH := `arch`
 $(FAKE_SH):
 	@echo " $(ARCH) SHELL"
 	$(V)wget -O $(FAKE_SH) https://busybox.net/downloads/binaries/1.21.1/busybox-$(ARCH) 2> /dev/null
