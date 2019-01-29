@@ -2,11 +2,12 @@
 V := @
 
 # source/build locations
-BINDIR := ./bin
-SY_CRI := $(BINDIR)/sycri
+BIN_DIR := ./bin
+SY_CRI := $(BIN_DIR)/sycri
+FAKE_SH := $(BIN_DIR)/fakesh
 
-.PHONY: build
-build: $(SY_CRI)
+all: $(SY_CRI) $(FAKE_SH)
+
 
 $(SY_CRI): SECCOMP := "$(shell echo '#include <seccomp.h>\nint main() { }' | gcc -x c -o /dev/null -lseccomp - >/dev/null 2>&1; echo $$?)"
 $(SY_CRI):
@@ -18,11 +19,18 @@ $(SY_CRI):
 	fi
 	$(V)export GOOS=linux && go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
+$(FAKE_SH): ARCH := `uname -p`
+$(FAKE_SH):
+	@echo " $(ARCH) FAKE SH"
+	$(V)wget -O $(FAKE_SH) https://busybox.net/downloads/binaries/1.21.1/busybox-$(ARCH) 2> /dev/null
+	$(V)chmod +x $(FAKE_SH)
+
+
 .PHONY: clean
 clean:
 	@echo " CLEAN"
 	$(V)go clean
-	$(V)rm -rf $(BINDIR)
+	$(V)rm -rf $(BIN_DIR)
 
 .PHONY: test
 test:
