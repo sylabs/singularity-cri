@@ -1,0 +1,11 @@
+{
+  "metadata": {
+    "name": "docker-hello-world",
+    "attempt": 1
+  },
+  "image": {
+    "image": "hello-world"
+  },
+  "log_path": "scratch/1.log",
+  "linux": { }
+}
