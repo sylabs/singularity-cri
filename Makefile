@@ -8,7 +8,6 @@ FAKE_SH := $(BIN_DIR)/fakesh
 
 all: $(SY_CRI) $(FAKE_SH)
 
-
 $(SY_CRI): SECCOMP := "$(shell echo '#include <seccomp.h>\nint main() { }' | gcc -x c -o /dev/null -lseccomp - >/dev/null 2>&1; echo $$?)"
 $(SY_CRI):
 	@echo " GO" $@
@@ -24,7 +23,6 @@ $(FAKE_SH):
 	@echo " $(ARCH) FAKE SH"
 	$(V)wget -O $(FAKE_SH) https://busybox.net/downloads/binaries/1.21.1/busybox-$(ARCH) 2> /dev/null
 	$(V)chmod +x $(FAKE_SH)
-
 
 .PHONY: clean
 clean:
