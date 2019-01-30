@@ -24,6 +24,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/sylabs/sif/pkg/sif"
 	"github.com/sylabs/singularity/pkg/util/loop"
+	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
 const (
@@ -33,6 +34,8 @@ const (
 	contBundlePath    = "bundle/"
 	contRootfsPath    = "rootfs/"
 	contOCIConfigPath = "config.json"
+
+	fakeShPath = "/usr/local/bin/sycri-bin/fakesh"
 )
 
 func (c *Container) baseDir() string {
@@ -84,6 +87,9 @@ func (c *Container) addOCIBundle() error {
 		return fmt.Errorf("could not create bundle directory for container: %v", err)
 	}
 	if err := c.prepareOverlay(c.imgInfo.Path()); err != nil {
+		return err
+	}
+	if err := c.ensureSh(); err != nil {
 		return err
 	}
 	ociSpec, err := translateContainer(c, c.pod)
@@ -248,6 +254,21 @@ func (c *Container) cleanupFiles(silent bool) error {
 				return fmt.Errorf("could not remove logs: %v", err)
 			}
 		}
+	}
+	return nil
+}
+
+func (c *Container) ensureSh() error {
+	_, err := os.Stat(filepath.Join(c.rootfsPath(), "bin", "sh"))
+	if os.IsNotExist(err) {
+		c.Mounts = append(c.Mounts, &k8s.Mount{
+			ContainerPath: "/bin/sh",
+			HostPath:      fakeShPath,
+		})
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("could not check contaiener shell")
 	}
 	return nil
 }

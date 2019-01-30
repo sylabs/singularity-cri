@@ -35,7 +35,6 @@ import (
 // SingularityRuntime implements k8s RuntimeService interface.
 type SingularityRuntime struct {
 	singularity string
-	starter     string
 	imageIndex  *index.ImageIndex
 	pods        *index.PodIndex
 	containers  *index.ContainerIndex
@@ -53,14 +52,9 @@ func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*Singu
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
 	}
-	start, err := exec.LookPath(singularity.StarterName)
-	if err != nil {
-		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.StarterName, err)
-	}
 
 	runtime := &SingularityRuntime{
 		singularity: sing,
-		starter:     start,
 		imageIndex:  imgIndex,
 		pods:        index.NewPodIndex(),
 		containers:  index.NewContainerIndex(),

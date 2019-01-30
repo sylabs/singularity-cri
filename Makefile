@@ -1,12 +1,16 @@
 # silent build
 V := @
 
-# source/build locations
-BINDIR := ./bin
-SY_CRI := $(BINDIR)/sycri
+BIN_DIR := ./bin
+SY_CRI := $(BIN_DIR)/sycri
+FAKE_SH := $(BIN_DIR)/fakesh
 
-.PHONY: build
-build: $(SY_CRI)
+INSTALL_DIR := /usr/local/bin
+SY_CRI_INSTALL := $(INSTALL_DIR)/sycri
+FAKE_SH_INSTALL := $(INSTALL_DIR)/sycri-bin/fakesh
+
+
+all: $(SY_CRI) $(FAKE_SH)
 
 $(SY_CRI): SECCOMP := "$(shell echo '#include <seccomp.h>\nint main() { }' | gcc -x c -o /dev/null -lseccomp - >/dev/null 2>&1; echo $$?)"
 $(SY_CRI):
@@ -18,11 +22,35 @@ $(SY_CRI):
 	fi
 	$(V)export GOOS=linux && go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
+$(FAKE_SH): ARCH := `arch`
+$(FAKE_SH):
+	@echo " $(ARCH) SHELL"
+	$(V)wget -O $(FAKE_SH) https://busybox.net/downloads/binaries/1.21.1/busybox-$(ARCH) 2> /dev/null
+	$(V)chmod +x $(FAKE_SH)
+
+install: $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL)
+
+$(SY_CRI_INSTALL):
+	@echo " INSTALL" $@
+	$(V)install -d $(@D)
+	$(V)install -m 0755 $(SY_CRI) $(SY_CRI_INSTALL)
+
+
+$(FAKE_SH_INSTALL):
+	@echo " INSTALL" $@
+	$(V)install -d $(@D)
+	$(V)install -m 0755 $(FAKE_SH) $(FAKE_SH_INSTALL)
+
 .PHONY: clean
 clean:
 	@echo " CLEAN"
 	$(V)go clean
-	$(V)rm -rf $(BINDIR)
+	$(V)rm -rf $(BIN_DIR)
+
+.PHONY: uninstall
+uninstall:
+	@echo " UNINSTALL"
+	$(V)rm -rf $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL)
 
 .PHONY: test
 test:

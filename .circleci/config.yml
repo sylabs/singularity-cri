@@ -63,7 +63,7 @@ jobs:
           name: Build source
           working_directory: /go/src/github.com/sylabs/cri
           command:
-            make build
+            make
 
   unit_test:
     machine: true
