@@ -67,7 +67,6 @@ lint:
 	--enable=deadcode \
 	--enable=ineffassign \
 	--enable=golint \
-	--enable=unused \
 	--deadline=3m ./...
 
 dep:
