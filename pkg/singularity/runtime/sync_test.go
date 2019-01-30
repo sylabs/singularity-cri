@@ -17,7 +17,6 @@ package runtime
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,6 +24,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/sylabs/singularity/pkg/util/unix"
 )
 
 func TestObserveState_Cancel(t *testing.T) {
@@ -45,7 +45,7 @@ func TestObserveState_InvalidJSON(t *testing.T) {
 	state, err := ObserveState(ctx, socket)
 	require.NoError(t, err, "could not listen on socket")
 	go func(t *testing.T) {
-		c, err := net.Dial("unix", socket)
+		c, err := unix.Dial(socket)
 		require.NoError(t, err)
 		_, err = c.Write([]byte(`{"this": is [invalid json}`))
 		assert.NoError(t, err)
@@ -64,7 +64,7 @@ func TestObserveState_AllWithDelay(t *testing.T) {
 	state, err := ObserveState(ctx, socket)
 	require.NoError(t, err, "could not listen on socket")
 	go func(t *testing.T) {
-		c, err := net.Dial("unix", socket)
+		c, err := unix.Dial(socket)
 		require.NoError(t, err)
 		time.Sleep(time.Millisecond)
 		_, err = c.Write([]byte(`{"status": "creating"}`))
@@ -72,7 +72,7 @@ func TestObserveState_AllWithDelay(t *testing.T) {
 		assert.NoError(t, c.Close())
 		time.Sleep(time.Millisecond * 5)
 
-		c, err = net.Dial("unix", socket)
+		c, err = unix.Dial(socket)
 		require.NoError(t, err)
 		time.Sleep(time.Millisecond * 3)
 		_, err = c.Write([]byte(`{"status": "created"}`))
@@ -80,7 +80,7 @@ func TestObserveState_AllWithDelay(t *testing.T) {
 		assert.NoError(t, c.Close())
 
 		time.Sleep(time.Millisecond * 5)
-		c, err = net.Dial("unix", socket)
+		c, err = unix.Dial(socket)
 		require.NoError(t, err)
 		time.Sleep(time.Millisecond)
 		_, err = c.Write([]byte(`{"status": "running"}`))
@@ -88,7 +88,7 @@ func TestObserveState_AllWithDelay(t *testing.T) {
 		assert.NoError(t, c.Close())
 
 		time.Sleep(time.Millisecond * 20)
-		c, err = net.Dial("unix", socket)
+		c, err = unix.Dial(socket)
 		require.NoError(t, err)
 		time.Sleep(time.Millisecond * 5)
 		_, err = c.Write([]byte(`{"status": "stopped"}`))
