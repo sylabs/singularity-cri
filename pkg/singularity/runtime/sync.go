@@ -21,6 +21,7 @@ import (
 	"net"
 
 	"github.com/golang/glog"
+	"github.com/sylabs/singularity/pkg/util/unix"
 )
 
 // State defines type for manipulating with container's state.
@@ -46,7 +47,7 @@ const (
 // StateExited or any error during networking occurred. ObserveState returns
 // error only if it fails to start listener on the passed socket.
 func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
-	ln, err := net.Listen("unix", socket)
+	ln, err := unix.Listen(socket)
 	if err != nil {
 		return nil, fmt.Errorf("could not listen sync socket: %v", err)
 	}
