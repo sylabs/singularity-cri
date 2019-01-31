@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	contInfoPath = "/var/run/singularity/containers/"
+	contInfoPath = "/var/lib/singularity/sycri/containers/"
 
 	contSocketPath    = "sync.sock"
 	contBundlePath    = "bundle/"
