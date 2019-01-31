@@ -58,8 +58,8 @@ func (c *Container) validateConfig() error {
 	}
 	caps := security.GetCapabilities()
 	if caps != nil {
-		caps.AddCapabilities = prepareCapabilities(caps.AddCapabilities)
-		caps.DropCapabilities = prepareCapabilities(caps.DropCapabilities)
+		caps.AddCapabilities = prepareCapabilities(caps.AddCapabilities, nil)
+		caps.DropCapabilities = prepareCapabilities(caps.DropCapabilities, caps.AddCapabilities)
 	}
 	return nil
 }
@@ -81,10 +81,18 @@ func prepareSeccompPath(scProfile string) (string, error) {
 	return scProfile, nil
 }
 
-func prepareCapabilities(caps []string) []string {
+func prepareCapabilities(caps []string, excluded []string) []string {
 	normalized, unknown := capabilities.Normalize(caps)
 	if len(unknown) != 0 {
 		glog.Warningf("Skipping unknown capabilities: %v", unknown)
+	}
+	// remove excluded capabilities if any from normalized set
+	for i := len(normalized) - 1; i >= 0; i-- {
+		for _, exclude := range excluded {
+			if exclude == normalized[i] {
+				normalized = append(normalized[:i], normalized[i+1:]...)
+			}
+		}
 	}
 	return normalized
 }
