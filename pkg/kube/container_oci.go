@@ -77,7 +77,7 @@ func (t *containerTranslator) configureImage() {
 }
 
 func (t *containerTranslator) configureMounts() error {
-	if err := t.g.SetLinuxRootPropagation("rshared"); err != nil {
+	if err := t.g.SetLinuxRootPropagation("rprivate"); err != nil {
 		return fmt.Errorf("could not set root propagation: %v", err)
 	}
 
