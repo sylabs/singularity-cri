@@ -2,7 +2,7 @@
 
 start:
 	export CHANGE_MINIKUBE_NONE_USER=true
-	sudo minikube start -v 5 --vm-driver=none \
+	sudo minikube start -v 5 --vm-driver=kvm2 \
 	--kubernetes-version=v1.13.0 \
 	--extra-config=kubelet.container-runtime=remote \
 	--extra-config=kubelet.container-runtime-endpoint=unix:///var/run/singularity.sock \

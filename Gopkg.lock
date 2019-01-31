@@ -364,7 +364,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d10a929ab2a3ac2c47d12b442fa906b2d0d72dc02d6c6d64fcc6de122630dc30"
+  digest = "1:5359c7b7fc474e83335de149c7f1feda5656b01a252a604bfcd490286983e3ef"
   name = "github.com/sylabs/singularity"
   packages = [
     "internal/pkg/sylog",
@@ -383,7 +383,7 @@
     "pkg/util/user-agent",
   ]
   pruneopts = "UT"
-  revision = "0c7d51a26fe94bf673819c8380fc957dfc8ff33a"
+  revision = "2f735a0e96f5f66317fcc5bf602d577986b7d700"
 
 [[projects]]
   branch = "master"
