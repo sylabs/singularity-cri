@@ -332,6 +332,12 @@ func (c *Container) ReopenLogFile() error {
 	if err != nil {
 		return fmt.Errorf("could not send reopen log to control socket: %v", err)
 	}
+
+	buf := make([]byte, 1)
+	_, err = ctrlSock.Read(buf)
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("could not wait reopen log: %v", err)
+	}
 	return nil
 }
 
