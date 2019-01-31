@@ -258,11 +258,6 @@ func (t *containerTranslator) configureProcess() error {
 	t.g.SetProcessTerminal(t.cont.GetTty())
 
 	args := append(t.cont.GetCommand(), t.cont.GetArgs()...)
-	for i, arg := range args {
-		if strings.ContainsRune(arg, ' ') {
-			args[i] = strconv.Quote(arg)
-		}
-	}
 	if len(t.cont.GetCommand()) > 0 {
 		t.g.SetProcessArgs(append([]string{execScript}, args...))
 	} else {
