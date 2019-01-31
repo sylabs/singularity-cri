@@ -6,12 +6,14 @@
     "attempt": 1
   },
   "hostname": "networking",
-  "log_directory": "/tmp/test",
+  "port_mappings": [
+    {
+      "container_port": 80
+    }
+  ],
+  "log_directory": "/tmp/net-pod",
   "linux": {
     "security_context": {
-      "namespace_options": {
-        "network": 2
-      }
     }
   }
 }

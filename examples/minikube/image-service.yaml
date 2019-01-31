@@ -15,24 +15,9 @@ spec:
       containers:
       - name: image-server
         image: cloud.sylabs.io/sashayakovtseva/test/image-server
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         command: ["./image-server"]
         workingDir: "/go/bin"
         ports:
         - containerPort: 8080
-          hostPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: net-pod-service
-  namespace: default
-spec:
-  selector:
-    app: image-service
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
-  type: NodePort
-  externalName: image-service
+          hostPort: 80
