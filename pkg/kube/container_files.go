@@ -259,7 +259,7 @@ func (c *Container) cleanupFiles(silent bool) error {
 }
 
 func (c *Container) ensureSh() error {
-	_, err := os.Stat(filepath.Join(c.rootfsPath(), "bin", "sh"))
+	_, err := os.Lstat(filepath.Join(c.rootfsPath(), "bin", "sh"))
 	if os.IsNotExist(err) {
 		c.Mounts = append(c.Mounts, &k8s.Mount{
 			ContainerPath: "/bin/sh",
