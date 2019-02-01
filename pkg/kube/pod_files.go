@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	podInfoPath = "/var/lib/singularity/sycri/pods/"
+	podInfoPath = "/var/run/singularity/pods/"
 
 	podNsStorePath    = "namespaces/"
 	podResolvConfPath = "resolv.conf"
