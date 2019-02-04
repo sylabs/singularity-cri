@@ -45,7 +45,7 @@ func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, h
 
 func main() {
 	var configPath string
-	flag.StringVar(&configPath, "config", "./config/sycri.yaml", "path to config file")
+	flag.StringVar(&configPath, "config", "/usr/local/etc/sycri/sycri.yaml", "path to config file")
 	flag.Parse()
 
 	logs.InitLogs()
