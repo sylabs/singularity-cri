@@ -33,6 +33,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/server/streaming"
 )
 
+// DefaultBaseRunDir is the default location for running pods and containers.
 const DefaultBaseRunDir = "/var/run/singularity"
 
 // SingularityRuntime implements k8s RuntimeService interface.
@@ -75,6 +76,7 @@ func NewSingularityRuntime(imgIndex *index.ImageIndex, opts ...Option) (*Singula
 	return runtime, nil
 }
 
+// WithStreaming sets enables streaming endpoints by setting streaming server URL.
 func WithStreaming(url string) Option {
 	return func(r *SingularityRuntime) {
 		streamingRuntime := &streamingRuntime{r}
@@ -99,6 +101,7 @@ func WithStreaming(url string) Option {
 	}
 }
 
+// WithNetwork accepts CNI paths and enables networking support.
 func WithNetwork(cniBin, cniConf string) Option {
 	return func(r *SingularityRuntime) {
 		cniPath := &snetwork.CNIPath{
@@ -112,6 +115,8 @@ func WithNetwork(cniBin, cniConf string) Option {
 	}
 }
 
+// WithBaseRunDir sets base directory where all running pods
+// and containers are stored. Overrides DefaultBaseRunDir.
 func WithBaseRunDir(dir string) Option {
 	return func(r *SingularityRuntime) {
 		r.baseRunDir = dir
