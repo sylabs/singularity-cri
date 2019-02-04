@@ -28,8 +28,6 @@ import (
 )
 
 const (
-	contInfoPath = "/var/run/singularity/containers/"
-
 	contSocketPath    = "sync.sock"
 	contBundlePath    = "bundle/"
 	contRootfsPath    = "rootfs/"
@@ -38,28 +36,24 @@ const (
 	fakeShPath = "/usr/local/bin/sycri-bin/fakesh"
 )
 
-func (c *Container) baseDir() string {
-	return filepath.Join(contInfoPath, c.id)
-}
-
 // ociConfigPath returns path to container's config.json file.
 func (c *Container) ociConfigPath() string {
-	return filepath.Join(c.baseDir(), contBundlePath, contOCIConfigPath)
+	return filepath.Join(c.baseDir, contBundlePath, contOCIConfigPath)
 }
 
 // rootfsPath returns path to container's rootfs directory.
 func (c *Container) rootfsPath() string {
-	return filepath.Join(c.baseDir(), contBundlePath, contRootfsPath)
+	return filepath.Join(c.baseDir, contBundlePath, contRootfsPath)
 }
 
 // socketPath returns path to container's sync socket.
 func (c *Container) socketPath() string {
-	return filepath.Join(c.baseDir(), contSocketPath)
+	return filepath.Join(c.baseDir, contSocketPath)
 }
 
 // bundlePath returns path to container's filesystem bundle directory.
 func (c *Container) bundlePath() string {
-	return filepath.Join(c.baseDir(), contBundlePath)
+	return filepath.Join(c.baseDir, contBundlePath)
 }
 
 func (c *Container) addLogDirectory() error {
@@ -239,8 +233,8 @@ func (c *Container) cleanupFiles(silent bool) error {
 	if err != nil && !silent {
 		return fmt.Errorf("could not umount overlay parent directory: %v", err)
 	}
-	glog.V(8).Infof("Removing container base directory %s", c.baseDir())
-	err = os.RemoveAll(c.baseDir())
+	glog.V(8).Infof("Removing container base directory %s", c.baseDir)
+	err = os.RemoveAll(c.baseDir)
 	if err != nil && !silent {
 		return fmt.Errorf("could not cleanup container: %v", err)
 	}

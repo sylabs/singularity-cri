@@ -50,6 +50,7 @@ type Container struct {
 	*k8s.ContainerConfig
 	pod     *Pod
 	imgInfo *image.Info
+	baseDir string
 
 	runtimeState runtime.State
 	ociState     *ociruntime.State
@@ -159,7 +160,8 @@ func (c *Container) ImageID() string {
 }
 
 // Create creates container inside a pod from the image.
-func (c *Container) Create() error {
+// All files created (bundle, sync socket, etc) are located in baseDir.
+func (c *Container) Create(baseDir string) error {
 	var err error
 	defer func() {
 		if err != nil {
@@ -177,6 +179,7 @@ func (c *Container) Create() error {
 	}()
 
 	c.createOnce.Do(func() {
+		c.baseDir = baseDir
 		err = c.validateConfig()
 		if err != nil {
 			err = fmt.Errorf("invalid container config: %v", err)

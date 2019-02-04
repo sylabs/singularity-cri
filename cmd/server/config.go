@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/golang/glog"
 	"gopkg.in/yaml.v2"
 )
 
@@ -51,6 +52,10 @@ func parseConfig(path string) (Config, error) {
 	var config Config
 
 	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		glog.Warningf("No config file found, using default")
+		return defaultConfig, nil
+	}
 	if err != nil {
 		return config, fmt.Errorf("could not open config file: %v", err)
 	}
@@ -60,10 +65,10 @@ func parseConfig(path string) (Config, error) {
 	if err != nil {
 		return config, fmt.Errorf("could not decode config: %v", err)
 	}
-	return mergeConfig(config, defaultConfig), nil
+	return fillEmpty(config, defaultConfig), nil
 }
 
-func mergeConfig(config, defaultConfig Config) Config {
+func fillEmpty(config, defaultConfig Config) Config {
 	if config.ListenSocket == "" {
 		config.ListenSocket = defaultConfig.ListenSocket
 	}

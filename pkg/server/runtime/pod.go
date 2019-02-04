@@ -17,6 +17,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/index"
@@ -35,7 +36,8 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 			glog.Errorf("Could not remove pod from index: %v", err)
 		}
 	}
-	if err := pod.Run(); err != nil {
+	podBaseDir := filepath.Join(s.baseRunDir, "pods", pod.ID())
+	if err := pod.Run(podBaseDir); err != nil {
 		cleanupOnFailure()
 		return nil, status.Errorf(codes.Internal, "could not run pod: %v", err)
 	}

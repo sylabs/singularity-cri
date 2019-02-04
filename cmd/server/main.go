@@ -80,6 +80,7 @@ func main() {
 		imageIndex,
 		runtime.WithStreaming(config.StreamingURL),
 		runtime.WithNetwork(config.CNIBinDir, config.CNIConfDir),
+		runtime.WithBaseRunDir(config.BaseRunDir),
 	)
 	if err != nil {
 		glog.Errorf("Could not create Singularity runtime service: %v", err)

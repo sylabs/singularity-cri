@@ -33,12 +33,15 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/server/streaming"
 )
 
+const DefaultBaseRunDir = "/var/run/singularity"
+
 // SingularityRuntime implements k8s RuntimeService interface.
 type SingularityRuntime struct {
 	singularity string
 	imageIndex  *index.ImageIndex
 	pods        *index.PodIndex
 	containers  *index.ContainerIndex
+	baseRunDir  string
 
 	streaming streaming.Server
 
@@ -63,6 +66,7 @@ func NewSingularityRuntime(imgIndex *index.ImageIndex, opts ...Option) (*Singula
 		imageIndex:  imgIndex,
 		pods:        index.NewPodIndex(),
 		containers:  index.NewContainerIndex(),
+		baseRunDir:  DefaultBaseRunDir,
 	}
 
 	for _, opt := range opts {
@@ -105,6 +109,12 @@ func WithNetwork(cniBin, cniConf string) Option {
 		if err := r.networkManager.Init(cniPath); err != nil {
 			glog.Errorf("Could not initialize network manager: %v", err)
 		}
+	}
+}
+
+func WithBaseRunDir(dir string) Option {
+	return func(r *SingularityRuntime) {
+		r.baseRunDir = dir
 	}
 }
 

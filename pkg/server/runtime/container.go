@@ -17,6 +17,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/golang/glog"
 	"github.com/sylabs/cri/pkg/index"
@@ -57,8 +58,8 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 			glog.Errorf("Could not remove container from index: %v", err)
 		}
 	}
-
-	if err := cont.Create(); err != nil {
+	contBaseDir := filepath.Join(s.baseRunDir, "containers", cont.ID())
+	if err := cont.Create(contBaseDir); err != nil {
 		cleanupOnFailure()
 		return nil, status.Errorf(codes.Internal, "could not create container: %v", err)
 	}
