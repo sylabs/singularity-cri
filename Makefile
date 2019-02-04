@@ -40,7 +40,7 @@ $(SY_CRI_INSTALL):
 $(CRI_CONFIG_INSTALL):
 	@echo " INSTALL" $@
 	$(V)install -d $(@D)
-	$(V)install -m 0755 $(CRI_CONFIG) $(CRI_CONFIG_INSTALL)
+	$(V)install -m 0644 $(CRI_CONFIG) $(CRI_CONFIG_INSTALL)
 
 $(FAKE_SH_INSTALL):
 	@echo " INSTALL" $@
