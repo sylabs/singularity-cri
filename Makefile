@@ -37,7 +37,7 @@ $(SY_CRI_INSTALL):
 	$(V)install -d $(@D)
 	$(V)install -m 0755 $(SY_CRI) $(SY_CRI_INSTALL)
 
-$(SY_CRI_INSTALL):
+$(CRI_CONFIG_INSTALL):
 	@echo " INSTALL" $@
 	$(V)install -d $(@D)
 	$(V)install -m 0755 $(CRI_CONFIG) $(CRI_CONFIG_INSTALL)
@@ -56,7 +56,7 @@ clean:
 .PHONY: uninstall
 uninstall:
 	@echo " UNINSTALL"
-	$(V)rm -rf $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL)
+	$(V)rm -rf $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL) $(CRI_CONFIG_INSTALL)
 
 .PHONY: test
 test:
