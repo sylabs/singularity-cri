@@ -65,27 +65,18 @@ func parseConfig(path string) (Config, error) {
 	if err != nil {
 		return config, fmt.Errorf("could not decode config: %v", err)
 	}
-	return fillEmpty(config, defaultConfig), nil
+	return validConfig(config)
 }
 
-func fillEmpty(config, defaultConfig Config) Config {
+func validConfig(config Config) (Config, error) {
 	if config.ListenSocket == "" {
-		config.ListenSocket = defaultConfig.ListenSocket
+		return Config{}, fmt.Errorf("socket to serve cannot be empty")
 	}
 	if config.StorageDir == "" {
-		config.StorageDir = defaultConfig.StorageDir
-	}
-	if config.StreamingURL == "" {
-		config.StreamingURL = defaultConfig.StreamingURL
-	}
-	if config.CNIBinDir == "" {
-		config.CNIBinDir = defaultConfig.CNIBinDir
-	}
-	if config.CNIConfDir == "" {
-		config.CNIConfDir = defaultConfig.CNIConfDir
+		return Config{}, fmt.Errorf("directory to pull images cannot be empty")
 	}
 	if config.BaseRunDir == "" {
-		config.BaseRunDir = defaultConfig.BaseRunDir
+		return Config{}, fmt.Errorf("directory to run containers cannot be empty")
 	}
-	return config
+	return config, nil
 }
