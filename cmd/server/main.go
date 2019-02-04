@@ -76,7 +76,11 @@ func main() {
 		glog.Errorf("Could not create Singularity image service: %v", err)
 		return
 	}
-	syRuntime, err := runtime.NewSingularityRuntime(config.StreamingURL, imageIndex)
+	syRuntime, err := runtime.NewSingularityRuntime(
+		imageIndex,
+		runtime.WithStreaming(config.StreamingURL),
+		runtime.WithNetwork(config.CNIBinDir, config.CNIConfDir),
+	)
 	if err != nil {
 		glog.Errorf("Could not create Singularity runtime service: %v", err)
 		return
