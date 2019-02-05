@@ -28,10 +28,10 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"github.com/sylabs/cri/pkg/rand"
-	"github.com/sylabs/cri/pkg/singularity"
-	"github.com/sylabs/cri/pkg/slice"
 	"github.com/sylabs/sif/pkg/sif"
+	"github.com/sylabs/singularity-cri/pkg/rand"
+	"github.com/sylabs/singularity-cri/pkg/singularity"
+	"github.com/sylabs/singularity-cri/pkg/slice"
 	library "github.com/sylabs/singularity/pkg/client/library"
 	"github.com/sylabs/singularity/pkg/signing"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"

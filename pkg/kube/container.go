@@ -24,9 +24,9 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/sylabs/cri/pkg/image"
-	"github.com/sylabs/cri/pkg/rand"
-	"github.com/sylabs/cri/pkg/singularity/runtime"
+	"github.com/sylabs/singularity-cri/pkg/image"
+	"github.com/sylabs/singularity-cri/pkg/rand"
+	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 	"github.com/sylabs/singularity/pkg/util/unix"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"

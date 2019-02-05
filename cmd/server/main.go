@@ -24,9 +24,9 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
-	"github.com/sylabs/cri/pkg/index"
-	"github.com/sylabs/cri/pkg/server/image"
-	"github.com/sylabs/cri/pkg/server/runtime"
+	"github.com/sylabs/singularity-cri/pkg/index"
+	"github.com/sylabs/singularity-cri/pkg/server/image"
+	"github.com/sylabs/singularity-cri/pkg/server/runtime"
 	"github.com/sylabs/singularity/pkg/util/user-agent"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"

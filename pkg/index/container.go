@@ -17,8 +17,8 @@ package index
 import (
 	"fmt"
 
-	"github.com/sylabs/cri/pkg/kube"
-	"github.com/sylabs/cri/pkg/truncindex"
+	"github.com/sylabs/singularity-cri/pkg/kube"
+	"github.com/sylabs/singularity-cri/pkg/truncindex"
 )
 
 // ContainerIndex provides a convenient and thread-safe way for storing containers.

@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/sylabs/cri/pkg/singularity/runtime"
+	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 )
 
 func (c *Container) spawnOCIContainer() error {
