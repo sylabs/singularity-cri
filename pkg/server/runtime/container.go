@@ -20,8 +20,8 @@ import (
 	"path/filepath"
 
 	"github.com/golang/glog"
-	"github.com/sylabs/cri/pkg/index"
-	"github.com/sylabs/cri/pkg/kube"
+	"github.com/sylabs/singularity-cri/pkg/index"
+	"github.com/sylabs/singularity-cri/pkg/kube"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"

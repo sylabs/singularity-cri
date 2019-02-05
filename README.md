@@ -71,7 +71,7 @@ Because images external to the Library are in a format other than SIF, when pull
 format for use by Singularity. Each time a SIF file is created through this conversion process a timestamp is
 automatically generated and captured as SIF metadata. Unfortunately, changes in the timestamp result in uniquely
 tagged images - even though the only difference is the timestamp in the SIF metadata. This matter has been classified
-as a known issue for documentation; refer to [issue](https://github.com/sylabs/cri/issues/15) for additional details.
+as a known issue for documentation; refer to [issue](https://github.com/sylabs/singularity-cri/issues/15) for additional details.
 
 ## Developers guide
 

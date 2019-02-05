@@ -21,10 +21,10 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sylabs/cri/pkg/namespace"
-	"github.com/sylabs/cri/pkg/network"
-	"github.com/sylabs/cri/pkg/rand"
-	"github.com/sylabs/cri/pkg/singularity/runtime"
+	"github.com/sylabs/singularity-cri/pkg/namespace"
+	"github.com/sylabs/singularity-cri/pkg/network"
+	"github.com/sylabs/singularity-cri/pkg/rand"
+	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )

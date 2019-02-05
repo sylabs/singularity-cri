@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/sylabs/cri/pkg/image"
+	"github.com/sylabs/singularity-cri/pkg/image"
 )
 
 func TestImageIndex(t *testing.T) {

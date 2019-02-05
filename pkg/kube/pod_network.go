@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sylabs/cri/pkg/network"
+	"github.com/sylabs/singularity-cri/pkg/network"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 

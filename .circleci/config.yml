@@ -31,7 +31,7 @@ jobs:
       - persist_to_workspace:
           root: /
           paths:
-            - go/src/github.com/sylabs/cri/*
+            - go/src/github.com/sylabs/singularity-cri/*
 
   gometalinter_check:
     <<: *defaults
