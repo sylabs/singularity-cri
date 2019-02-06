@@ -99,37 +99,11 @@ func (p *Pod) prepareFiles() error {
 	if err := p.addLogDirectory(); err != nil {
 		return fmt.Errorf("could not create log directory: %v", err)
 	}
-	if err := p.addResolvConf(); err != nil {
+	if err := writeResolvConf(p.resolvConfFilePath(), p.GetDnsConfig()); err != nil {
 		return fmt.Errorf("could not create resolv.conf: %v", err)
 	}
 	if err := p.addHostname(); err != nil {
 		return fmt.Errorf("could not create hostname file: %v", err)
-	}
-	return nil
-}
-
-func (p *Pod) addResolvConf() error {
-	config := p.GetDnsConfig()
-	if config == nil {
-		return nil
-	}
-
-	glog.V(8).Infof("Creating resolv.conf file %s", p.resolvConfFilePath())
-	resolv, err := os.OpenFile(p.resolvConfFilePath(), os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return fmt.Errorf("could not create %s: %v", podResolvConfPath, err)
-	}
-	for _, s := range config.GetServers() {
-		fmt.Fprintf(resolv, "nameserver %s\n", s)
-	}
-	for _, s := range config.GetSearches() {
-		fmt.Fprintf(resolv, "search %s\n", s)
-	}
-	for _, o := range config.GetOptions() {
-		fmt.Fprintf(resolv, "options %s\n", o)
-	}
-	if err = resolv.Close(); err != nil {
-		return fmt.Errorf("could not close %s: %v", podResolvConfPath, err)
 	}
 	return nil
 }
