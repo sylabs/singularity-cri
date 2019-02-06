@@ -20,8 +20,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sylabs/cri/pkg/singularity"
-	"github.com/sylabs/cri/pkg/slice"
+	"github.com/sylabs/singularity-cri/pkg/singularity"
+	"github.com/sylabs/singularity-cri/pkg/slice"
 )
 
 // Reference holds parsed content of image reference.

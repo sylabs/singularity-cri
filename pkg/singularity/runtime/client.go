@@ -27,7 +27,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sylabs/cri/pkg/singularity"
+	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 )
 

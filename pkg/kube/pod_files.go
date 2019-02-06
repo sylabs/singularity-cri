@@ -22,7 +22,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/sylabs/cri/pkg/namespace"
+	"github.com/sylabs/singularity-cri/pkg/namespace"
 )
 
 const (

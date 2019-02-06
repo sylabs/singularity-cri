@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/sylabs/cri/pkg/singularity"
+	"github.com/sylabs/singularity-cri/pkg/singularity"
 )
 
 func TestParseImageRef(t *testing.T) {

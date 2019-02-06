@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/sylabs/cri/pkg/image"
-	"github.com/sylabs/cri/pkg/truncindex"
+	"github.com/sylabs/singularity-cri/pkg/image"
+	"github.com/sylabs/singularity-cri/pkg/truncindex"
 )
 
 // ImageIndex provides a convenient and thread-safe way for storing images.

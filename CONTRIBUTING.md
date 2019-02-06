@@ -14,10 +14,10 @@ form.
 
 # Contributing
 
-When contributing to Sylabs/CRI, it is important to properly communicate the
-gist of the contribution. If it is a simple code or editorial fix, simply
-explaining this within the GitHub Pull Request (PR) will suffice. But if this
-is a larger fix or Enhancement, you are advised to first discuss the change
+When contributing to [sylabs/singularity-cri](https://github.com/sylabs/singularity-cri/), it 
+is important to properly communicate the gist of the contribution. If it is a simple code or 
+editorial fix, simply explaining this within the GitHub Pull Request (PR) will suffice. But 
+if this is a larger fix or Enhancement, you are advised to first discuss the change
 with the project leader or developers.
 
 Please note we have a code of conduct, described below. Please follow it in
@@ -29,7 +29,7 @@ all your interactions with the project members and users.
 1. Essential bug fix PRs should be sent to both master and release branches.
 2. Small bug fix and feature enhancement PRs should be sent to master only.
 3. Follow the existing code style precedent, especially for C. For Golang, you
-   will mostly conform to the style and form enforced by the "go fmt" and
+   will mostly conform to the style and form enforced by the "goimports" and
    "golint" tools for proper formatting.
 4. Ensure any install or build dependencies are removed before doing a build
    to test your PR locally.

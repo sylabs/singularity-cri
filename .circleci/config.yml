@@ -1,7 +1,7 @@
 version: 2.0
 
 defaults: &defaults
-  working_directory: /go/src/github.com/sylabs/cri
+  working_directory: /go/src/github.com/sylabs/singularity-cri
   docker:
     - image: sylabsio/golang:1.11-stretch
 
@@ -31,7 +31,7 @@ jobs:
       - persist_to_workspace:
           root: /
           paths:
-            - go/src/github.com/sylabs/cri/*
+            - go/src/github.com/sylabs/singularity-cri/*
 
   gometalinter_check:
     <<: *defaults
@@ -45,7 +45,7 @@ jobs:
           curl -L https://git.io/vp6lP | sh
     - run:
         name: Check formatting
-        working_directory: /go/src/github.com/sylabs/cri
+        working_directory: /go/src/github.com/sylabs/singularity-cri
         command: |-
           make lint
 
@@ -61,7 +61,7 @@ jobs:
             curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
           name: Build source
-          working_directory: /go/src/github.com/sylabs/cri
+          working_directory: /go/src/github.com/sylabs/singularity-cri
           command:
             make
 
@@ -105,7 +105,7 @@ jobs:
       - run:
           name: Run tests
           command: |-
-            cd $HOME/go/src/github.com/sylabs/cri
+            cd $HOME/go/src/github.com/sylabs/singularity-cri
             make test
 
 workflows:
