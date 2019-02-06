@@ -23,10 +23,7 @@ func TestWriteResolvConf(t *testing.T) {
 			conf: &k8s.DNSConfig{
 				Servers: []string{"10.0.0.12", "192.168.1.1"},
 			},
-			expectContent: `
-nameserver 10.0.0.12
-nameserver 192.168.1.1
-`,
+			expectContent: "nameserver 10.0.0.12\nnameserver 192.168.1.1\n",
 		},
 		{
 			name: "only searches",
@@ -34,9 +31,7 @@ nameserver 192.168.1.1
 			conf: &k8s.DNSConfig{
 				Searches: []string{"mongo.cluster.local", "mongo"},
 			},
-			expectContent: `
-search mongo.cluster.local, mongo
-`,
+			expectContent: "search mongo.cluster.local, mongo\n",
 		},
 		{
 			name: "servers and searches ",
@@ -45,11 +40,7 @@ search mongo.cluster.local, mongo
 				Servers:  []string{"10.0.0.12", "192.168.1.1"},
 				Searches: []string{"mongo.cluster.local", "mongo"},
 			},
-			expectContent: `
-nameserver 10.0.0.12
-nameserver 192.168.1.1
-search mongo.cluster.local, mongo
-`,
+			expectContent: "nameserver 10.0.0.12\nnameserver 192.168.1.1\nsearch mongo.cluster.local, mongo\n",
 		},
 	}
 
