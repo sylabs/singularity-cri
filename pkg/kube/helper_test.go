@@ -3,6 +3,7 @@ package kube
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -18,7 +19,7 @@ func TestWriteResolvConf(t *testing.T) {
 	}{
 		{
 			name: "only servers",
-			path: os.TempDir() + "resolv.conf.test1",
+			path: filepath.Join(os.TempDir(), "resolv.conf.test1"),
 			conf: &k8s.DNSConfig{
 				Servers: []string{"10.0.0.12", "192.168.1.1"},
 			},
@@ -29,7 +30,7 @@ nameserver 192.168.1.1
 		},
 		{
 			name: "only searches",
-			path: os.TempDir() + "resolv.conf.test2",
+			path: filepath.Join(os.TempDir(), "resolv.conf.test2"),
 			conf: &k8s.DNSConfig{
 				Searches: []string{"mongo.cluster.local", "mongo"},
 			},
@@ -39,7 +40,7 @@ search mongo.cluster.local, mongo
 		},
 		{
 			name: "servers and searches ",
-			path: os.TempDir() + "resolv.conf.test3",
+			path: filepath.Join(os.TempDir(), "resolv.conf.test3"),
 			conf: &k8s.DNSConfig{
 				Servers:  []string{"10.0.0.12", "192.168.1.1"},
 				Searches: []string{"mongo.cluster.local", "mongo"},
