@@ -23,7 +23,7 @@ func writeResolvConf(path string, config *k8s.DNSConfig) error {
 		fmt.Fprintf(resolv, "nameserver %s\n", s)
 	}
 	if len(config.GetSearches()) > 0 {
-		fmt.Fprintf(resolv, "search %s\n", strings.Join(config.GetSearches(), ", "))
+		fmt.Fprintf(resolv, "search %s\n", strings.Join(config.GetSearches(), " "))
 	}
 	for _, o := range config.GetOptions() {
 		fmt.Fprintf(resolv, "options %s\n", o)
