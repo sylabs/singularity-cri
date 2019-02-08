@@ -1,6 +1,6 @@
 [[constraint]]
   name = "k8s.io/kubernetes"
-  version = "~1.11.4"
+  version = "~1.12.1"
 
 [[override]]
   name = "k8s.io/apimachinery"
@@ -36,10 +36,11 @@
   name = "golang.org/x/crypto"
   source = "github.com/sylabs/golang-x-crypto"
 
-[prune]
-  go-tests = true
-  unused-packages = true
-
 [[constraint]]
   branch = "master"
   name = "github.com/golang/glog"
+
+[prune]
+  go-tests = true
+  unused-packages = true
+  non-go = true
