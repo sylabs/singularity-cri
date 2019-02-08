@@ -9,6 +9,8 @@ INSTALL_DIR := /usr/local/bin
 SY_CRI_INSTALL := $(INSTALL_DIR)/sycri
 FAKE_SH_INSTALL := $(INSTALL_DIR)/sycri-bin/fakesh
 
+CRI_CONFIG := ./config/sycri.yaml
+CRI_CONFIG_INSTALL := /usr/local/etc/sycri/sycri.yaml
 
 all: $(SY_CRI) $(FAKE_SH)
 
@@ -28,13 +30,17 @@ $(FAKE_SH):
 	$(V)wget -O $(FAKE_SH) https://busybox.net/downloads/binaries/1.21.1/busybox-$(ARCH) 2> /dev/null
 	$(V)chmod +x $(FAKE_SH)
 
-install: $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL)
+install: $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL) $(CRI_CONFIG_INSTALL)
 
 $(SY_CRI_INSTALL):
 	@echo " INSTALL" $@
 	$(V)install -d $(@D)
 	$(V)install -m 0755 $(SY_CRI) $(SY_CRI_INSTALL)
 
+$(CRI_CONFIG_INSTALL):
+	@echo " INSTALL" $@
+	$(V)install -d $(@D)
+	$(V)install -m 0644 $(CRI_CONFIG) $(CRI_CONFIG_INSTALL)
 
 $(FAKE_SH_INSTALL):
 	@echo " INSTALL" $@
@@ -50,7 +56,7 @@ clean:
 .PHONY: uninstall
 uninstall:
 	@echo " UNINSTALL"
-	$(V)rm -rf $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL)
+	$(V)rm -rf $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL) $(CRI_CONFIG_INSTALL)
 
 .PHONY: test
 test:

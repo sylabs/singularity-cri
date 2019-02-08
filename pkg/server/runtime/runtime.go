@@ -26,11 +26,15 @@ import (
 	"github.com/sylabs/singularity-cri/pkg/kube"
 	"github.com/sylabs/singularity-cri/pkg/network"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
+	snetwork "github.com/sylabs/singularity/pkg/network"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 	"k8s.io/kubernetes/pkg/kubelet/server/streaming"
 )
+
+// DefaultBaseRunDir is the default location for running pods and containers.
+const DefaultBaseRunDir = "/var/run/singularity"
 
 // SingularityRuntime implements k8s RuntimeService interface.
 type SingularityRuntime struct {
@@ -38,16 +42,21 @@ type SingularityRuntime struct {
 	imageIndex  *index.ImageIndex
 	pods        *index.PodIndex
 	containers  *index.ContainerIndex
+	baseRunDir  string
 
 	streaming streaming.Server
 
 	networkManager *network.Manager
 }
 
+// Option is run during SingularityRuntime initialization.
+// Predefined options may be used to add streaming and network support.
+type Option func(r *SingularityRuntime)
+
 // NewSingularityRuntime initializes and returns SingularityRuntime.
 // Singularity must be installed on the host otherwise it will return an error.
 // SingularityRuntime depends on SingularityRegistry so it must not be nil.
-func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*SingularityRuntime, error) {
+func NewSingularityRuntime(imgIndex *index.ImageIndex, opts ...Option) (*SingularityRuntime, error) {
 	sing, err := exec.LookPath(singularity.RuntimeName)
 	if err != nil {
 		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
@@ -58,31 +67,60 @@ func NewSingularityRuntime(streamURL string, imgIndex *index.ImageIndex) (*Singu
 		imageIndex:  imgIndex,
 		pods:        index.NewPodIndex(),
 		containers:  index.NewContainerIndex(),
-	}
-	streamingRuntime := &streamingRuntime{runtime}
-
-	streamingConfig := streaming.DefaultConfig
-	streamingConfig.Addr = streamURL
-	streamingServer, err := streaming.NewServer(streamingConfig, streamingRuntime)
-	if err != nil {
-		return nil, fmt.Errorf("could not create streaming server: %v", err)
+		baseRunDir:  DefaultBaseRunDir,
 	}
 
-	go func() {
-		err := streamingServer.Start(true)
-		if err != nil && err != http.ErrServerClosed {
-			glog.Infof("Streaming server error: %v", err)
-		}
-	}()
-
-	runtime.streaming = streamingServer
-
-	runtime.networkManager = &network.Manager{}
-	if err := runtime.networkManager.Init(nil); err != nil {
-		glog.Warningf("Network manager error: %v", err)
+	for _, opt := range opts {
+		opt(runtime)
 	}
-
 	return runtime, nil
+}
+
+// WithStreaming sets enables streaming endpoints by setting streaming server URL.
+func WithStreaming(url string) Option {
+	return func(r *SingularityRuntime) {
+		streamingRuntime := &streamingRuntime{r}
+
+		streamingConfig := streaming.DefaultConfig
+		streamingConfig.Addr = url
+		streamingServer, err := streaming.NewServer(streamingConfig, streamingRuntime)
+		if err != nil {
+			glog.Errorf("Could not create streaming server: %v", err)
+			glog.Infof("Streaming endpoints are disabled")
+			return
+		}
+
+		go func() {
+			err := streamingServer.Start(true)
+			if err != nil && err != http.ErrServerClosed {
+				glog.Infof("Streaming server error: %v", err)
+			}
+		}()
+
+		r.streaming = streamingServer
+	}
+}
+
+// WithNetwork accepts CNI paths and enables networking support.
+func WithNetwork(cniBin, cniConf string) Option {
+	return func(r *SingularityRuntime) {
+		cniPath := &snetwork.CNIPath{
+			Conf:   cniConf,
+			Plugin: cniBin,
+		}
+		r.networkManager = &network.Manager{}
+		if err := r.networkManager.Init(cniPath); err != nil {
+			glog.Errorf("Could not initialize network manager: %v", err)
+		}
+	}
+}
+
+// WithBaseRunDir sets base directory where all running pods
+// and containers are stored. Overrides DefaultBaseRunDir.
+func WithBaseRunDir(dir string) Option {
+	return func(r *SingularityRuntime) {
+		r.baseRunDir = dir
+	}
 }
 
 // Shutdown shuts down any running background tasks created by SingularityRuntime.

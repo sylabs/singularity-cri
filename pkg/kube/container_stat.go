@@ -39,7 +39,7 @@ type ContainerStat struct {
 // implies that cpuacct and memory cgroups controllers are mounted on host
 // at /sys/fs/cgroups/cpuacct and  /sys/fs/cgroups/memory respectively.
 func (c *Container) Stat() (*ContainerStat, error) {
-	fsInfo, err := fs.Usage(c.baseDir())
+	fsInfo, err := fs.Usage(c.baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not get fs usage: %v", err)
 	}

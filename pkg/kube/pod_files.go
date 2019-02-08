@@ -26,8 +26,6 @@ import (
 )
 
 const (
-	podInfoPath = "/var/run/singularity/pods/"
-
 	podNsStorePath    = "namespaces/"
 	podResolvConfPath = "resolv.conf"
 	podHostnamePath   = "hostname"
@@ -50,47 +48,43 @@ func (p *Pod) namespacePath(nsType specs.LinuxNamespaceType) string {
 	return ""
 }
 
-func (p *Pod) baseDir() string {
-	return filepath.Join(podInfoPath, p.id)
-}
-
 // hostnameFilePath returns path to pod's hostname file.
 func (p *Pod) hostnameFilePath() string {
-	return filepath.Join(p.baseDir(), podHostnamePath)
+	return filepath.Join(p.baseDir, podHostnamePath)
 }
 
 // resolvConfFilePath returns path to pod's resolv.conf file.
 func (p *Pod) resolvConfFilePath() string {
-	return filepath.Join(p.baseDir(), podResolvConfPath)
+	return filepath.Join(p.baseDir, podResolvConfPath)
 }
 
 // bundlePath returns path to pod's filesystem bundle directory.
 func (p *Pod) bundlePath() string {
-	return filepath.Join(p.baseDir(), podBundlePath)
+	return filepath.Join(p.baseDir, podBundlePath)
 }
 
 // rootfsPath returns path to pod's rootfs directory.
 func (p *Pod) rootfsPath() string {
-	return filepath.Join(p.baseDir(), podBundlePath, podRootfsPath)
+	return filepath.Join(p.baseDir, podBundlePath, podRootfsPath)
 }
 
 // ociConfigPath returns path to pod's config.json file.
 func (p *Pod) ociConfigPath() string {
-	return filepath.Join(p.baseDir(), podBundlePath, podOCIConfigPath)
+	return filepath.Join(p.baseDir, podBundlePath, podOCIConfigPath)
 }
 
 // socketPath returns path to pod's sync socket.
 func (p *Pod) socketPath() string {
-	return filepath.Join(p.baseDir(), podSocketPath)
+	return filepath.Join(p.baseDir, podSocketPath)
 }
 
 // bindNamespacePath returns path to pod's namespace file of the passed type.
 func (p *Pod) bindNamespacePath(nsType specs.LinuxNamespaceType) string {
-	return filepath.Join(p.baseDir(), podNsStorePath, string(nsType))
+	return filepath.Join(p.baseDir, podNsStorePath, string(nsType))
 }
 
 func (p *Pod) prepareFiles() error {
-	nsStorePath := filepath.Join(p.baseDir(), podNsStorePath)
+	nsStorePath := filepath.Join(p.baseDir, podNsStorePath)
 	glog.V(8).Infof("Creating %s", nsStorePath)
 	err := os.MkdirAll(nsStorePath, 0755)
 	if err != nil {
@@ -167,8 +161,8 @@ func (p *Pod) cleanupFiles(silent bool) error {
 			return fmt.Errorf("could not remove namespace: %v", err)
 		}
 	}
-	glog.V(8).Infof("Removing pod base directory %s", p.baseDir())
-	err := os.RemoveAll(p.baseDir())
+	glog.V(8).Infof("Removing pod base directory %s", p.baseDir)
+	err := os.RemoveAll(p.baseDir)
 	if err != nil && !silent {
 		return fmt.Errorf("could not cleanup pod: %v", err)
 	}

@@ -33,21 +33,6 @@ import (
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-type flags struct {
-	socket     string
-	storeDir   string
-	streamAddr string
-}
-
-func readFlags() flags {
-	var f flags
-	flag.StringVar(&f.socket, "sock", "/var/run/singularity.sock", "unix socket to serve cri services")
-	flag.StringVar(&f.storeDir, "store", "/var/lib/singularity", "directory to store all pulled images")
-	flag.StringVar(&f.streamAddr, "stream-addr", "127.0.0.1:12345", "streaming server address")
-	flag.Parse()
-	return f
-}
-
 func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	resp, err := handler(ctx, req)
 	if err != nil {
@@ -59,9 +44,18 @@ func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, h
 }
 
 func main() {
-	f := readFlags()
+	var configPath string
+	flag.StringVar(&configPath, "config", "/usr/local/etc/sycri/sycri.yaml", "path to config file")
+	flag.Parse()
+
 	logs.InitLogs()
 	defer logs.FlushLogs()
+
+	config, err := parseConfig(configPath)
+	if err != nil {
+		glog.Errorf("Could not parse config: %v", err)
+		return
+	}
 
 	// Initialize user agent strings
 	useragent.InitValue("singularity", "3.0.0")
@@ -69,7 +63,7 @@ func main() {
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM)
 
-	lis, err := net.Listen("unix", f.socket)
+	lis, err := net.Listen("unix", config.ListenSocket)
 	if err != nil {
 		glog.Fatalf("Could not start CRI listener: %v ", err)
 	}
@@ -77,12 +71,17 @@ func main() {
 
 	syscall.Umask(0)
 	imageIndex := index.NewImageIndex()
-	syImage, err := image.NewSingularityRegistry(f.storeDir, imageIndex)
+	syImage, err := image.NewSingularityRegistry(config.StorageDir, imageIndex)
 	if err != nil {
 		glog.Errorf("Could not create Singularity image service: %v", err)
 		return
 	}
-	syRuntime, err := runtime.NewSingularityRuntime(f.streamAddr, imageIndex)
+	syRuntime, err := runtime.NewSingularityRuntime(
+		imageIndex,
+		runtime.WithStreaming(config.StreamingURL),
+		runtime.WithNetwork(config.CNIBinDir, config.CNIConfDir),
+		runtime.WithBaseRunDir(config.BaseRunDir),
+	)
 	if err != nil {
 		glog.Errorf("Could not create Singularity runtime service: %v", err)
 		return

@@ -745,6 +745,7 @@
     "google.golang.org/grpc",
     "google.golang.org/grpc/codes",
     "google.golang.org/grpc/status",
+    "gopkg.in/yaml.v2",
     "k8s.io/client-go/tools/remotecommand",
     "k8s.io/kubernetes/pkg/kubectl/util/logs",
     "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2",

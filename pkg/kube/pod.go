@@ -39,6 +39,7 @@ const (
 type Pod struct {
 	id string
 	*k8s.PodSandboxConfig
+	baseDir string
 
 	runOnce   sync.Once
 	isStopped bool
@@ -90,7 +91,8 @@ func (p *Pod) CreatedAt() int64 {
 }
 
 // Run prepares and runs pod based on initial config passed to NewPod.
-func (p *Pod) Run() error {
+// All files created (namespaces, sync socket, etc) are located in baseDir.
+func (p *Pod) Run(baseDir string) error {
 	var err error
 	defer func() {
 		if err != nil {
@@ -107,6 +109,7 @@ func (p *Pod) Run() error {
 	}()
 
 	p.runOnce.Do(func() {
+		p.baseDir = baseDir
 		if err = p.validateConfig(); err != nil {
 			err = fmt.Errorf("invalid pod config: %v", err)
 			return
