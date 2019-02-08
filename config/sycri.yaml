@@ -1,23 +1,23 @@
-# unix socket to serve CRI requests on
+# unix socket to serve CRI requests on, required
 # default: /var/run/singularity.sock
 listenSocket: /var/run/singularity.sock
 
-# directory to store all pulled images in
+# directory to store all pulled images in, required
 # default: /var/lib/singularity
 storageDir: /var/lib/singularity
 
-# address to serve streaming requests on (exec, attach, portforward)
+# address to serve streaming requests on (exec, attach, portforward), optional
 # default: 127.0.0.1:12345
-streamingURL: 127.0.0.1:12345
+streamingURL:
 
-# directory to look for CNI plugin binaries
-# default: /usr/local/libexec/singularity/cni
-cniBinDir: /usr/local/libexec/singularity/cni
+# directory to look for CNI plugin binaries, optional
+# default: /opt/cni/bin
+cniBinDir:
 
-# directory to look for CNI network configuration files
-# default: /usr/local/etc/singularity/network
-cniConfDir: /usr/local/etc/singularity/network
+# directory to look for CNI network configuration files, optional
+# default: /etc/cni/net.d
+cniConfDir:
 
-# directory to store currently running pods and containers
+# directory to store currently running pods and containers, required
 # default: /var/run/singularity
 baseRunDir: /var/run/singularity

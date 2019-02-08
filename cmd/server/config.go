@@ -42,9 +42,6 @@ type Config struct {
 var defaultConfig = Config{
 	ListenSocket: "/var/run/singularity.sock",
 	StorageDir:   "/var/lib/singularity",
-	StreamingURL: "127.0.0.1:12345",
-	CNIBinDir:    "/usr/local/libexec/singularity/cni",
-	CNIConfDir:   "/usr/local/etc/singularity/network",
 	BaseRunDir:   "/var/run/singularity",
 }
 

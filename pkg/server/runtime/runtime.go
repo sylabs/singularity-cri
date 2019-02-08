@@ -33,8 +33,13 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/server/streaming"
 )
 
-// DefaultBaseRunDir is the default location for running pods and containers.
-const DefaultBaseRunDir = "/var/run/singularity"
+const (
+	// DefaultBaseRunDir is the default location for running pods and containers.
+	DefaultBaseRunDir = "/var/run/singularity"
+
+	// DefaultStreamingURL is the default streaming server address.
+	DefaultStreamingURL = "127.0.0.1:12345"
+)
 
 // SingularityRuntime implements k8s RuntimeService interface.
 type SingularityRuntime struct {
@@ -77,10 +82,14 @@ func NewSingularityRuntime(imgIndex *index.ImageIndex, opts ...Option) (*Singula
 }
 
 // WithStreaming sets enables streaming endpoints by setting streaming server URL.
+// If url is empty DefaultStreamingURL will be used.
 func WithStreaming(url string) Option {
 	return func(r *SingularityRuntime) {
-		streamingRuntime := &streamingRuntime{r}
+		if url == "" {
+			url = DefaultStreamingURL
+		}
 
+		streamingRuntime := &streamingRuntime{r}
 		streamingConfig := streaming.DefaultConfig
 		streamingConfig.Addr = url
 		streamingServer, err := streaming.NewServer(streamingConfig, streamingRuntime)
@@ -102,11 +111,19 @@ func WithStreaming(url string) Option {
 }
 
 // WithNetwork accepts CNI paths and enables networking support.
+// If cniBin or cniConf is an empty string corresponding default
+// value from network package will be used.
 func WithNetwork(cniBin, cniConf string) Option {
 	return func(r *SingularityRuntime) {
 		cniPath := &snetwork.CNIPath{
 			Conf:   cniConf,
 			Plugin: cniBin,
+		}
+		if cniPath.Conf == "" {
+			cniPath.Conf = network.CNIConfDir
+		}
+		if cniPath.Plugin == "" {
+			cniPath.Plugin = network.CNIBinDir
 		}
 		r.networkManager = &network.Manager{}
 		if err := r.networkManager.Init(cniPath); err != nil {
