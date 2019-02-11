@@ -37,6 +37,9 @@ type Config struct {
 	CNIConfDir string `yaml:"cniConfDir"`
 	// BaseRunDir is a directory to store currently running pods and containers.
 	BaseRunDir string `yaml:"baseRunDir"`
+	// TrashDir is a directory where all container logs and configs will
+	// be stored upon removal. Useful for debugging.
+	TrashDir string `yaml:"trashDir"`
 }
 
 var defaultConfig = Config{

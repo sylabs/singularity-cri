@@ -17,6 +17,7 @@ package kube
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -240,8 +241,8 @@ func (c *Container) cleanupFiles(silent bool) error {
 	}
 	if c.logPath != "" {
 		dir := filepath.Dir(c.logPath)
-		// in case container's logs are not stored separately
 		if dir != c.pod.GetLogDirectory() {
+			// container has its own log directory
 			glog.V(8).Infof("Removing container log directory %s", dir)
 			err = os.RemoveAll(dir)
 			if err != nil && !silent {
@@ -249,6 +250,54 @@ func (c *Container) cleanupFiles(silent bool) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (c *Container) collectTrash() error {
+	if c.trashDir == "" {
+		return nil
+	}
+	contTrashDir := filepath.Join(c.trashDir, c.PodID(), c.ID())
+	err := os.MkdirAll(contTrashDir, 0755)
+	if err != nil {
+		return fmt.Errorf("could not create trash directory: %v", err)
+	}
+
+	trashConfig, err := os.Create(filepath.Join(contTrashDir, "config.json"))
+	if err != nil {
+		return fmt.Errorf("could not create trash OCI config: %v", err)
+	}
+	defer trashConfig.Close()
+	realConfig, err := os.Open(c.ociConfigPath())
+	if err != nil {
+		return fmt.Errorf("could not open OCI config: %v", err)
+	}
+	defer realConfig.Close()
+	_, err = io.Copy(trashConfig, realConfig)
+	if err != nil {
+		return fmt.Errorf("could not save OCI config to trash directory: %v", err)
+	}
+
+	if c.logPath != "" {
+		trashLogs := filepath.Join(contTrashDir, "logs")
+		err = os.Mkdir(trashLogs, 0755)
+		if err != nil {
+			err = fmt.Errorf("could not create trash logs directory: %v", err)
+		}
+
+		dir := filepath.Dir(c.logPath)
+		if dir != c.pod.GetLogDirectory() {
+			// container has its own log directory
+			err = os.Rename(dir, trashLogs)
+		} else {
+			// otherwise store file only
+			err = os.Rename(c.logPath, filepath.Join(trashLogs, "1.log"))
+		}
+		if err != nil {
+			return fmt.Errorf("could not save trash logs: %v", err)
+		}
+	}
+
 	return nil
 }
 

@@ -81,6 +81,7 @@ func main() {
 		runtime.WithStreaming(config.StreamingURL),
 		runtime.WithNetwork(config.CNIBinDir, config.CNIConfDir),
 		runtime.WithBaseRunDir(config.BaseRunDir),
+		runtime.WithTrashDir(config.TrashDir),
 	)
 	if err != nil {
 		glog.Errorf("Could not create Singularity runtime service: %v", err)
