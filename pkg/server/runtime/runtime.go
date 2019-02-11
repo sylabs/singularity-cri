@@ -146,7 +146,23 @@ func (s *SingularityRuntime) Shutdown() error {
 	if err := s.streaming.Stop(); err != nil {
 		return fmt.Errorf("could not stop streaming server: %v", err)
 	}
-	return nil
+
+	var cleanupErr error
+	glog.V(4).Infof("Stopping all running pods")
+	s.pods.Iterate(func(pod *kube.Pod) {
+		if err := pod.Stop(); err != nil {
+			cleanupErr = fmt.Errorf("could not stop pod %s: %v", pod.ID(), err)
+			glog.Errorf("Cleanup failed: %v", cleanupErr)
+		}
+	})
+	glog.V(4).Infof("Removing all pods")
+	s.pods.Iterate(func(pod *kube.Pod) {
+		if err := pod.Remove(); err != nil {
+			cleanupErr = fmt.Errorf("could not remove pod %s: %v", pod.ID(), err)
+			glog.Errorf("Cleanup failed: %v", cleanupErr)
+		}
+	})
+	return cleanupErr
 }
 
 // Version returns the runtime name, runtime version and runtime API version.
