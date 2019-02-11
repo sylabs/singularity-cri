@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -30,6 +31,26 @@ func writeResolvConf(path string, config *k8s.DNSConfig) error {
 	}
 	if err = resolv.Close(); err != nil {
 		return fmt.Errorf("could not close %s: %v", podResolvConfPath, err)
+	}
+	return nil
+}
+
+func copyFile(from, to string) error {
+	dest, err := os.OpenFile(to, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("could not create copy destination: %v", err)
+	}
+	defer dest.Close()
+
+	src, err := os.Open(from)
+	if err != nil {
+		return fmt.Errorf("could not open copy source: %v", err)
+	}
+	defer src.Close()
+
+	_, err = io.Copy(dest, src)
+	if err != nil {
+		return fmt.Errorf("could not copy files: %v", err)
 	}
 	return nil
 }

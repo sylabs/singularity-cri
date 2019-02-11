@@ -17,7 +17,7 @@ package kube
 import (
 	"encoding/json"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -263,38 +263,41 @@ func (c *Container) collectTrash() error {
 		return fmt.Errorf("could not create trash directory: %v", err)
 	}
 
-	trashConfig, err := os.Create(filepath.Join(contTrashDir, "config.json"))
-	if err != nil {
-		return fmt.Errorf("could not create trash OCI config: %v", err)
-	}
-	defer trashConfig.Close()
-	realConfig, err := os.Open(c.ociConfigPath())
-	if err != nil {
-		return fmt.Errorf("could not open OCI config: %v", err)
-	}
-	defer realConfig.Close()
-	_, err = io.Copy(trashConfig, realConfig)
+	err = copyFile(c.ociConfigPath(), filepath.Join(contTrashDir, "config.json"))
 	if err != nil {
 		return fmt.Errorf("could not save OCI config to trash directory: %v", err)
 	}
 
-	if c.logPath != "" {
-		trashLogs := filepath.Join(contTrashDir, "logs")
-		err = os.Mkdir(trashLogs, 0755)
-		if err != nil {
-			err = fmt.Errorf("could not create trash logs directory: %v", err)
-		}
+	if c.logPath == "" {
+		return nil
+	}
 
-		dir := filepath.Dir(c.logPath)
-		if dir != c.pod.GetLogDirectory() {
-			// container has its own log directory
-			err = os.Rename(dir, trashLogs)
-		} else {
-			// otherwise store file only
-			err = os.Rename(c.logPath, filepath.Join(trashLogs, "1.log"))
-		}
+	trashLogs := filepath.Join(contTrashDir, "logs")
+	err = os.Mkdir(trashLogs, 0755)
+	if err != nil {
+		return fmt.Errorf("could not create trash logs directory: %v", err)
+	}
+
+	dir := filepath.Dir(c.logPath)
+	if dir == c.pod.GetLogDirectory() {
+		// container doesn't have its own log directory
+		// store a single file only
+		err := copyFile(c.logPath, filepath.Join(trashLogs, "1.log"))
 		if err != nil {
-			return fmt.Errorf("could not save trash logs: %v", err)
+			return fmt.Errorf("could not copy trash log: %v", err)
+		}
+		return nil
+	}
+
+	// container has its own log directory
+	fii, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("could not read log directory: %v", err)
+	}
+	for _, fi := range fii {
+		err := copyFile(filepath.Join(dir, fi.Name()), filepath.Join(trashLogs, fi.Name()))
+		if err != nil {
+			return fmt.Errorf("could not copy trash log: %v", err)
 		}
 	}
 
