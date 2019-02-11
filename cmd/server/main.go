@@ -61,7 +61,7 @@ func main() {
 	useragent.InitValue("singularity", "3.0.0")
 
 	exitCh := make(chan os.Signal, 1)
-	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	lis, err := net.Listen("unix", config.ListenSocket)
 	if err != nil {
