@@ -198,6 +198,7 @@ func mountImage(imagePath, targetPath string) error {
 			SizeLimit: uint64(part.Filelen),
 			Flags:     uint32(loop.FlagsAutoClear),
 		},
+		Shared: true,
 	}
 	var devNum int
 	err = loopDev.AttachFromFile(imageFile, os.O_RDWR, &devNum)
