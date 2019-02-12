@@ -21,3 +21,7 @@ cniConfDir:
 # directory to store currently running pods and containers, required
 # default: /var/run/singularity
 baseRunDir: /var/run/singularity
+
+# directory where all container logs and configs will be stored upon removal
+# default:
+trashDir:

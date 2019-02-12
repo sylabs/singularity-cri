@@ -52,7 +52,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 		return nil, err
 	}
 
-	cont := kube.NewContainer(req.Config, pod, info)
+	cont := kube.NewContainer(req.Config, pod, info, s.trashDir)
 	cleanupOnFailure := func() {
 		if err := s.containers.Remove(cont.ID()); err != nil {
 			glog.Errorf("Could not remove container from index: %v", err)

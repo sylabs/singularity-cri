@@ -48,6 +48,7 @@ type SingularityRuntime struct {
 	pods        *index.PodIndex
 	containers  *index.ContainerIndex
 	baseRunDir  string
+	trashDir    string
 
 	streaming streaming.Server
 
@@ -137,6 +138,14 @@ func WithNetwork(cniBin, cniConf string) Option {
 func WithBaseRunDir(dir string) Option {
 	return func(r *SingularityRuntime) {
 		r.baseRunDir = dir
+	}
+}
+
+// WithTrashDir sets trash directory for containers where all logs
+// and configs may be found even after contaienr removal.
+func WithTrashDir(dir string) Option {
+	return func(r *SingularityRuntime) {
+		r.trashDir = dir
 	}
 }
 

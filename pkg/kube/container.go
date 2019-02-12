@@ -48,9 +48,10 @@ var (
 type Container struct {
 	id string
 	*k8s.ContainerConfig
-	pod     *Pod
-	imgInfo *image.Info
-	baseDir string
+	pod      *Pod
+	imgInfo  *image.Info
+	baseDir  string
+	trashDir string
 
 	runtimeState runtime.State
 	ociState     *ociruntime.State
@@ -66,7 +67,7 @@ type Container struct {
 }
 
 // NewContainer constructs Container instance. Container is thread safe to use.
-func NewContainer(config *k8s.ContainerConfig, pod *Pod, info *image.Info) *Container {
+func NewContainer(config *k8s.ContainerConfig, pod *Pod, info *image.Info, trashDir string) *Container {
 	contID := rand.GenerateID(ContainerIDLen)
 	return &Container{
 		id:              contID,
@@ -74,6 +75,7 @@ func NewContainer(config *k8s.ContainerConfig, pod *Pod, info *image.Info) *Cont
 		pod:             pod,
 		imgInfo:         info,
 		cli:             runtime.NewCLIClient(),
+		trashDir:        trashDir,
 	}
 }
 
@@ -264,6 +266,9 @@ func (c *Container) Remove() error {
 		if err := c.cli.Delete(c.id); err != nil && err != runtime.ErrNotFound {
 			return fmt.Errorf("could not delete container: %v", err)
 		}
+	}
+	if err := c.collectTrash(); err != nil {
+		glog.Errorf("Could not collect container trash: %v", err)
 	}
 	if err := c.cleanupFiles(false); err != nil {
 		glog.Errorf("Container cleanup failed: %v", err)
