@@ -25,3 +25,7 @@ baseRunDir: /var/run/singularity
 # directory where all container logs and configs will be stored upon removal
 # default:
 trashDir:
+
+# whether CRI need to log all requests and responses
+# default: false
+debug:

@@ -33,14 +33,17 @@ import (
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	resp, err := handler(ctx, req)
-	if err != nil {
-		jsonReq, _ := json.Marshal(req)
-		jsonResp, _ := json.Marshal(resp)
-		glog.Errorf("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
-	}
-	return resp, err
+func logGRPC(debug bool) grpc.UnaryServerInterceptor {
+	return grpc.UnaryServerInterceptor(func(ctx context.Context, req interface{},
+		info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		resp, err := handler(ctx, req)
+		if debug || err != nil {
+			jsonReq, _ := json.Marshal(req)
+			jsonResp, _ := json.Marshal(resp)
+			glog.Errorf("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
+		}
+		return resp, err
+	})
 }
 
 func main() {
@@ -88,7 +91,7 @@ func main() {
 		return
 	}
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC(config.Debug)))
 	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
 	k8s.RegisterImageServiceServer(grpcServer, syImage)
 

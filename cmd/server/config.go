@@ -40,6 +40,9 @@ type Config struct {
 	// TrashDir is a directory where all container logs and configs will
 	// be stored upon removal. Useful for debugging.
 	TrashDir string `yaml:"trashDir"`
+	// When Debug is true all CRI requests and responses will be logged. When false
+	// only requests with error responses will be logged.
+	Debug bool `yaml:"debug"`
 }
 
 var defaultConfig = Config{
