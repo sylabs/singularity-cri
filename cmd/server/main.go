@@ -40,7 +40,11 @@ func logGRPC(debug bool) grpc.UnaryServerInterceptor {
 		if debug || err != nil {
 			jsonReq, _ := json.Marshal(req)
 			jsonResp, _ := json.Marshal(resp)
-			glog.Errorf("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
+			logFunc := glog.Infof
+			if err != nil {
+				logFunc = glog.Errorf
+			}
+			logFunc("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
 		}
 		return resp, err
 	})
