@@ -61,8 +61,8 @@ type Container struct {
 	isStopped  bool
 	isRemoved  bool
 
-	stdin         io.WriteCloser
 	isStdinClosed bool
+	stdin         io.WriteCloser
 
 	cli        *runtime.CLIClient
 	syncChan   <-chan runtime.State
