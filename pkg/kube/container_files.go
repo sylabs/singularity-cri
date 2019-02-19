@@ -20,11 +20,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/golang/glog"
-	"github.com/sylabs/sif/pkg/sif"
-	"github.com/sylabs/singularity/pkg/util/loop"
+	ocibundle "github.com/sylabs/singularity/pkg/ocibundle/sif"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -76,23 +74,24 @@ func (c *Container) addLogDirectory() error {
 }
 
 func (c *Container) addOCIBundle() error {
-	glog.V(8).Infof("Creating bundle directory %s", c.bundlePath())
-	err := os.MkdirAll(c.bundlePath(), 0755)
+	glog.V(8).Infof("Creating SIF bundle at %s", c.bundlePath())
+	d, err := ocibundle.FromSif(c.imgInfo.Path(), c.bundlePath(), true)
 	if err != nil {
-		return fmt.Errorf("could not create bundle directory for container: %v", err)
+		return fmt.Errorf("could not create SIF bundle driver: %v", err)
 	}
-	if err := c.prepareOverlay(c.imgInfo.Path()); err != nil {
-		return err
+	if err := d.Create(nil); err != nil {
+		return fmt.Errorf("could not create SIF bundle: %v", err)
 	}
 	if err := c.ensureSh(); err != nil {
 		return err
 	}
+
+	glog.V(8).Infof("Generating OCI config for container %s", c.ID())
 	ociSpec, err := translateContainer(c, c.pod)
 	if err != nil {
 		return fmt.Errorf("could not generate oci spec for container: %v", err)
 	}
-	glog.V(8).Infof("Creating oci config %s", c.ociConfigPath())
-	config, err := os.OpenFile(c.ociConfigPath(), os.O_RDWR|os.O_CREATE, 0644)
+	config, err := os.OpenFile(c.ociConfigPath(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create OCI config file: %v", err)
 	}
@@ -104,136 +103,14 @@ func (c *Container) addOCIBundle() error {
 	return nil
 }
 
-func (c *Container) prepareOverlay(imagePath string) error {
-	var (
-		overlayDir = filepath.Join(c.bundlePath(), "overlay")
-		lowerPath  = filepath.Join(c.bundlePath(), "lower")
-		upperPath  = filepath.Join(overlayDir, "upper")
-		workPath   = filepath.Join(overlayDir, "work")
-	)
-
-	// prepare upper and work directories
-	glog.V(8).Infof("Creating %s", overlayDir)
-	err := os.Mkdir(overlayDir, 0755)
-	if err != nil {
-		return fmt.Errorf("could not create overlay parent directory: %v", err)
-	}
-	glog.V(8).Infof("Creating %s", upperPath)
-	err = os.Mkdir(upperPath, 0755)
-	if err != nil {
-		return fmt.Errorf("could not create upper directory for overlay: %v", err)
-	}
-	glog.V(8).Infof("Creating %s", workPath)
-	err = os.Mkdir(workPath, 0755)
-	if err != nil {
-		return fmt.Errorf("could not create working directory for overlay: %v", err)
-	}
-	glog.V(8).Infof("Bind mounting %s", overlayDir)
-	err = syscall.Mount(overlayDir, overlayDir, "", syscall.MS_BIND, "")
-	if err != nil {
-		return fmt.Errorf("could not bind mount overlay parent directory: %v", err)
-	}
-	glog.V(8).Infof("Remounting %s to enable suid flow", overlayDir)
-	err = syscall.Mount(overlayDir, overlayDir, "", syscall.MS_REMOUNT|syscall.MS_BIND, "")
-	if err != nil {
-		return fmt.Errorf("could not remount overlay parent directory: %v", err)
-	}
-
-	// prepare image
-	glog.V(8).Infof("Creating %s", lowerPath)
-	err = os.Mkdir(lowerPath, 0755)
-	if err != nil {
-		return fmt.Errorf("could not create lower directory for overlay: %v", err)
-	}
-	err = mountImage(imagePath, lowerPath)
-	if err != nil {
-		return fmt.Errorf("could not mount image: %v", err)
-	}
-
-	// merge all together
-	glog.V(8).Infof("Creating %s", c.rootfsPath())
-	err = os.Mkdir(c.rootfsPath(), 0755)
-	if err != nil {
-		return fmt.Errorf("could not create rootfs directory: %v", err)
-	}
-	overlayOpts := fmt.Sprintf("lowerdir=%s,workdir=%s,upperdir=%s", lowerPath, workPath, upperPath)
-	glog.V(8).Infof("Mounting overlay at %s with options: %v", c.rootfsPath(), overlayOpts)
-	err = syscall.Mount("overlay", c.rootfsPath(), "overlay", 0, overlayOpts)
-	if err != nil {
-		return fmt.Errorf("could not mount overlay: %v", err)
-	}
-	return nil
-}
-
-func mountImage(imagePath, targetPath string) error {
-	imageFile, err := os.Open(imagePath)
-	if err != nil {
-		return fmt.Errorf("could not open image: %v", err)
-	}
-	defer func() {
-		if err := imageFile.Close(); err != nil {
-			glog.Errorf("Could not close image file: %v", err)
-		}
-	}()
-
-	fimg, err := sif.LoadContainerFp(imageFile, true)
-	if err != nil {
-		return fmt.Errorf("could not load image fp: %v", err)
-	}
-	part, _, err := fimg.GetPartPrimSys()
-	if err != nil {
-		return fmt.Errorf("could not get primaty partitions: %v", err)
-	}
-	fstype, err := part.GetFsType()
-	if err != nil {
-		return fmt.Errorf("could not get fs type: %v", err)
-	}
-	if fstype != sif.FsSquash {
-		return fmt.Errorf("unsuported image fs type: %v", fstype)
-	}
-
-	loopDev := loop.Device{
-		MaxLoopDevices: 256,
-		Info: &loop.Info64{
-			Offset:    uint64(part.Fileoff),
-			SizeLimit: uint64(part.Filelen),
-			Flags:     uint32(loop.FlagsAutoClear),
-		},
-		Shared: true,
-	}
-	var devNum int
-	err = loopDev.AttachFromFile(imageFile, os.O_RDWR, &devNum)
-	if err != nil {
-		return fmt.Errorf("could not attach image to loop device: %v", err)
-	}
-	glog.V(8).Infof("Attached %s to loop device #%d", imagePath, devNum)
-
-	glog.V(8).Infof("Mounting loop device #%d to %s", devNum, targetPath)
-	err = syscall.Mount(fmt.Sprintf("/dev/loop%d", devNum), targetPath,
-		"squashfs", syscall.MS_RDONLY, "errors=remount-ro")
-	if err != nil {
-		return fmt.Errorf("could not mount loop device: %v", err)
-	}
-	return nil
-}
-
 func (c *Container) cleanupFiles(silent bool) error {
-	glog.V(8).Infof("Unmounting overlay from %s ", c.rootfsPath())
-	err := syscall.Unmount(c.rootfsPath(), 0)
+	glog.V(8).Infof("Removing bundle at %s", c.bundlePath())
+	d, err := ocibundle.FromSif("", c.bundlePath(), true)
 	if err != nil && !silent {
-		return fmt.Errorf("could not umount rootfs: %v", err)
+		return fmt.Errorf("could not create SIF bundle driver: %v", err)
 	}
-	lowerPath := filepath.Join(c.bundlePath(), "lower")
-	glog.V(8).Infof("Unmounting image from %s ", lowerPath)
-	err = syscall.Unmount(lowerPath, 0)
-	if err != nil && !silent {
-		return fmt.Errorf("could not umount image: %v", err)
-	}
-	overlayPath := filepath.Join(c.bundlePath(), "overlay")
-	glog.V(8).Infof("Unmounting overlay directory from %s ", overlayPath)
-	err = syscall.Unmount(overlayPath, 0)
-	if err != nil && !silent {
-		return fmt.Errorf("could not umount overlay parent directory: %v", err)
+	if err := d.Delete(); err != nil && !silent {
+		return fmt.Errorf("could not delete SIF bundle: %v", err)
 	}
 	glog.V(8).Infof("Removing container base directory %s", c.baseDir)
 	err = os.RemoveAll(c.baseDir)
@@ -308,6 +185,7 @@ func (c *Container) collectTrash() error {
 func (c *Container) ensureSh() error {
 	_, err := os.Lstat(filepath.Join(c.rootfsPath(), "bin", "sh"))
 	if os.IsNotExist(err) {
+		glog.V(8).Infof("Mounting fake sh into container %s", c.ID())
 		c.Mounts = append(c.Mounts, &k8s.Mount{
 			ContainerPath: "/bin/sh",
 			HostPath:      fakeShPath,

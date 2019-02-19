@@ -40,6 +40,10 @@
   branch = "master"
   name = "github.com/golang/glog"
 
+[[constraint]]
+  name = "github.com/opencontainers/runtime-spec"
+  branch = "master"
+
 [prune]
   go-tests = true
   unused-packages = true
