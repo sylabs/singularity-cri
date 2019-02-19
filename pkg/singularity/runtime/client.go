@@ -107,20 +107,41 @@ func (c *CLIClient) Delete(id string) error {
 	return nil
 }
 
-// Run is helper for running Create and Start is a row.
+// Run is helper for running Create and Start is a row. Note that stdin is not
+// allocated in this case, use Create and Start manually to control that.
 func (c *CLIClient) Run(id, bundle string, flags ...string) error {
-	if err := c.Create(id, bundle, flags...); err != nil {
+	_, err := c.Create(id, bundle, false, flags...)
+	if err != nil {
 		return err
 	}
 	return c.Start(id)
 }
 
-// Create asks runtime to create a container with passed parameters.
-func (c *CLIClient) Create(id, bundle string, flags ...string) error {
+// Create asks runtime to create a container with passed parameters. When stdin is false
+// no stdin stream is allocated and all reads from stdin in the container will always result in EOF.
+// When stdin is true Create returns write end of the stdin pipe.
+func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.WriteCloser, error) {
+	var stdinWrite io.WriteCloser
+
 	cmd := append(c.baseCmd, "create")
 	cmd = append(cmd, flags...)
 	cmd = append(cmd, "-b", bundle, id)
-	return run(cmd)
+
+	createCmd := exec.Command(cmd[0], cmd[1:]...)
+	createCmd.Stderr = os.Stderr
+	if stdin {
+		// todo: read end is closed when container is cleaned up?
+		pr, pw := io.Pipe()
+		createCmd.Stdin = pr
+		stdinWrite = pw
+	}
+
+	glog.V(4).Infof("Executing %v", cmd)
+	err := createCmd.Run()
+	if err != nil {
+		return nil, fmt.Errorf("could not execute: %v", err)
+	}
+	return stdinWrite, nil
 }
 
 // Start asks runtime to start container with passed id.
@@ -204,12 +225,6 @@ func (c *CLIClient) Kill(id string, force bool) error {
 	return run(cmd)
 }
 
-// Attach asks runtime attach to container standard streams.
-func (c *CLIClient) Attach(id string) error {
-	cmd := append(c.baseCmd, "attach", id)
-	return run(cmd)
-}
-
 // UpdateContainerResources asks runtime to update container resources
 // according to the passed parameter.
 func (c *CLIClient) UpdateContainerResources(id string, req *specs.LinuxResources) error {
@@ -224,7 +239,7 @@ func (c *CLIClient) UpdateContainerResources(id string, req *specs.LinuxResource
 	updCmd.Stderr = os.Stderr
 	updCmd.Stdin = buf
 
-	glog.V(4).Infof("executing %v", cmd)
+	glog.V(4).Infof("Executing %v", cmd)
 	err = updCmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not execute: %v", err)

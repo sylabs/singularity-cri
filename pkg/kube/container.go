@@ -56,6 +56,7 @@ type Container struct {
 	runtimeState runtime.State
 	ociState     *ociruntime.State
 	logPath      string
+	stdin        io.WriteCloser
 
 	createOnce sync.Once
 	isStopped  bool
@@ -159,6 +160,10 @@ func (c *Container) LogPath() string {
 // ImageID returns id of the container base image.
 func (c *Container) ImageID() string {
 	return c.imgInfo.ID()
+}
+
+func (c *Container) Stdin() io.WriteCloser {
+	return c.stdin
 }
 
 // Create creates container inside a pod from the image.
@@ -266,6 +271,9 @@ func (c *Container) Remove() error {
 		if err := c.cli.Delete(c.id); err != nil && err != runtime.ErrNotFound {
 			return fmt.Errorf("could not delete container: %v", err)
 		}
+	}
+	if err := c.stdin.Close(); err != nil {
+		glog.Errorf("Could not close container stdin: %v", err)
 	}
 	if err := c.collectTrash(); err != nil {
 		glog.Errorf("Could not collect container trash: %v", err)
