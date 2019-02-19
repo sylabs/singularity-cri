@@ -107,16 +107,6 @@ func (c *CLIClient) Delete(id string) error {
 	return nil
 }
 
-// Run is helper for running Create and Start is a row. Note that stdin is not
-// allocated in this case, use Create and Start manually to control that.
-func (c *CLIClient) Run(id, bundle string, flags ...string) error {
-	_, err := c.Create(id, bundle, false, flags...)
-	if err != nil {
-		return err
-	}
-	return c.Start(id)
-}
-
 // Create asks runtime to create a container with passed parameters. When stdin is false
 // no stdin stream is allocated and all reads from stdin in the container will always result in EOF.
 // When stdin is true Create returns write end of the stdin pipe.
@@ -137,10 +127,17 @@ func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.W
 	}
 
 	glog.V(4).Infof("Executing %v", cmd)
-	err := createCmd.Run()
+	err := createCmd.Start()
 	if err != nil {
 		return nil, fmt.Errorf("could not execute: %v", err)
 	}
+	go func() {
+		glog.V(10).Infof("Awaiting create command for %s to exit", id)
+		if err := createCmd.Wait(); err != nil {
+			glog.Errorf("Could not wait create command: %v", err)
+		}
+		glog.V(10).Infof("Create command for %s finished", id)
+	}()
 	return stdinWrite, nil
 }
 

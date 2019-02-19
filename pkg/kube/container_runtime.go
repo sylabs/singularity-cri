@@ -36,6 +36,7 @@ func (c *Container) spawnOCIContainer() error {
 		return fmt.Errorf("could not listen for state changes: %v", err)
 	}
 
+	glog.V(10).Infof("Creating container %s", c.id)
 	c.stdin, err = c.cli.Create(c.id, c.bundlePath(), c.GetStdin(),
 		"--sync-socket", c.socketPath(), "--log-path", c.logPath)
 	if err != nil {

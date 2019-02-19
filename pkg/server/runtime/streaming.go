@@ -180,7 +180,7 @@ func (s *streamingRuntime) Attach(containerID string,
 			errors <- err
 		}()
 	}
-	if c.GetStdin() && stdin != nil {
+	if c.GetStdin() && c.Stdin() != nil && stdin != nil {
 		go func() {
 			// copy until ctrl-d hits
 			_, err := utils.CopyDetachable(c.Stdin(), stdin, []byte{4})
@@ -196,7 +196,8 @@ func (s *streamingRuntime) Attach(containerID string,
 		return nil
 	}
 	if c.GetStdinOnce() {
-		err := c.Stdin().Close()
+		glog.Infof("Closing stdin for container %s", c.ID())
+		err := c.CloseStdin()
 		if err != nil {
 			glog.Errorf("Could not close container stdin: %v", err)
 		}

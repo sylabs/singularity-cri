@@ -46,7 +46,11 @@ func (p *Pod) spawnOCIPod() error {
 		return fmt.Errorf("could not listen for state changes: %v", err)
 	}
 
-	go p.cli.Run(p.id, p.bundlePath(), "--empty-process", "--sync-socket", p.socketPath())
+	glog.V(10).Infof("Creating pod %s", p.id)
+	_, err = p.cli.Create(p.id, p.bundlePath(), false, "--empty-process", "--sync-socket", p.socketPath())
+	if err != nil {
+		return fmt.Errorf("could not create pod: %v", err)
+	}
 
 	if err := p.expectState(runtime.StateCreating); err != nil {
 		return err
@@ -54,6 +58,12 @@ func (p *Pod) spawnOCIPod() error {
 	if err := p.expectState(runtime.StateCreated); err != nil {
 		return err
 	}
+
+	glog.V(10).Infof("Starting pod %s", p.id)
+	if err := p.cli.Start(p.id); err != nil {
+		return fmt.Errorf("could not start pod: %v", err)
+	}
+
 	if err := p.expectState(runtime.StateRunning); err != nil {
 		return err
 	}
