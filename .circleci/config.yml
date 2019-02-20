@@ -148,13 +148,44 @@ jobs:
             make
             sudo make install
       - run:
+          name: Write CNI config for CRI
+          command: |
+            mkdir $HOME/net.d
+            cat > $HOME/net.d/00_bridge.conflist<< EOF
+              {
+                "cniVersion": "0.3.1",
+                "name": "bridge",
+                "plugins": [
+                {"type": "loopback"},
+                {
+                  "type": "bridge",
+                  "bridge": "sbr0",
+                  "isGateway": true,
+                  "ipMasq": true,
+                  "ipam": {
+                    "type": "host-local",
+                    "subnet": "10.22.0.0/16",
+                    "routes": [
+                    { "dst": "0.0.0.0/0" }
+                    ]
+                  }
+                },
+                {
+                  "type": "portmap",
+                  "capabilities": {"portMappings": true},
+                  "snat": true
+                }
+                ]
+              }
+            EOF
+      - run:
           name: Write singularity test CRI config
           command: |
             cat > $HOME/sycri-test.yaml<< EOF
               listenSocket: /var/run/singularity.sock
               storageDir: /var/lib/singularity
               cniBinDir: /usr/local/libexec/singularity/cni
-              cniConfDir: /usr/local/etc/singularity/network
+              cniConfDir: $HOME/net.d
               baseRunDir: /var/run/singularity
               trashDir: /tmp/sycri-trash
               debug: true
