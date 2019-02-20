@@ -117,7 +117,7 @@ jobs:
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/:' >> $BASH_ENV
             apt-get update -y
-            apt-get install -y wget
+            apt-get install -y wget git
       - run:
           name: Install go to 1.11
           working_directory: /tmp
@@ -214,9 +214,15 @@ jobs:
           name: Run validation tests
           command: |
             critest --runtime-endpoint=unix:///var/run/singularity.sock --image-endpoint=unix:///var/run/singularity.sock | tee $HOME/validation.out
+      - run:
+          name: Stop singularity CRI
+          command: |
             export SYCRI_PID=`ps -a | grep sycri | awk '{print $1}'`
             echo $SYCRI_PID
-            kill $SYCRI_PID
+            if [ ! -z $SYCRI_PID ]; then
+              kill $SYCRI_PID
+            fi
+          when: always
       - store_artifacts:
          path: ~/sycri.out
          destination: sycri.out
