@@ -103,7 +103,8 @@ jobs:
          destination: cover_profile.out
 
   validation_test:
-    machine: true
+    docker:
+      - image: ubuntu:18.04
     steps:
       - attach_workspace:
           at: ~/go
