@@ -208,9 +208,10 @@ jobs:
       - run:
           name: Run validation tests
           command: |
+            set +e
             set +o pipefail
             sudo critest --runtime-endpoint=unix:///var/run/singularity.sock --image-endpoint=unix:///var/run/singularity.sock | tee $HOME/validation.out
-            sed 's/\x1b\[[0-9;]*m//g' $HOME/validation.out > $HOME/validation.out
+            sed -i 's/\x1b\[[0-9;]*m//g' $HOME/validation.out
       - run:
           name: Stop singularity CRI
           command: |
