@@ -203,10 +203,8 @@ jobs:
           background: true
       - run:
           name: Run validation tests
-          command: sudo critest --runtime-endpoint=unix:///var/run/singularity.sock --image-endpoint=unix:///var/run/singularity.sock | tee $HOME/validation.out
-      - run:
-          name: Stop singularity CRI
           command: |
+            sudo critest --runtime-endpoint=unix:///var/run/singularity.sock --image-endpoint=unix:///var/run/singularity.sock | tee $HOME/validation.out
             export SYCRI_PID=`ps -a | grep sycri | awk '{print $1}'`
             echo $SYCRI_PID
             sudo kill $SYCRI_PID
