@@ -116,6 +116,7 @@ jobs:
             echo 'export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin' >> $BASH_ENV
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/:' >> $BASH_ENV
+            apt-get update
             apt-get install wget
       - run:
           name: Install go to 1.11
