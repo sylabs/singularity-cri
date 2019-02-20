@@ -106,8 +106,13 @@ jobs:
     docker:
       - image: ubuntu:18.04
     steps:
-      - attach_workspace:
-          at: ~/go
+      - run:
+          name: Install go to 1.11
+          working_directory: /tmp
+          command: |
+            wget https://dl.google.com/go/go1.11.linux-amd64.tar.gz
+            sudo rm -rf /usr/local/go
+            sudo tar -C /usr/local -xzf go1.11.linux-amd64.tar.gz
       - run:
           name: Setup environment
           command: |
@@ -116,17 +121,19 @@ jobs:
             echo 'export GOCACHE=off' >> $BASH_ENV
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/' >> $BASH_ENV
+            mkdir -p $GOPATH/src
+            mkdir -p $GOPATH/bin
+            mkdir -p $GOPATH/pkg
       - run:
-          name: Update go to 1.11
-          working_directory: /tmp
+          name: Install singularity CRI
           command: |
-            wget https://dl.google.com/go/go1.11.linux-amd64.tar.gz
-            sudo rm -rf /usr/local/go
-            sudo tar -C /usr/local -xzf go1.11.linux-amd64.tar.gz
+            git clone https://github.com/sylabs/singularity-cri.git $GOPATH/src/github.com/sylabs/singularity-cri
+            cd $GOPATH/src/github.com/sylabs/singularity-cri
+            make
+            sudo make install
       - run:
           name: Install dep tool
           command: |
-            mkdir -p $GOPATH/bin
             curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
           name: Install dev libraries
@@ -142,12 +149,6 @@ jobs:
             ./mconfig -p /usr/local
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
-      - run:
-          name: Install singularity CRI
-          command: |
-            cd $GOPATH/src/github.com/sylabs/singularity-cri
-            make
-            sudo make install
       - run:
           name: Write CNI config for CRI
           command: |
