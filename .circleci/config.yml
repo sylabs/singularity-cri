@@ -116,14 +116,14 @@ jobs:
             echo 'export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin' >> $BASH_ENV
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/:' >> $BASH_ENV
-            sudo apt-get install wget
+            apt-get install wget
       - run:
           name: Install go to 1.11
           working_directory: /tmp
           command: |
             wget https://dl.google.com/go/go1.11.linux-amd64.tar.gz
-            sudo rm -rf /usr/local/go
-            sudo tar -C /usr/local -xzf go1.11.linux-amd64.tar.gz
+            rm -rf /usr/local/go
+            tar -C /usr/local -xzf go1.11.linux-amd64.tar.gz
       - run:
           name: Setup go workspace
           command: |
@@ -136,7 +136,7 @@ jobs:
             git clone https://github.com/sylabs/singularity-cri.git $GOPATH/src/github.com/sylabs/singularity-cri
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             make
-            sudo make install
+            make install
       - run:
           name: Install dep tool
           command: |
@@ -144,9 +144,9 @@ jobs:
       - run:
           name: Install dev libraries
           command: |
-            sudo apt-get update -y
-            sudo apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools libseccomp-dev libgpgme11-dev
-            sudo apt-get install -y apparmor-profiles apparmor-utils
+            apt-get update -y
+            apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools libseccomp-dev libgpgme11-dev
+            apt-get install -y apparmor-profiles apparmor-utils
       - run:
           name: Install singularity
           command: |
@@ -154,7 +154,7 @@ jobs:
             cd $GOPATH/src/github.com/sylabs/singularity
             ./mconfig -p /usr/local
             make -j$(nproc) -C ./builddir
-            sudo make -C ./builddir install
+            make -C ./builddir install
       - run:
           name: Write CNI config for CRI
           command: |
@@ -203,19 +203,19 @@ jobs:
           command: |
             export VERSION=v1.13.0
             wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/critest-$VERSION-linux-amd64.tar.gz
-            sudo tar zxvf critest-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+            tar zxvf critest-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
             rm -f critest-$VERSION-linux-amd64.tar.gz
       - run:
           name: Launch singularity CRI
-          command: sudo sycri -v=10 -config $HOME/sycri-test.yaml | tee $HOME/sycri.out
+          command: sycri -v=10 -config $HOME/sycri-test.yaml | tee $HOME/sycri.out
           background: true
       - run:
           name: Run validation tests
           command: |
-            sudo critest --runtime-endpoint=unix:///var/run/singularity.sock --image-endpoint=unix:///var/run/singularity.sock | tee $HOME/validation.out
+            critest --runtime-endpoint=unix:///var/run/singularity.sock --image-endpoint=unix:///var/run/singularity.sock | tee $HOME/validation.out
             export SYCRI_PID=`ps -a | grep sycri | awk '{print $1}'`
             echo $SYCRI_PID
-            sudo kill $SYCRI_PID
+            kill $SYCRI_PID
       - store_artifacts:
          path: ~/sycri.out
          destination: sycri.out
