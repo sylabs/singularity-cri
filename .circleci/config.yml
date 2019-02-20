@@ -119,6 +119,12 @@ jobs:
             apt-get update -y
             apt-get install -y wget git make pkg-config
       - run:
+          name: Install dev libraries
+          command: |
+            apt-get update -y
+            apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools libseccomp-dev libgpgme11-dev
+            apt-get install -y apparmor-profiles apparmor-utils
+      - run:
           name: Install go to 1.11
           working_directory: /tmp
           command: |
@@ -142,12 +148,6 @@ jobs:
           name: Install dep tool
           command: |
             curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      - run:
-          name: Install dev libraries
-          command: |
-            apt-get update -y
-            apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools libseccomp-dev libgpgme11-dev
-            apt-get install -y apparmor-profiles apparmor-utils
       - run:
           name: Install singularity
           command: |
