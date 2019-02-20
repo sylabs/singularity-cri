@@ -117,7 +117,7 @@ jobs:
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/:' >> $BASH_ENV
             apt-get update -y
-            apt-get install -y wget git make pkg-config
+            apt-get install -y wget git make pkg-config curl
       - run:
           name: Install dev libraries
           command: |
