@@ -64,7 +64,6 @@ jobs:
           command: |
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
-            echo 'export GOCACHE=off' >> $BASH_ENV
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/' >> $BASH_ENV
       - run:
@@ -85,7 +84,7 @@ jobs:
             sudo apt-get update -y
             sudo apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools libseccomp-dev libgpgme11-dev
       - run:
-          name: Singularity 3.0
+          name: Install singularity
           command: |
             git clone https://github.com/sylabs/singularity.git $GOPATH/src/github.com/sylabs/singularity
             cd $GOPATH/src/github.com/sylabs/singularity
@@ -102,6 +101,134 @@ jobs:
          path: ~/cover.out
          destination: cover_profile.out
 
+  validation_test:
+    machine: true
+    steps:
+      - attach_workspace:
+          at: ~/go
+      - run:
+          name: Remount /run without noexec flag
+          command: |
+            sudo mount -o remount,exec /run
+      - run:
+          name: Setup environment
+          command: |
+            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
+            echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
+            echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
+            echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/' >> $BASH_ENV
+      - run:
+          name: Update go to 1.11
+          working_directory: /tmp
+          command: |
+            wget https://dl.google.com/go/go1.11.linux-amd64.tar.gz
+            sudo rm -rf /usr/local/go
+            sudo tar -C /usr/local -xzf go1.11.linux-amd64.tar.gz
+      - run:
+          name: Install dep tool
+          command: |
+            mkdir -p $GOPATH/bin
+            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+      - run:
+          name: Install dev libraries
+          command: |
+            sudo apt-get update -y
+            sudo apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools libgpgme11-dev
+            sudo apt-get install -y libseccomp2=2.2.3-2ubuntu1~ubuntu14.04.1
+            sudo apt-get install -y libseccomp-dev=2.2.3-2ubuntu1~ubuntu14.04.1
+            sudo apt-get install -y apparmor-profiles apparmor-utils socat
+      - run:
+          name: Install singularity
+          command: |
+            git clone https://github.com/sylabs/singularity.git $GOPATH/src/github.com/sylabs/singularity
+            cd $GOPATH/src/github.com/sylabs/singularity
+            ./mconfig -p /usr/local
+            make -j$(nproc) -C ./builddir
+            sudo make -C ./builddir install
+      - run:
+          name: Install singularity CRI
+          command: |
+            cd $GOPATH/src/github.com/sylabs/singularity-cri
+            make
+            sudo make install
+      - run:
+          name: Write CNI config for CRI
+          command: |
+            mkdir $HOME/net.d
+            cat > $HOME/net.d/00_bridge.conflist<< EOF
+              {
+                "cniVersion": "0.3.1",
+                "name": "bridge",
+                "plugins": [
+                {"type": "loopback"},
+                {
+                  "type": "bridge",
+                  "bridge": "sbr0",
+                  "isGateway": true,
+                  "ipMasq": true,
+                  "ipam": {
+                    "type": "host-local",
+                    "subnet": "10.22.0.0/16",
+                    "routes": [
+                    { "dst": "0.0.0.0/0" }
+                    ]
+                  }
+                },
+                {
+                  "type": "portmap",
+                  "capabilities": {"portMappings": true},
+                  "snat": true
+                }
+                ]
+              }
+            EOF
+      - run:
+          name: Write singularity test CRI config
+          command: |
+            cat > $HOME/sycri-test.yaml<< EOF
+              listenSocket: /var/run/singularity.sock
+              storageDir: /var/lib/singularity
+              cniBinDir: /usr/local/libexec/singularity/cni
+              cniConfDir: $HOME/net.d
+              baseRunDir: /var/run/singularity
+              trashDir: /tmp/sycri-trash
+              debug: true
+            EOF
+      - run:
+          name: Install validation tests suite
+          command: |
+            export VERSION=v1.13.0
+            wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/critest-$VERSION-linux-amd64.tar.gz
+            sudo tar zxvf critest-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+            rm -f critest-$VERSION-linux-amd64.tar.gz
+      - run:
+          name: Launch singularity CRI
+          command: sudo sycri -v=10 -config $HOME/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
+          background: true
+      - run:
+          name: Run validation tests
+          command: |
+            set +o pipefail
+            sudo critest --runtime-endpoint=unix:///var/run/singularity.sock --image-endpoint=unix:///var/run/singularity.sock | tee $HOME/validation.out
+            sed 's/\x1b\[[0-9;]*m//g' $HOME/validation.out > $HOME/validation.out
+      - run:
+          name: Stop singularity CRI
+          command: |
+            export SYCRI_PID=`ps -a | grep sycri | awk '{print $1}'`
+            if [ ! -z $SYCRI_PID ]; then
+              sudo kill $SYCRI_PID
+            fi
+          when: always
+      - store_artifacts:
+         path: ~/sycri.out
+         destination: sycri.out
+      - store_artifacts:
+         path: ~/validation.out
+         destination: validation.out
+      - store_artifacts:
+         path: /tmp/sycri-trash
+         destination: sycri-trash
+
 workflows:
   version: 2
   build_and_test:
@@ -116,3 +243,6 @@ workflows:
       - build_source:
           requires:
             - get_source
+      - validation_test:
+          requires:
+            - build_source
