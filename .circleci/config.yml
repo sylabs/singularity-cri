@@ -20,7 +20,7 @@ jobs:
           name: Ensure vendored dependencies
           command: |
             if [ ! -d vendor ]; then
-              dep ensure -vendor-only
+              dep check
             fi
       - persist_to_workspace:
           root: /go
