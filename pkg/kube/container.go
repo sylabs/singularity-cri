@@ -61,6 +61,9 @@ type Container struct {
 	isStopped  bool
 	isRemoved  bool
 
+	isStdinClosed bool
+	stdin         io.WriteCloser
+
 	cli        *runtime.CLIClient
 	syncChan   <-chan runtime.State
 	syncCancel context.CancelFunc
@@ -161,6 +164,28 @@ func (c *Container) ImageID() string {
 	return c.imgInfo.ID()
 }
 
+// Stdin returns write end of container's stdin, if any. If container
+// is created with StdinOnce set to true this call will return
+// nil after first attach to container finishes.
+func (c *Container) Stdin() io.Writer {
+	if c.isStdinClosed {
+		return nil
+	}
+	return c.stdin
+}
+
+// CloseStdin closes write end of container's stdin.
+func (c *Container) CloseStdin() error {
+	if c.isStdinClosed || c.stdin == nil {
+		return nil
+	}
+	if err := c.stdin.Close(); err != nil {
+		return fmt.Errorf("could not close stdin: %v", err)
+	}
+	c.isStdinClosed = true
+	return nil
+}
+
 // Create creates container inside a pod from the image.
 // All files created (bundle, sync socket, etc) are located in baseDir.
 func (c *Container) Create(baseDir string) error {
@@ -216,7 +241,10 @@ func (c *Container) Start() error {
 	if c.State() != k8s.ContainerState_CONTAINER_CREATED {
 		return ErrContainerNotCreated
 	}
-	go c.cli.Start(c.id)
+	glog.V(10).Infof("Starting container %s", c.id)
+	if err := c.cli.Start(c.id); err != nil {
+		return fmt.Errorf("could not start container: %v", err)
+	}
 	err := c.expectState(runtime.StateRunning)
 	if err != nil {
 		return err
@@ -266,6 +294,9 @@ func (c *Container) Remove() error {
 		if err := c.cli.Delete(c.id); err != nil && err != runtime.ErrNotFound {
 			return fmt.Errorf("could not delete container: %v", err)
 		}
+	}
+	if err := c.CloseStdin(); err != nil {
+		glog.Errorf("Could not close container stdin: %v", err)
 	}
 	if err := c.collectTrash(); err != nil {
 		glog.Errorf("Could not collect container trash: %v", err)
