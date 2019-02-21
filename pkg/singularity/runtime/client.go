@@ -121,30 +121,26 @@ func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.W
 	createCmd := exec.Command(cmd[0], cmd[1:]...)
 	createCmd.Stderr = os.Stderr
 	if stdin {
-		pr, pw := io.Pipe()
+		pr, pw, err := os.Pipe()
+		if err != nil {
+			return nil, fmt.Errorf("could not create pipe: %v", err)
+		}
 		createCmd.Stdin = pr
 		stdinWrite = pw
 		stdinRead = pr
 	}
 
 	glog.V(4).Infof("Executing %v", cmd)
-	err := createCmd.Start()
+	err := createCmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("could not execute: %v", err)
+		return nil, fmt.Errorf("could not execute create container command: %v", err)
 	}
-	go func() {
-		glog.V(10).Infof("Awaiting create command for %s to exit", id)
-		if err := createCmd.Wait(); err != nil {
-			glog.Errorf("Could not wait create command: %v", err)
+	if stdinRead != nil {
+		glog.V(10).Infof("Closing read end of stdin pipe")
+		if err := stdinRead.Close(); err != nil {
+			glog.Errorf("Could not close read end of stdin pipe: %v", err)
 		}
-		if stdinRead != nil {
-			glog.V(10).Infof("Closing read end of stdin pipe")
-			if err := stdinRead.Close(); err != nil {
-				glog.Errorf("Could not close read end of stdin pipe: %v", err)
-			}
-		}
-		glog.V(10).Infof("Create command for %s finished", id)
-	}()
+	}
 	return stdinWrite, nil
 }
 
