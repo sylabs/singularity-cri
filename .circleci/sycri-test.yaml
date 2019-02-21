@@ -1,0 +1,7 @@
+listenSocket: /var/run/singularity.sock
+storageDir: /var/lib/singularity
+cniBinDir: /usr/local/libexec/singularity/cni
+cniConfDir: /tmp/net.d
+baseRunDir: /var/run/singularity
+trashDir: /tmp/sycri-trash
+debug: true

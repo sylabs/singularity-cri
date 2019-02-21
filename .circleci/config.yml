@@ -154,46 +154,8 @@ jobs:
       - run:
           name: Write CNI config for CRI
           command: |
-            mkdir $HOME/net.d
-            cat > $HOME/net.d/00_bridge.conflist<< EOF
-              {
-                "cniVersion": "0.3.1",
-                "name": "bridge",
-                "plugins": [
-                {"type": "loopback"},
-                {
-                  "type": "bridge",
-                  "bridge": "sbr0",
-                  "isGateway": true,
-                  "ipMasq": true,
-                  "ipam": {
-                    "type": "host-local",
-                    "subnet": "10.22.0.0/16",
-                    "routes": [
-                    { "dst": "0.0.0.0/0" }
-                    ]
-                  }
-                },
-                {
-                  "type": "portmap",
-                  "capabilities": {"portMappings": true},
-                  "snat": true
-                }
-                ]
-              }
-            EOF
-      - run:
-          name: Write singularity test CRI config
-          command: |
-            cat > $HOME/sycri-test.yaml<< EOF
-              listenSocket: /var/run/singularity.sock
-              storageDir: /var/lib/singularity
-              cniBinDir: /usr/local/libexec/singularity/cni
-              cniConfDir: $HOME/net.d
-              baseRunDir: /var/run/singularity
-              trashDir: /tmp/sycri-trash
-              debug: true
-            EOF
+            mkdir /tmp/net.d
+            cp $GOPATH/src/github.com/sylabs/singularity-cri/.circleci/bridge.conflist /tmp/net.d/00_bridge.conflist
       - run:
           name: Install validation tests suite
           command: |
@@ -203,7 +165,9 @@ jobs:
             rm -f critest-$VERSION-linux-amd64.tar.gz
       - run:
           name: Launch singularity CRI
-          command: sudo sycri -v=10 -config $HOME/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
+          command: |
+            cd $GOPATH/src/github.com/sylabs/singularity-cri
+            sudo sycri -v=10 -config .circleci/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
           background: true
       - run:
           name: Run validation tests
