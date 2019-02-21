@@ -112,6 +112,7 @@ func (c *CLIClient) Delete(id string) error {
 // When stdin is true Create returns write end of the stdin pipe.
 func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.WriteCloser, error) {
 	var stdinWrite io.WriteCloser
+	var stdinRead io.Closer
 
 	cmd := append(c.baseCmd, "create")
 	cmd = append(cmd, flags...)
@@ -120,10 +121,10 @@ func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.W
 	createCmd := exec.Command(cmd[0], cmd[1:]...)
 	createCmd.Stderr = os.Stderr
 	if stdin {
-		// todo: read end is closed when container is cleaned up?
 		pr, pw := io.Pipe()
 		createCmd.Stdin = pr
 		stdinWrite = pw
+		stdinRead = pr
 	}
 
 	glog.V(4).Infof("Executing %v", cmd)
@@ -135,6 +136,12 @@ func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.W
 		glog.V(10).Infof("Awaiting create command for %s to exit", id)
 		if err := createCmd.Wait(); err != nil {
 			glog.Errorf("Could not wait create command: %v", err)
+		}
+		if stdinRead != nil {
+			glog.V(10).Infof("Closing read end of stdin pipe")
+			if err := stdinRead.Close(); err != nil {
+				glog.Errorf("Could not close read end of stdin pipe: %v", err)
+			}
 		}
 		glog.V(10).Infof("Create command for %s finished", id)
 	}()
