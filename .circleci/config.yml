@@ -17,11 +17,8 @@ jobs:
             mkdir -p $GOPATH/bin
             curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
-          name: Ensure vendored dependencies
-          command: |
-            if [ ! -d vendor ]; then
-              dep check
-            fi
+          name: Check vendored dependencies
+          command: dep check
       - persist_to_workspace:
           root: /go
           paths:
