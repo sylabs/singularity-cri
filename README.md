@@ -73,6 +73,10 @@ automatically generated and captured as SIF metadata. Unfortunately, changes in 
 tagged images - even though the only difference is the timestamp in the SIF metadata. This matter has been classified
 as a known issue for documentation; refer to [issue](https://github.com/sylabs/singularity-cri/issues/15) for additional details.
 
+Also note that during convertation Singularity doesn't track [`WORKDIR`](https://docs.docker.com/engine/reference/builder/#workdir),
+so for your container to work correctly you may specify it manually during pod creation (see [k8s API reference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#container-v1-core)).
+This is a subject to change soon (see [Singularity issue](https://github.com/sylabs/singularity/issues/380)).
+
 ## Developers guide
 
 To test CRI in interactive mode we suggest the following workflow:
