@@ -12,8 +12,5 @@
     }
   ],
   "log_directory": "/tmp/net-pod",
-  "linux": {
-    "security_context": {
-    }
-  }
+  "linux": {}
 }
