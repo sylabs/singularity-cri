@@ -94,6 +94,13 @@ func (t *containerTranslator) configureMounts() error {
 		Options:     []string{"bind", "ro"},
 	})
 
+	for _, maskedPath := range t.cont.GetLinux().GetSecurityContext().GetMaskedPaths() {
+		t.g.AddLinuxMaskedPaths(maskedPath)
+	}
+	for _, readonlyPath := range t.cont.GetLinux().GetSecurityContext().GetReadonlyPaths() {
+		t.g.AddLinuxReadonlyPaths(readonlyPath)
+	}
+
 	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
 		mounts := t.g.Mounts()
 		for i := range mounts {
