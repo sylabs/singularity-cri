@@ -22,6 +22,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/index"
 	"github.com/sylabs/singularity-cri/pkg/kube"
+	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -30,6 +31,10 @@ import (
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure
 // the sandbox is in the ready state on success.
 func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSandboxRequest) (*k8s.RunPodSandboxResponse, error) {
+	if req.GetRuntimeHandler() != "" && req.GetRuntimeHandler() != singularity.RuntimeName {
+		return nil, status.Errorf(codes.FailedPrecondition, "only %s runtime is supported", singularity.RuntimeName)
+	}
+
 	pod := kube.NewPod(req.Config)
 	cleanupOnFailure := func() {
 		if err := s.pods.Remove(pod.ID()); err != nil {
