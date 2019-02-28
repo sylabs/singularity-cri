@@ -104,10 +104,6 @@ jobs:
       - attach_workspace:
           at: ~/go
       - run:
-          name: Remount /run without noexec flag
-          command: |
-            sudo mount -o remount,exec /run
-      - run:
           name: Setup environment
           command: |
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
@@ -161,10 +157,16 @@ jobs:
             sudo tar zxvf critest-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
             rm -f critest-$VERSION-linux-amd64.tar.gz
       - run:
+          name: Check mount options
+          command: |
+            mount
+            ls -la /run
+            id
+      - run:
           name: Launch singularity CRI
           command: |
             cd $GOPATH/src/github.com/sylabs/singularity-cri
-            sudo sycri -v=10 -config .circleci/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
+            sudo sycri -v 10 -config .circleci/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
           background: true
       - run:
           name: Run validation tests
