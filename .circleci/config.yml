@@ -104,10 +104,6 @@ jobs:
       - attach_workspace:
           at: ~/go
       - run:
-          name: Remount /run without noexec flag
-          command: |
-            sudo mount -o remount,exec /run
-      - run:
           name: Setup environment
           command: |
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
