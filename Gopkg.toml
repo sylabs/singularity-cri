@@ -12,7 +12,8 @@
 
 [[constraint]]
   name = "github.com/sylabs/singularity"
-  branch = "master"
+  source = "github.com/sashayakovtseva/singularity"
+  revision = "86676d1896f2ec34141c7d3a782782b7b915ccee"
 
 [[constraint]]
   name = "github.com/sylabs/sif"

@@ -133,10 +133,8 @@ jobs:
       - run:
           name: Install singularity
           command: |
-            git clone https://github.com/sashayakovtseva/singularity.git $GOPATH/src/github.com/sylabs/singularity
+            git clone https://github.com/sylabs/singularity.git $GOPATH/src/github.com/sylabs/singularity
             cd $GOPATH/src/github.com/sylabs/singularity
-            git checkout overlay-patch
-            git rev-parse HEAD
             ./mconfig -p /usr/local
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
