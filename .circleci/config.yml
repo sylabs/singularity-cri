@@ -35,7 +35,7 @@ jobs:
     - run:
         name: List content
         working_directory: /go
-        command: tree
+        command: ls -la
     - restore_cache:
         name: Restoring go mod cache
         key: v1-gomod-{{ checksum "go.sum" }}
