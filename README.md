@@ -17,7 +17,7 @@ To work on Singularity CRI install the following:
 - [git](https://git-scm.com/downloads)
 - [go 1.10+](https://golang.org/doc/install)
 - [dep](https://golang.github.io/dep/docs/installation.html)
-- [gometalinter](https://github.com/alecthomas/gometalinter#installing)
+- [golangci-lint](https://github.com/golangci/golangci-lint#install)
 - [singularity with OCI support](https://github.com/sylabs/singularity/blob/master/INSTALL.md)
 - socat package to perform port forwarding
 
