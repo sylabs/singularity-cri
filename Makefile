@@ -64,7 +64,7 @@ test:
 
 .PHONY: lint
 lint:
-	$(V)golangci-lint -v run --disable-all \
+	$(V)golangci-lint run --disable-all \
 	--enable=gofmt \
 	--enable=goimports \
 	--enable=vet \
@@ -74,6 +74,3 @@ lint:
 	--enable=ineffassign \
 	--enable=golint \
 	--deadline=3m ./...
-
-dep:
-	go mod download

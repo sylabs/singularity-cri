@@ -3,22 +3,25 @@ version: 2.0
 defaults: &defaults
   working_directory: /go/src/github.com/sylabs/singularity-cri
   docker:
-    - image: golang:1.11-stretch
+    - image: golang:1.12-stretch
 
 jobs:
   get_source:
     <<: *defaults
     steps:
       - checkout
+      - restore_cache:
+          name: Restoring go mod cache
+          key: v1-gomod-{{ checksum "go.sum" }}
       - run:
-          name: Install dep tool
-          working_directory: /
-          command: |
-            mkdir -p $GOPATH/bin
-            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      - run:
-          name: Check vendored dependencies
-          command: dep check
+          environment:
+            GO111MODULE: "on"
+          name: Get dependencies
+          command: go mod download
+      - save_cache:
+          name: Saving go mod cache
+          paths: /go/pkg/mod
+          key: v1-gomod-{{ checksum "go.sum" }}
       - persist_to_workspace:
           root: /go
           paths:
@@ -29,10 +32,13 @@ jobs:
     steps:
     - attach_workspace:
         at: /go
+    - restore_cache:
+        name: Restoring go mod cache
+        key: v1-gomod-{{ checksum "go.sum" }}
     - run:
-        name: Install gometalinter
+        name: Install golangci-lint v1.15
         working_directory: /
-        command: curl -L https://git.io/vp6lP | sh
+        command: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.15.0
     - run:
         name: Check formatting
         command: make lint
@@ -42,6 +48,9 @@ jobs:
     steps:
       - attach_workspace:
           at: /go
+      - restore_cache:
+          name: Restoring go mod cache
+          key: v1-gomod-{{ checksum "go.sum" }}
       - run:
           name: Install libseccomp
           command: |
@@ -49,32 +58,34 @@ jobs:
             apt-get install -y libseccomp-dev
       - run:
           name: Build source
+          environment:
+            GO111MODULE: "on"
           command: make
 
   unit_test:
     machine: true
     steps:
-      - attach_workspace:
-          at: ~/go
       - run:
           name: Setup environment
           command: |
-            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
+            echo 'export GOPATH=/go' >> $BASH_ENV
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/' >> $BASH_ENV
+            sudo mkdir /go
+            sudo chmod a+w /go
+      - attach_workspace:
+          at: /go
+      - restore_cache:
+          name: Restoring go mod cache
+          key: v1-gomod-{{ checksum "/go/src/github.com/sylabs/singularity-cri/go.sum" }}
       - run:
-          name: Update go to 1.11
+          name: Update go to 1.12
           working_directory: /tmp
           command: |
-            wget https://dl.google.com/go/go1.11.linux-amd64.tar.gz
+            wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz
             sudo rm -rf /usr/local/go
-            sudo tar -C /usr/local -xzf go1.11.linux-amd64.tar.gz
-      - run:
-          name: Install dep tool
-          command: |
-            mkdir -p $GOPATH/bin
-            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            sudo tar -C /usr/local -xzf go1.12.linux-amd64.tar.gz
       - run:
           name: Install dev libraries
           command: |
@@ -90,6 +101,8 @@ jobs:
             sudo make -C ./builddir install
       - run:
           name: Run tests
+          environment:
+            GO111MODULE: "on"
           command: |
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             make test
@@ -101,27 +114,27 @@ jobs:
   validation_test:
     machine: true
     steps:
-      - attach_workspace:
-          at: ~/go
       - run:
           name: Setup environment
           command: |
-            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
+            echo 'export GOPATH=/go' >> $BASH_ENV
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/' >> $BASH_ENV
+            sudo mkdir /go
+            sudo chmod a+w /go
+      - attach_workspace:
+          at: /go
+      - restore_cache:
+          name: Restoring go mod cache
+          key: v1-gomod-{{ checksum "/go/src/github.com/sylabs/singularity-cri/go.sum" }}
       - run:
-          name: Update go to 1.11
+          name: Update go to 1.12
           working_directory: /tmp
           command: |
-            wget https://dl.google.com/go/go1.11.linux-amd64.tar.gz
+            wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz
             sudo rm -rf /usr/local/go
-            sudo tar -C /usr/local -xzf go1.11.linux-amd64.tar.gz
-      - run:
-          name: Install dep tool
-          command: |
-            mkdir -p $GOPATH/bin
-            curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            sudo tar -C /usr/local -xzf go1.12.linux-amd64.tar.gz
       - run:
           name: Install dev libraries
           command: |
@@ -140,6 +153,8 @@ jobs:
             sudo make -C ./builddir install
       - run:
           name: Install singularity CRI
+          environment:
+            GO111MODULE: "on"
           command: |
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             make

@@ -27,7 +27,7 @@ import (
 	"github.com/sylabs/singularity-cri/pkg/index"
 	"github.com/sylabs/singularity-cri/pkg/server/image"
 	"github.com/sylabs/singularity-cri/pkg/server/runtime"
-	"github.com/sylabs/singularity/pkg/util/user-agent"
+	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
