@@ -26,15 +26,13 @@ jobs:
           root: /go
           paths:
             - src/github.com/sylabs/singularity-cri
+            - pkg/mod
 
   gometalinter_check:
     <<: *defaults
     steps:
     - attach_workspace:
         at: /go
-    - restore_cache:
-        name: Restoring go mod cache
-        key: v1-gomod-{{ checksum "go.sum" }}
     - run:
         name: Install golangci-lint v1.15
         working_directory: /
@@ -48,9 +46,6 @@ jobs:
     steps:
       - attach_workspace:
           at: /go
-      - restore_cache:
-          name: Restoring go mod cache
-          key: v1-gomod-{{ checksum "go.sum" }}
       - run:
           name: Install libseccomp
           command: |
@@ -65,20 +60,15 @@ jobs:
   unit_test:
     machine: true
     steps:
+      - attach_workspace:
+          at: ~/go
       - run:
           name: Setup environment
           command: |
-            echo 'export GOPATH=/go' >> $BASH_ENV
+            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/' >> $BASH_ENV
-            sudo mkdir /go
-            sudo chmod a+w /go
-      - attach_workspace:
-          at: /go
-      - restore_cache:
-          name: Restoring go mod cache
-          key: v1-gomod-{{ checksum "/go/src/github.com/sylabs/singularity-cri/go.sum" }}
       - run:
           name: Update go to 1.12
           working_directory: /tmp
@@ -114,20 +104,15 @@ jobs:
   validation_test:
     machine: true
     steps:
+      - attach_workspace:
+          at: ~/go
       - run:
           name: Setup environment
           command: |
-            echo 'export GOPATH=/go' >> $BASH_ENV
+            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
             echo 'export PATH=$PATH:$GOPATH/bin:$GOROOT/bin' >> $BASH_ENV
             echo 'export PATH=$PATH:/usr/local/libexec/singularity/bin/' >> $BASH_ENV
-            sudo mkdir /go
-            sudo chmod a+w /go
-      - attach_workspace:
-          at: /go
-      - restore_cache:
-          name: Restoring go mod cache
-          key: v1-gomod-{{ checksum "/go/src/github.com/sylabs/singularity-cri/go.sum" }}
       - run:
           name: Update go to 1.12
           working_directory: /tmp
