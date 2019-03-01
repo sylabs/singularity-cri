@@ -64,7 +64,7 @@ test:
 
 .PHONY: lint
 lint:
-	$(V)gometalinter --vendor --disable-all \
+	$(V)golangci-lint run --disable-all \
 	--enable=gofmt \
 	--enable=goimports \
 	--enable=vet \
@@ -76,4 +76,4 @@ lint:
 	--deadline=3m ./...
 
 dep:
-	dep ensure -vendor-only -v
+	$(V)go mod download
