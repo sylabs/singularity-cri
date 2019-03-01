@@ -32,6 +32,10 @@ jobs:
     steps:
     - attach_workspace:
         at: /go
+    - run:
+        name: List content
+        working_directory: /go
+        command: tree
     - restore_cache:
         name: Restoring go mod cache
         key: v1-gomod-{{ checksum "go.sum" }}
