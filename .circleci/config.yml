@@ -36,9 +36,9 @@ jobs:
         name: List content
         working_directory: /go
         command: |
-        ls -la
-        ls -la src/github.com/sylabs/singularity-cri
-        ls -la bin
+          ls -la
+          ls -la src/github.com/sylabs/singularity-cri
+          ls -la bin
     - restore_cache:
         name: Restoring go mod cache
         key: v1-gomod-{{ checksum "go.sum" }}
@@ -46,10 +46,10 @@ jobs:
         name: List content
         working_directory: /go
         command: |
-        ls -la
-        ls -la src/github.com/sylabs/singularity-cri
-        ls -la bin
-        ls -la pkg
+          ls -la
+          ls -la src/github.com/sylabs/singularity-cri
+          ls -la bin
+          ls -la pkg
     - run:
         name: Install golangci-lint v1.15
         working_directory: /
