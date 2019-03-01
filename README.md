@@ -15,23 +15,26 @@ Note that used test suite is taken from master branch. Detailed report can be fo
 To work on Singularity CRI install the following:
 
 - [git](https://git-scm.com/downloads)
-- [go 1.10+](https://golang.org/doc/install)
-- [dep](https://golang.github.io/dep/docs/installation.html)
+- [go 1.11+](https://golang.org/doc/install)
 - [golangci-lint](https://github.com/golangci/golangci-lint#install)
 - [singularity with OCI support](https://github.com/sylabs/singularity/blob/master/INSTALL.md)
 - socat package to perform port forwarding
 
-Make sure you configured [go workspace](https://golang.org/doc/code.html).
+Since Singularity-CRI is now build with [go modules](https://github.com/golang/go/wiki/Modules)
+there in no need to create standard [go workspace](https://golang.org/doc/code.html). If you still
+prefer keeping source code under $GOPATH make sure GO111MODULE is set. 
 
+The following assumes you want to set up Singularity CRI outside $GOPATH.
 To set up project do the following:
 
 ```bash
-go get github.com/sylabs/singularity-cri/
-cd $GOPATH/src/github.com/sylabs/singularity-cri/
+git clone https://github.com/sylabs/singularity-cri.git
+cd singularity-cri
 make dep
 ```
 
-CRI works with Singularity runtime directly so you need to have `/usr/local/libexec/singularity/bin` set up in your PATH environment variable.
+CRI works with Singularity runtime directly so you need to have `/usr/local/libexec/singularity/bin`
+set up in your PATH environment variable.
 
 After those steps you can start working on the project.
 
@@ -40,7 +43,6 @@ Make sure to run linters before submitting a PR:
 ```bash
 make lint
 ```
-
 
 ## Installing
 
@@ -96,7 +98,8 @@ image-endpoint: unix:///var/run/singularity.sock
 timeout: 10
 debug: false
 ```
-	For details on all options available see [`crictl install page`](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/crictl.md#install-crictl).
+
+For details on all options available see [crictl install page](https://github.com/kubernetes-sigs/cri-tools/blob/master/docs/crictl.md#install-crictl).
 
 3. Build and launch CRI server (optional: specify desired log level with `-v` flag):
 ```bash
@@ -225,5 +228,6 @@ $ sudo crictl rmp 0e0538d57a52d
 * [Effective Go](https://golang.org/doc/effective_go.html)
 * [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
 * [GitHub Flow](https://guides.github.com/introduction/flow/)
+* [Go modules](https://github.com/golang/go/wiki/Modules)
 * [Standard Go Project Layout](https://github.com/golang-standards/project-layout)
 * [CRI tools](https://github.com/kubernetes-sigs/cri-tools)

@@ -74,3 +74,6 @@ lint:
 	--enable=ineffassign \
 	--enable=golint \
 	--deadline=3m ./...
+
+dep:
+	$(V)go mod download

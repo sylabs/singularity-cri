@@ -17,7 +17,7 @@ jobs:
           environment:
             GO111MODULE: "on"
           name: Get dependencies
-          command: go mod download
+          command: make dep
       - save_cache:
           name: Saving go mod cache
           paths: /go/pkg/mod
