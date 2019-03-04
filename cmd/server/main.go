@@ -139,6 +139,10 @@ func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {
 }
 
 func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) error {
+	if config.DevicePluginSocket == "" {
+		return nil
+	}
+
 	lis, err := net.Listen("unix", k8sDP.DevicePluginPath+config.DevicePluginSocket)
 	if err != nil {
 		return fmt.Errorf("could not start device plugin listener: %v ", err)

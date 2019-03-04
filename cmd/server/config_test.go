@@ -132,19 +132,6 @@ func TestValidConfig(t *testing.T) {
 			expectError:  fmt.Errorf("socket to serve cannot be empty"),
 		},
 		{
-			name: "missing device socket",
-			input: Config{
-				ListenSocket: "/var/run/sycri.sock",
-				StorageDir:   "/var/lib/singularity",
-				StreamingURL: "127.0.0.10:8080",
-				CNIBinDir:    "/my/test/cni/bin",
-				CNIConfDir:   "/etc/cni/config",
-				BaseRunDir:   "/var/run/cri",
-			},
-			expectConfig: Config{},
-			expectError:  fmt.Errorf("device plugin socket cannot be empty"),
-		},
-		{
 			name: "missing pull directory",
 			input: Config{
 				ListenSocket:       "/var/run/sycri.sock",
@@ -173,16 +160,14 @@ func TestValidConfig(t *testing.T) {
 		{
 			name: "minimum valid",
 			input: Config{
-				ListenSocket:       "/var/run/sycri.sock",
-				DevicePluginSocket: "sycri.sock",
-				StorageDir:         "/var/lib/singularity",
-				BaseRunDir:         "/var/run/cri",
+				ListenSocket: "/var/run/sycri.sock",
+				StorageDir:   "/var/lib/singularity",
+				BaseRunDir:   "/var/run/cri",
 			},
 			expectConfig: Config{
-				ListenSocket:       "/var/run/sycri.sock",
-				DevicePluginSocket: "sycri.sock",
-				StorageDir:         "/var/lib/singularity",
-				BaseRunDir:         "/var/run/cri",
+				ListenSocket: "/var/run/sycri.sock",
+				StorageDir:   "/var/lib/singularity",
+				BaseRunDir:   "/var/run/cri",
 			},
 			expectError: nil,
 		},

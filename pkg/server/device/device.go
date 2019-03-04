@@ -26,6 +26,8 @@ import (
 type SingularityDevicePlugin struct {
 }
 
+// NewSingularityDevicePlugin initializes and returns Singularity device plugin
+// that allows us to access nvidia GPUs on host.
 func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
 	return &SingularityDevicePlugin{}, nil
 }

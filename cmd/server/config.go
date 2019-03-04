@@ -50,10 +50,9 @@ type Config struct {
 }
 
 var defaultConfig = Config{
-	ListenSocket:       "/var/run/singularity.sock",
-	StorageDir:         "/var/lib/singularity",
-	BaseRunDir:         "/var/run/singularity",
-	DevicePluginSocket: "singularity.sock",
+	ListenSocket: "/var/run/singularity.sock",
+	StorageDir:   "/var/lib/singularity",
+	BaseRunDir:   "/var/run/singularity",
 }
 
 func parseConfig(path string) (Config, error) {
@@ -79,9 +78,6 @@ func parseConfig(path string) (Config, error) {
 func validConfig(config Config) (Config, error) {
 	if config.ListenSocket == "" {
 		return Config{}, fmt.Errorf("socket to serve cannot be empty")
-	}
-	if config.DevicePluginSocket == "" {
-		return Config{}, fmt.Errorf("device plugin socket cannot be empty")
 	}
 	if config.StorageDir == "" {
 		return Config{}, fmt.Errorf("directory to pull images cannot be empty")
