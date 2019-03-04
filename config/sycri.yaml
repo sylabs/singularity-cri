@@ -2,6 +2,10 @@
 # default: /var/run/singularity.sock
 listenSocket: /var/run/singularity.sock
 
+# a relative path where Singularity CRI wil expose nvidia device plugin
+# default: singularity.sock
+devicePluginSocket: singularity.sock
+
 # directory to store all pulled images in, required
 # default: /var/lib/singularity
 storageDir: /var/lib/singularity

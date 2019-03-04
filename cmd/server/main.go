@@ -18,19 +18,23 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/index"
+	"github.com/sylabs/singularity-cri/pkg/server/device"
 	"github.com/sylabs/singularity-cri/pkg/server/image"
 	"github.com/sylabs/singularity-cri/pkg/server/runtime"
 	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
 func logGRPC(debug bool) grpc.UnaryServerInterceptor {
@@ -65,23 +69,41 @@ func main() {
 	}
 
 	// Initialize user agent strings
-	useragent.InitValue("singularity", "3.0.0")
+	useragent.InitValue("singularity", "3.1.0")
+	syscall.Umask(0)
 
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	done := make(chan struct{})
+	wg := new(sync.WaitGroup)
+
+	defer wg.Wait()
+	defer close(done)
+
+	if err := startCRI(wg, config, done); err != nil {
+		glog.Errorf("Could not start Singularity CRI server: %v", err)
+		return
+	}
+
+	if err := startDevicePlugin(wg, config, done); err != nil {
+		glog.Errorf("Could not start Singularity device plugin: %v", err)
+		return
+	}
+
+	glog.Infof("Received %s signal, shutting down...", <-exitCh)
+}
+
+func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {
 	lis, err := net.Listen("unix", config.ListenSocket)
 	if err != nil {
-		glog.Fatalf("Could not start CRI listener: %v ", err)
+		return fmt.Errorf("could not start CRI listener: %v ", err)
 	}
-	defer lis.Close()
 
-	syscall.Umask(0)
 	imageIndex := index.NewImageIndex()
 	syImage, err := image.NewSingularityRegistry(config.StorageDir, imageIndex)
 	if err != nil {
-		glog.Errorf("Could not create Singularity image service: %v", err)
-		return
+		return fmt.Errorf("could not create Singularity image service: %v", err)
 	}
 	syRuntime, err := runtime.NewSingularityRuntime(
 		imageIndex,
@@ -91,22 +113,58 @@ func main() {
 		runtime.WithTrashDir(config.TrashDir),
 	)
 	if err != nil {
-		glog.Errorf("Could not create Singularity runtime service: %v", err)
-		return
+		return fmt.Errorf("could not create Singularity runtime service: %v", err)
 	}
 
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC(config.Debug)))
 	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
 	k8s.RegisterImageServiceServer(grpcServer, syImage)
 
-	glog.Infof("Singularity CRI server started on %v", lis.Addr())
-	go grpcServer.Serve(lis)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer lis.Close()
 
-	<-exitCh
+		glog.Infof("Singularity CRI server started on %v", lis.Addr())
+		go grpcServer.Serve(lis)
 
-	glog.Info("Singularity CRI service exiting...")
-	if err := syRuntime.Shutdown(); err != nil {
-		glog.Errorf("Error during singularity runtime service shutdown: %v", err)
+		<-done
+		glog.Info("Singularity CRI service exiting...")
+		if err := syRuntime.Shutdown(); err != nil {
+			glog.Errorf("Error during singularity runtime service shutdown: %v", err)
+		}
+		grpcServer.Stop()
+	}()
+	return nil
+}
+
+func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) error {
+	lis, err := net.Listen("unix", k8sDP.DevicePluginPath+config.DevicePluginSocket)
+	if err != nil {
+		return fmt.Errorf("could not start device plugin listener: %v ", err)
 	}
-	grpcServer.Stop()
+	devicePlugin, err := device.NewSingularityDevicePlugin()
+	if err != nil {
+		return fmt.Errorf("could not create Singularity device plugin: %v", err)
+	}
+
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC(config.Debug)))
+	k8sDP.RegisterDevicePluginServer(grpcServer, devicePlugin)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer lis.Close()
+
+		glog.Infof("Singularity device plugin started on %v", lis.Addr())
+		go grpcServer.Serve(lis)
+
+		<-done
+		glog.Info("Singularity device plugin exiting...")
+		if err := devicePlugin.Shutdown(); err != nil {
+			glog.Errorf("Error during singularity device plugin shutdown: %v", err)
+		}
+		grpcServer.Stop()
+	}()
+	return nil
 }

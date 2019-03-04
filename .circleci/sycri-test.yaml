@@ -1,4 +1,5 @@
 listenSocket: /var/run/singularity.sock
+devicePluginSocket: singularity.sock
 storageDir: /var/lib/singularity
 cniBinDir: /usr/local/libexec/singularity/cni
 cniConfDir: /tmp/net.d

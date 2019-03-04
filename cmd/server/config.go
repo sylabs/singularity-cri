@@ -27,6 +27,10 @@ import (
 type Config struct {
 	// ListenSocket is a unix socket to serve CRI requests on.
 	ListenSocket string `yaml:"listenSocket"`
+	// DevicePluginSocket is a relative path where Singularity CRI will
+	// expose nvidia device plugin. For more details see
+	// https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins.
+	DevicePluginSocket string `yaml:"devicePluginSocket"`
 	// StorageDir is a directory to store all pulled images in.
 	StorageDir string `yaml:"storageDir"`
 	// StreamingURL is an address to serve streaming requests on (exec, attach, portforward).
@@ -46,9 +50,10 @@ type Config struct {
 }
 
 var defaultConfig = Config{
-	ListenSocket: "/var/run/singularity.sock",
-	StorageDir:   "/var/lib/singularity",
-	BaseRunDir:   "/var/run/singularity",
+	ListenSocket:       "/var/run/singularity.sock",
+	StorageDir:         "/var/lib/singularity",
+	BaseRunDir:         "/var/run/singularity",
+	DevicePluginSocket: "singularity.sock",
 }
 
 func parseConfig(path string) (Config, error) {
@@ -74,6 +79,9 @@ func parseConfig(path string) (Config, error) {
 func validConfig(config Config) (Config, error) {
 	if config.ListenSocket == "" {
 		return Config{}, fmt.Errorf("socket to serve cannot be empty")
+	}
+	if config.DevicePluginSocket == "" {
+		return Config{}, fmt.Errorf("device plugin socket cannot be empty")
 	}
 	if config.StorageDir == "" {
 		return Config{}, fmt.Errorf("directory to pull images cannot be empty")
