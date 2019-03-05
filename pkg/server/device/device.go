@@ -16,10 +16,14 @@ package device
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/golang/glog"
+	"google.golang.org/grpc"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
+
+const resourceName = "nvidia.com/gpu"
 
 // SingularityDevicePlugin is Singularity implementation of a DevicePluginServer
 // interface that allows containers to request nvidia GPUs.
@@ -32,6 +36,30 @@ func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
 	return &SingularityDevicePlugin{}, nil
 }
 
+// RegisterInKubelet registers Singularity device plugin that is
+// listening on socket in kubelet.
+func RegisterInKubelet(socket string) error {
+	conn, err := grpc.Dial(k8s.KubeletSocket, grpc.WithInsecure())
+	if err != nil {
+		return fmt.Errorf("could not dial kubelet: %v", err)
+	}
+	defer conn.Close()
+
+	client := k8s.NewRegistrationClient(conn)
+	req := &k8s.RegisterRequest{
+		Version:      k8s.Version,
+		Endpoint:     socket,
+		ResourceName: resourceName,
+	}
+
+	_, err = client.Register(context.Background(), req)
+	if err != nil {
+		return fmt.Errorf("could not register in kubelet: %v", err)
+	}
+	return nil
+}
+
+// Shutdown shuts down device plugin and any GPU monitoring activity.
 func (dp *SingularityDevicePlugin) Shutdown() error {
 	return nil
 }

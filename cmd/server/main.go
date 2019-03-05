@@ -125,15 +125,16 @@ func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {
 		defer wg.Done()
 		defer lis.Close()
 
-		glog.Infof("Singularity CRI server started on %v", lis.Addr())
 		go grpcServer.Serve(lis)
+		defer grpcServer.Stop()
 
+		glog.Infof("Singularity CRI server started on %v", lis.Addr())
 		<-done
+
 		glog.Info("Singularity CRI service exiting...")
 		if err := syRuntime.Shutdown(); err != nil {
 			glog.Errorf("Error during singularity runtime service shutdown: %v", err)
 		}
-		grpcServer.Stop()
 	}()
 	return nil
 }
@@ -155,20 +156,28 @@ func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) er
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC(config.Debug)))
 	k8sDP.RegisterDevicePluginServer(grpcServer, devicePlugin)
 
+	register := make(chan error)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer lis.Close()
 
-		glog.Infof("Singularity device plugin started on %v", lis.Addr())
 		go grpcServer.Serve(lis)
+		defer grpcServer.Stop()
 
+		err := device.RegisterInKubelet(config.DevicePluginSocket)
+		if err != nil {
+			register <- fmt.Errorf("could not register Singularity device plugin: %v", err)
+			return
+		}
+
+		glog.Infof("Singularity device plugin started on %v", lis.Addr())
 		<-done
+
 		glog.Info("Singularity device plugin exiting...")
 		if err := devicePlugin.Shutdown(); err != nil {
 			glog.Errorf("Error during singularity device plugin shutdown: %v", err)
 		}
-		grpcServer.Stop()
 	}()
-	return nil
+	return <-register
 }

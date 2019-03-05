@@ -3,6 +3,7 @@ module github.com/sylabs/singularity-cri
 go 1.12
 
 require (
+	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20190227022151-81c885550fa1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/containerd/cgroups v0.0.0-20181219155423-39b18af02c41
 	github.com/containernetworking/cni v0.6.0
