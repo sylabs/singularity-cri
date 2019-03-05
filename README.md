@@ -1,7 +1,6 @@
 # Singularity CRI
 
 [![CircleCI](https://circleci.com/gh/sylabs/singularity-cri.svg?style=svg&circle-token=276de7aa1d82749ecf8ed6513c72399041885dec)](https://circleci.com/gh/sylabs/singularity-cri)
-<a href="https://app.zenhub.com/workspace/o/sylabs/singularity-cri//boards"><img src="https://raw.githubusercontent.com/ZenHubIO/support/master/zenhub-badge.png"></a>
 
 This repository contains Singularity implementation of [Kubernetes CRI](https://github.com/kubernetes/community/blob/master/contributors/devel/container-runtime-interface.md). Singularity CRI consists of
 two separate services: runtime and image, each of which implements K8s RuntimeService and ImageService respectively.
@@ -17,11 +16,11 @@ To work on Singularity CRI install the following:
 - [git](https://git-scm.com/downloads)
 - [go 1.11+](https://golang.org/doc/install)
 - [golangci-lint](https://github.com/golangci/golangci-lint#install)
-- [singularity with OCI support](https://github.com/sylabs/singularity/blob/master/INSTALL.md)
+- [Singularity 3.1+ with OCI support](https://github.com/sylabs/singularity/blob/master/INSTALL.md)
 - socat package to perform port forwarding
 
-Since Singularity-CRI is now build with [go modules](https://github.com/golang/go/wiki/Modules)
-there in no need to create standard [go workspace](https://golang.org/doc/code.html). If you still
+Since Singularity-CRI is now built with [go modules](https://github.com/golang/go/wiki/Modules)
+there is no need to create standard [go workspace](https://golang.org/doc/code.html). If you still
 prefer keeping source code under $GOPATH make sure GO111MODULE is set. 
 
 The following assumes you want to set up Singularity CRI outside $GOPATH.

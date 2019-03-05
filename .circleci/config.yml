@@ -169,6 +169,10 @@ jobs:
             set +o pipefail
             sudo critest --runtime-endpoint=unix:///var/run/singularity.sock --image-endpoint=unix:///var/run/singularity.sock | tee $HOME/validation.out
             sed -i 's/\x1b\[[0-9;]*m//g' $HOME/validation.out
+            export PASSED=`tail -n 2 $HOME/validation.out | head -n 1 | sed 's/.* -- \([0-9]\+\).*/\1/'`
+            if [ $PASSED -lt 67 ]; then
+              exit 1
+            fi
       - run:
           name: Stop singularity CRI
           command: |
