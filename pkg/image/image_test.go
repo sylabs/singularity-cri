@@ -45,7 +45,7 @@ func TestPullImage(t *testing.T) {
 			expectImage: &Info{
 				id:     "",
 				sha256: "",
-				size:   741376,
+				size:   745472,
 				path:   "",
 				ref: &Reference{
 					uri:     singularity.DockerDomain,
