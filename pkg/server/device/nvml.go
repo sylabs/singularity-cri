@@ -75,7 +75,7 @@ func monitorGPUs(done <-chan struct{}, devices []*k8s.Device) (<-chan string, er
 				return
 			default:
 				event, err := nvml.WaitForEvent(eventSet, 5000)
-				if err != nil && strings.Contains(err.Error(), "timeout") {
+				if err != nil && strings.Contains(err.Error(), "Timeout") {
 					continue
 				}
 				if err != nil {
