@@ -28,9 +28,10 @@ var (
 	// detect any GPU device on the host.
 	ErrNoGPUs = fmt.Errorf("GPUs are not found on this host")
 
-	// ErrNoDriver is returned when device plugin is unable to
-	// detect loaded graphic driver on the host.
-	ErrNoDriver = fmt.Errorf("graphic driver is not found on this host")
+	// ErrUnableToLoad is returned when device plugin is unable to
+	// detect loaded graphic driver on the host or unable to load
+	// NVML shared library.
+	ErrUnableToLoad = fmt.Errorf("unable to load: check libnvidia-ml.so.1 library and graphic drivers")
 )
 
 // SingularityDevicePlugin is Singularity implementation of a DevicePluginServer
@@ -43,30 +44,37 @@ type SingularityDevicePlugin struct {
 // that allows us to access nvidia GPUs on host. It fails if there is no
 // graphic griver installed on host or if Nvidia Management Library (NVML)
 // fails to load.
-func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
+func NewSingularityDevicePlugin() (dp *SingularityDevicePlugin, err error) {
+	glog.Infof("Loading NVML")
+	if err = nvml.Init(); err != nil {
+		glog.Errorf("Could not initialize NVML library: %v", err)
+		return nil, ErrUnableToLoad
+	}
+
+	dp = new(SingularityDevicePlugin)
+	defer func() {
+		if err != nil {
+			glog.Errorf("Shutting down device plugin due to %v", err)
+			dp.Shutdown()
+		}
+	}()
+
 	v, err := nvml.GetDriverVersion()
 	if err != nil {
-		return nil, ErrNoDriver
+		glog.Errorf("Could not get driver version: %v", err)
+		return nil, ErrUnableToLoad
 	}
 	glog.Infof("Found graphic driver of version %v", v)
 
-	glog.Infof("Loading NVML")
-	if err := nvml.Init(); err != nil {
-		return nil, fmt.Errorf("could not load NVML: %v", err)
-	}
-
-	var dp SingularityDevicePlugin
 	dp.devices, err = getDevices()
 	if err != nil {
-		dp.Shutdown()
 		return nil, fmt.Errorf("could not get available devices: %v", err)
 	}
 	if len(dp.devices) == 0 {
-		dp.Shutdown()
 		return nil, ErrNoGPUs
 	}
 
-	return &dp, nil
+	return dp, nil
 }
 
 // Shutdown shuts down device plugin and any GPU monitoring activity.

@@ -142,7 +142,7 @@ func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) er
 	const devicePluginSocket = "singularity.sock"
 
 	devicePlugin, err := device.NewSingularityDevicePlugin()
-	if err == device.ErrNoDriver || err == device.ErrNoGPUs {
+	if err == device.ErrUnableToLoad || err == device.ErrNoGPUs {
 		glog.Warningf("GPU support is not enabled: %v", err)
 		return nil
 	}
