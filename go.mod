@@ -3,7 +3,7 @@ module github.com/sylabs/singularity-cri
 go 1.12
 
 require (
-	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20190227022151-81c885550fa1 // indirect
+	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20190227022151-81c885550fa1
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/containerd/cgroups v0.0.0-20181219155423-39b18af02c41
 	github.com/containernetworking/cni v0.6.0
@@ -43,7 +43,7 @@ require (
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/stretchr/testify v1.2.2
 	github.com/sylabs/sif v1.0.2
-	github.com/sylabs/singularity v3.1.1-0.20190305083632-19940e970900+incompatible
+	github.com/sylabs/singularity v3.1.1-0.20190305083632-356929b1e1a+incompatible
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/tchap/go-patricia v2.2.6+incompatible
 	github.com/vishvananda/netlink v1.0.0 // indirect

@@ -50,7 +50,7 @@ $(FAKE_SH_INSTALL):
 .PHONY: clean
 clean:
 	@echo " CLEAN"
-	$(V)go clean
+	$(V)GO111MODULE=off go clean
 	$(V)rm -rf $(BIN_DIR)
 
 .PHONY: uninstall
