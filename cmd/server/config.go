@@ -27,10 +27,6 @@ import (
 type Config struct {
 	// ListenSocket is a unix socket to serve CRI requests on.
 	ListenSocket string `yaml:"listenSocket"`
-	// DevicePluginSocket is a relative path where Singularity CRI will
-	// expose nvidia device plugin. For more details see
-	// https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins.
-	DevicePluginSocket string `yaml:"devicePluginSocket"`
 	// StorageDir is a directory to store all pulled images in.
 	StorageDir string `yaml:"storageDir"`
 	// StreamingURL is an address to serve streaming requests on (exec, attach, portforward).

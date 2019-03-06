@@ -34,8 +34,6 @@ func TestParseConfig(t *testing.T) {
 # default: /var/run/singularity.sock
 listenSocket: /home/user/singularity.sock
 
-devicePluginSocket: singularity.sock
-
 # directory to store all pulled images in
 # default: /var/lib/singularity
 storageDir: /var/lib/cri-images
@@ -78,13 +76,12 @@ baseRunDir: /var/run/cri
 			name:       "all ok",
 			configPath: tempConfig.Name(),
 			expectConfig: Config{
-				ListenSocket:       "/home/user/singularity.sock",
-				DevicePluginSocket: "singularity.sock",
-				StorageDir:         "/var/lib/cri-images",
-				StreamingURL:       "127.0.0.12:8080",
-				CNIBinDir:          "/opt/cni/bin",
-				CNIConfDir:         "/etc/cni/net.d",
-				BaseRunDir:         "/var/run/cri",
+				ListenSocket: "/home/user/singularity.sock",
+				StorageDir:   "/var/lib/cri-images",
+				StreamingURL: "127.0.0.12:8080",
+				CNIBinDir:    "/opt/cni/bin",
+				CNIConfDir:   "/etc/cni/net.d",
+				BaseRunDir:   "/var/run/cri",
 			},
 			expectError: nil,
 		},
@@ -121,12 +118,11 @@ func TestValidConfig(t *testing.T) {
 		{
 			name: "missing listen addr",
 			input: Config{
-				DevicePluginSocket: "sycri.sock",
-				StorageDir:         "/var/lib/singularity",
-				StreamingURL:       "127.0.0.10:8080",
-				CNIBinDir:          "/my/test/cni/bin",
-				CNIConfDir:         "/etc/cni/config",
-				BaseRunDir:         "/var/run/cri",
+				StorageDir:   "/var/lib/singularity",
+				StreamingURL: "127.0.0.10:8080",
+				CNIBinDir:    "/my/test/cni/bin",
+				CNIConfDir:   "/etc/cni/config",
+				BaseRunDir:   "/var/run/cri",
 			},
 			expectConfig: Config{},
 			expectError:  fmt.Errorf("socket to serve cannot be empty"),
@@ -134,12 +130,11 @@ func TestValidConfig(t *testing.T) {
 		{
 			name: "missing pull directory",
 			input: Config{
-				ListenSocket:       "/var/run/sycri.sock",
-				DevicePluginSocket: "sycri.sock",
-				StreamingURL:       "127.0.0.10:8080",
-				CNIBinDir:          "/my/test/cni/bin",
-				CNIConfDir:         "/etc/cni/config",
-				BaseRunDir:         "/var/run/cri",
+				ListenSocket: "/var/run/sycri.sock",
+				StreamingURL: "127.0.0.10:8080",
+				CNIBinDir:    "/my/test/cni/bin",
+				CNIConfDir:   "/etc/cni/config",
+				BaseRunDir:   "/var/run/cri",
 			},
 			expectConfig: Config{},
 			expectError:  fmt.Errorf("directory to pull images cannot be empty"),
@@ -147,12 +142,11 @@ func TestValidConfig(t *testing.T) {
 		{
 			name: "missing run directory",
 			input: Config{
-				ListenSocket:       "/var/run/sycri.sock",
-				DevicePluginSocket: "sycri.sock",
-				StorageDir:         "/var/lib/singularity",
-				StreamingURL:       "127.0.0.10:8080",
-				CNIBinDir:          "/my/test/cni/bin",
-				CNIConfDir:         "/etc/cni/config",
+				ListenSocket: "/var/run/sycri.sock",
+				StorageDir:   "/var/lib/singularity",
+				StreamingURL: "127.0.0.10:8080",
+				CNIBinDir:    "/my/test/cni/bin",
+				CNIConfDir:   "/etc/cni/config",
 			},
 			expectConfig: Config{},
 			expectError:  fmt.Errorf("directory to run containers cannot be empty"),
@@ -174,22 +168,20 @@ func TestValidConfig(t *testing.T) {
 		{
 			name: "all filled",
 			input: Config{
-				ListenSocket:       "/var/run/sycri.sock",
-				DevicePluginSocket: "sycri.sock",
-				StorageDir:         "/var/lib/singularity",
-				StreamingURL:       "127.0.0.10:8080",
-				CNIBinDir:          "/my/test/cni/bin",
-				CNIConfDir:         "/etc/cni/config",
-				BaseRunDir:         "/var/run/cri",
+				ListenSocket: "/var/run/sycri.sock",
+				StorageDir:   "/var/lib/singularity",
+				StreamingURL: "127.0.0.10:8080",
+				CNIBinDir:    "/my/test/cni/bin",
+				CNIConfDir:   "/etc/cni/config",
+				BaseRunDir:   "/var/run/cri",
 			},
 			expectConfig: Config{
-				ListenSocket:       "/var/run/sycri.sock",
-				DevicePluginSocket: "sycri.sock",
-				StorageDir:         "/var/lib/singularity",
-				StreamingURL:       "127.0.0.10:8080",
-				CNIBinDir:          "/my/test/cni/bin",
-				CNIConfDir:         "/etc/cni/config",
-				BaseRunDir:         "/var/run/cri",
+				ListenSocket: "/var/run/sycri.sock",
+				StorageDir:   "/var/lib/singularity",
+				StreamingURL: "127.0.0.10:8080",
+				CNIBinDir:    "/my/test/cni/bin",
+				CNIConfDir:   "/etc/cni/config",
+				BaseRunDir:   "/var/run/cri",
 			},
 			expectError: nil,
 		},

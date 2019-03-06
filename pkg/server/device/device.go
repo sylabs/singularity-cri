@@ -18,49 +18,60 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	"github.com/golang/glog"
-	"google.golang.org/grpc"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
-const resourceName = "nvidia.com/gpu"
+var (
+	// ErrNoGPUs is returned when device plugin is unable to
+	// detect any GPU device on the host.
+	ErrNoGPUs = fmt.Errorf("GPUs are not found on this host")
+
+	// ErrNoDriver is returned when device plugin is unable to
+	// detect loaded graphic driver on the host.
+	ErrNoDriver = fmt.Errorf("graphic driver is not found on this host")
+)
 
 // SingularityDevicePlugin is Singularity implementation of a DevicePluginServer
 // interface that allows containers to request nvidia GPUs.
 type SingularityDevicePlugin struct {
+	devices []*k8s.Device
 }
 
 // NewSingularityDevicePlugin initializes and returns Singularity device plugin
-// that allows us to access nvidia GPUs on host.
+// that allows us to access nvidia GPUs on host. It fails if there is no
+// graphic griver installed on host or if Nvidia Management Library (NVML)
+// fails to load.
 func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
-	return &SingularityDevicePlugin{}, nil
-}
-
-// RegisterInKubelet registers Singularity device plugin that is
-// listening on socket in kubelet.
-func RegisterInKubelet(socket string) error {
-	conn, err := grpc.Dial(k8s.KubeletSocket, grpc.WithInsecure())
+	v, err := nvml.GetDriverVersion()
 	if err != nil {
-		return fmt.Errorf("could not dial kubelet: %v", err)
+		return nil, ErrNoDriver
 	}
-	defer conn.Close()
+	glog.Infof("Found graphic driver of version %v", v)
 
-	client := k8s.NewRegistrationClient(conn)
-	req := &k8s.RegisterRequest{
-		Version:      k8s.Version,
-		Endpoint:     socket,
-		ResourceName: resourceName,
+	glog.Infof("Loading NVML")
+	if err := nvml.Init(); err != nil {
+		return nil, fmt.Errorf("could not load NVML: %v", err)
 	}
 
-	_, err = client.Register(context.Background(), req)
+	var dp SingularityDevicePlugin
+	dp.devices, err = getDevices()
 	if err != nil {
-		return fmt.Errorf("could not register in kubelet: %v", err)
+		dp.Shutdown()
+		return nil, fmt.Errorf("could not get available devices: %v", err)
 	}
-	return nil
+	if len(dp.devices) == 0 {
+		dp.Shutdown()
+		return nil, ErrNoGPUs
+	}
+
+	return &dp, nil
 }
 
 // Shutdown shuts down device plugin and any GPU monitoring activity.
 func (dp *SingularityDevicePlugin) Shutdown() error {
+	glog.Infof("Shutdown of NVML returned: %v", nvml.Shutdown())
 	return nil
 }
 

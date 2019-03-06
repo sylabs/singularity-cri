@@ -95,11 +95,6 @@ func main() {
 }
 
 func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {
-	lis, err := net.Listen("unix", config.ListenSocket)
-	if err != nil {
-		return fmt.Errorf("could not start CRI listener: %v ", err)
-	}
-
 	imageIndex := index.NewImageIndex()
 	syImage, err := image.NewSingularityRegistry(config.StorageDir, imageIndex)
 	if err != nil {
@@ -116,6 +111,10 @@ func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {
 		return fmt.Errorf("could not create Singularity runtime service: %v", err)
 	}
 
+	lis, err := net.Listen("unix", config.ListenSocket)
+	if err != nil {
+		return fmt.Errorf("could not start CRI listener: %v ", err)
+	}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC(config.Debug)))
 	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
 	k8s.RegisterImageServiceServer(grpcServer, syImage)
@@ -140,19 +139,21 @@ func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {
 }
 
 func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) error {
-	if config.DevicePluginSocket == "" {
+	const devicePluginSocket = "singularity.sock"
+
+	devicePlugin, err := device.NewSingularityDevicePlugin()
+	if err == device.ErrNoDriver || err == device.ErrNoGPUs {
+		glog.Warningf("GPU support is not enabled: %v", err)
 		return nil
 	}
-
-	lis, err := net.Listen("unix", k8sDP.DevicePluginPath+config.DevicePluginSocket)
-	if err != nil {
-		return fmt.Errorf("could not start device plugin listener: %v ", err)
-	}
-	devicePlugin, err := device.NewSingularityDevicePlugin()
 	if err != nil {
 		return fmt.Errorf("could not create Singularity device plugin: %v", err)
 	}
 
+	lis, err := net.Listen("unix", k8sDP.DevicePluginPath+devicePluginSocket)
+	if err != nil {
+		return fmt.Errorf("could not start device plugin listener: %v ", err)
+	}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC(config.Debug)))
 	k8sDP.RegisterDevicePluginServer(grpcServer, devicePlugin)
 
@@ -165,8 +166,11 @@ func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) er
 		go grpcServer.Serve(lis)
 		defer grpcServer.Stop()
 
-		err := device.RegisterInKubelet(config.DevicePluginSocket)
+		err := device.RegisterInKubelet(devicePluginSocket)
 		if err != nil {
+			if err := devicePlugin.Shutdown(); err != nil {
+				glog.Errorf("Error during singularity device plugin shutdown: %v", err)
+			}
 			register <- fmt.Errorf("could not register Singularity device plugin: %v", err)
 			return
 		}
