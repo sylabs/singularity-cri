@@ -27,7 +27,7 @@ const resourceName = "nvidia.com/gpu"
 // RegisterInKubelet registers Singularity device plugin that is
 // listening on socket in kubelet.
 func RegisterInKubelet(socket string) error {
-	conn, err := grpc.Dial(k8s.KubeletSocket, grpc.WithInsecure())
+	conn, err := grpc.Dial("unix://"+k8s.KubeletSocket, grpc.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("could not dial kubelet: %v", err)
 	}

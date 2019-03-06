@@ -22,7 +22,7 @@ $(SY_CRI):
 	else \
 		echo " WARNING: seccomp is not found, ignoring" ; \
 	fi
-	$(V)export GOOS=linux && go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
+	$(V)GO111MODULE=on GOOS=linux go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
 $(FAKE_SH): ARCH := `arch`
 $(FAKE_SH):
