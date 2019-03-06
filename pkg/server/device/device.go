@@ -20,6 +20,8 @@ import (
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	"github.com/golang/glog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
@@ -85,14 +87,19 @@ func (dp *SingularityDevicePlugin) Shutdown() error {
 
 // GetDevicePluginOptions returns options to be communicated with Device Manager.
 func (*SingularityDevicePlugin) GetDevicePluginOptions(context.Context, *k8s.Empty) (*k8s.DevicePluginOptions, error) {
-	glog.Infof("GetDevicePluginOptions")
-	return &k8s.DevicePluginOptions{}, nil
+	return &k8s.DevicePluginOptions{
+		PreStartRequired: true,
+	}, nil
 }
 
 // ListAndWatch returns a stream of List of Devices. Whenever a Device state changes
 // or a Device disappears, ListAndWatch returns the new list.
-func (*SingularityDevicePlugin) ListAndWatch(*k8s.Empty, k8s.DevicePlugin_ListAndWatchServer) error {
-	glog.Infof("ListAndWatch")
+func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8s.Empty, srv k8s.DevicePlugin_ListAndWatchServer) error {
+	err := srv.Send(&k8s.ListAndWatchResponse{Devices: dp.devices})
+	if err != nil {
+		return status.Errorf(codes.Unknown, "could not send initial devices state: %v", err)
+
+	}
 	return nil
 }
 
@@ -108,6 +115,5 @@ func (*SingularityDevicePlugin) Allocate(context.Context, *k8s.AllocateRequest) 
 // before each container start. Device plugin can run device specific operations
 // such as resetting the device before making devices available to the container.
 func (*SingularityDevicePlugin) PreStartContainer(context.Context, *k8s.PreStartContainerRequest) (*k8s.PreStartContainerResponse, error) {
-	glog.Infof("PreStartContainer")
 	return &k8s.PreStartContainerResponse{}, nil
 }

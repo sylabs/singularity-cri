@@ -174,6 +174,7 @@ func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) er
 			register <- fmt.Errorf("could not register Singularity device plugin: %v", err)
 			return
 		}
+		close(register)
 
 		glog.Infof("Singularity device plugin started on %v", lis.Addr())
 		<-done
