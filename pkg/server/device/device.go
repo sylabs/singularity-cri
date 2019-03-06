@@ -40,6 +40,9 @@ var (
 // interface that allows containers to request nvidia GPUs.
 type SingularityDevicePlugin struct {
 	devices []*k8s.Device
+
+	done         chan struct{}
+	unhealthyDev <-chan string
 }
 
 // NewSingularityDevicePlugin initializes and returns Singularity device plugin
@@ -53,7 +56,9 @@ func NewSingularityDevicePlugin() (dp *SingularityDevicePlugin, err error) {
 		return nil, ErrUnableToLoad
 	}
 
-	dp = new(SingularityDevicePlugin)
+	dp = &SingularityDevicePlugin{
+		done: make(chan struct{}),
+	}
 	defer func() {
 		if err != nil {
 			glog.Errorf("Shutting down device plugin due to %v", err)
@@ -76,12 +81,19 @@ func NewSingularityDevicePlugin() (dp *SingularityDevicePlugin, err error) {
 		return nil, ErrNoGPUs
 	}
 
+	dp.unhealthyDev, err = monitorGPUs(dp.done, dp.devices)
+	if err != nil {
+		return nil, fmt.Errorf("could not start GPU monitoring: %v", err)
+	}
+
 	return dp, nil
 }
 
 // Shutdown shuts down device plugin and any GPU monitoring activity.
 func (dp *SingularityDevicePlugin) Shutdown() error {
 	glog.Infof("Shutdown of NVML returned: %v", nvml.Shutdown())
+	glog.Infof("Cancelling GPU monitoring")
+	close(dp.done)
 	return nil
 }
 
@@ -98,9 +110,23 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8s.Empty, srv k8s.DevicePlug
 	err := srv.Send(&k8s.ListAndWatchResponse{Devices: dp.devices})
 	if err != nil {
 		return status.Errorf(codes.Unknown, "could not send initial devices state: %v", err)
-
 	}
-	return nil
+	for {
+		select {
+		case <-dp.done:
+			return nil
+		case devID := <-dp.unhealthyDev:
+			for _, dev := range dp.devices {
+				if dev.ID == devID {
+					dev.Health = k8s.Unhealthy
+				}
+			}
+			err := srv.Send(&k8s.ListAndWatchResponse{Devices: dp.devices})
+			if err != nil {
+				return status.Errorf(codes.Unknown, "could not send updated devices state: %v", err)
+			}
+		}
+	}
 }
 
 // Allocate is called during container creation so that the Device Plugin can run
