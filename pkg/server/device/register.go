@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
 const resourceName = "nvidia.com/gpu"
@@ -27,15 +27,15 @@ const resourceName = "nvidia.com/gpu"
 // RegisterInKubelet registers Singularity device plugin that is
 // listening on socket in kubelet.
 func RegisterInKubelet(socket string) error {
-	conn, err := grpc.Dial("unix://"+k8s.KubeletSocket, grpc.WithInsecure())
+	conn, err := grpc.Dial("unix://"+k8sDP.KubeletSocket, grpc.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("could not dial kubelet: %v", err)
 	}
 	defer conn.Close()
 
-	client := k8s.NewRegistrationClient(conn)
-	req := &k8s.RegisterRequest{
-		Version:      k8s.Version,
+	client := k8sDP.NewRegistrationClient(conn)
+	req := &k8sDP.RegisterRequest{
+		Version:      k8sDP.Version,
 		Endpoint:     socket,
 		ResourceName: resourceName,
 	}

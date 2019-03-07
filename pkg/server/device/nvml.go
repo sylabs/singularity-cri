@@ -20,24 +20,24 @@ import (
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	"github.com/golang/glog"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
-func getDevices() ([]*k8s.Device, error) {
+func getDevices() ([]*k8sDP.Device, error) {
 	n, err := nvml.GetDeviceCount()
 	if err != nil {
 		return nil, fmt.Errorf("could not get GPU count: %v", err)
 	}
 
-	devices := make([]*k8s.Device, n)
+	devices := make([]*k8sDP.Device, n)
 	for i := uint(0); i < n; i++ {
 		d, err := nvml.NewDeviceLite(i)
 		if err != nil {
 			return nil, fmt.Errorf("could not get device #%d: %v", i, err)
 		}
-		devices[i] = &k8s.Device{
+		devices[i] = &k8sDP.Device{
 			ID:     d.UUID,
-			Health: k8s.Healthy,
+			Health: k8sDP.Healthy,
 		}
 	}
 
@@ -50,7 +50,7 @@ const (
 	errPreemptiveCleanup    = 45
 )
 
-func monitorGPUs(done <-chan struct{}, devices []*k8s.Device) (<-chan string, error) {
+func monitorGPUs(done <-chan struct{}, devices []*k8sDP.Device) (<-chan string, error) {
 	ill := make(chan string, len(devices))
 	eventSet := nvml.NewEventSet()
 	for _, dev := range devices {

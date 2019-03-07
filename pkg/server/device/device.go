@@ -22,7 +22,7 @@ import (
 	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
 var (
@@ -39,7 +39,7 @@ var (
 // SingularityDevicePlugin is Singularity implementation of a DevicePluginServer
 // interface that allows containers to request nvidia GPUs.
 type SingularityDevicePlugin struct {
-	devices []*k8s.Device
+	devices []*k8sDP.Device
 
 	done         chan struct{}
 	unhealthyDev <-chan string
@@ -98,16 +98,16 @@ func (dp *SingularityDevicePlugin) Shutdown() error {
 }
 
 // GetDevicePluginOptions returns options to be communicated with Device Manager.
-func (*SingularityDevicePlugin) GetDevicePluginOptions(context.Context, *k8s.Empty) (*k8s.DevicePluginOptions, error) {
-	return &k8s.DevicePluginOptions{
+func (*SingularityDevicePlugin) GetDevicePluginOptions(context.Context, *k8sDP.Empty) (*k8sDP.DevicePluginOptions, error) {
+	return &k8sDP.DevicePluginOptions{
 		PreStartRequired: true,
 	}, nil
 }
 
 // ListAndWatch returns a stream of List of Devices. Whenever a Device state changes
 // or a Device disappears, ListAndWatch returns the new list.
-func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8s.Empty, srv k8s.DevicePlugin_ListAndWatchServer) error {
-	err := srv.Send(&k8s.ListAndWatchResponse{Devices: dp.devices})
+func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.DevicePlugin_ListAndWatchServer) error {
+	err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: dp.devices})
 	if err != nil {
 		return status.Errorf(codes.Unknown, "could not send initial devices state: %v", err)
 	}
@@ -118,11 +118,11 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8s.Empty, srv k8s.DevicePlug
 		case devID := <-dp.unhealthyDev:
 			for _, dev := range dp.devices {
 				if dev.ID == devID {
-					dev.Health = k8s.Unhealthy
+					dev.Health = k8sDP.Unhealthy
 					break
 				}
 			}
-			err := srv.Send(&k8s.ListAndWatchResponse{Devices: dp.devices})
+			err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: dp.devices})
 			if err != nil {
 				return status.Errorf(codes.Unknown, "could not send updated devices state: %v", err)
 			}
@@ -133,14 +133,14 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8s.Empty, srv k8s.DevicePlug
 // Allocate is called during container creation so that the Device Plugin can run
 // device specific operations and instruct Kubelet of the steps to make the Device
 // available in the container.
-func (*SingularityDevicePlugin) Allocate(context.Context, *k8s.AllocateRequest) (*k8s.AllocateResponse, error) {
+func (*SingularityDevicePlugin) Allocate(context.Context, *k8sDP.AllocateRequest) (*k8sDP.AllocateResponse, error) {
 	glog.Infof("Allocate")
-	return &k8s.AllocateResponse{}, nil
+	return &k8sDP.AllocateResponse{}, nil
 }
 
 // PreStartContainer is called, if indicated by Device Plugin during registration phase,
 // before each container start. Device plugin can run device specific operations
 // such as resetting the device before making devices available to the container.
-func (*SingularityDevicePlugin) PreStartContainer(context.Context, *k8s.PreStartContainerRequest) (*k8s.PreStartContainerResponse, error) {
-	return &k8s.PreStartContainerResponse{}, nil
+func (*SingularityDevicePlugin) PreStartContainer(context.Context, *k8sDP.PreStartContainerRequest) (*k8sDP.PreStartContainerResponse, error) {
+	return &k8sDP.PreStartContainerResponse{}, nil
 }
