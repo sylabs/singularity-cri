@@ -119,6 +119,7 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8s.Empty, srv k8s.DevicePlug
 			for _, dev := range dp.devices {
 				if dev.ID == devID {
 					dev.Health = k8s.Unhealthy
+					break
 				}
 			}
 			err := srv.Send(&k8s.ListAndWatchResponse{Devices: dp.devices})

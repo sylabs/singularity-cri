@@ -111,6 +111,8 @@ github.com/sylabs/singularity v3.1.1-0.20190305083632-356929b1e1a+incompatible/g
 github.com/sylabs/singularity v3.1.1-0.20190305083632-356929b1e1a59c7c1f5f203f8c417ead5514cd57+incompatible/go.mod h1:os/hL6xzaMVX6cP2GtggnZUmE2Y7jcYR9n2MKTHglRc=
 github.com/sylabs/singularity v3.1.1-0.20190305175424-356929b1e1a5+incompatible h1:WxwaCqxp3iAvoCUbE3lQNhDR5BRfNqsqyX3CBwdMmGU=
 github.com/sylabs/singularity v3.1.1-0.20190305175424-356929b1e1a5+incompatible/go.mod h1:os/hL6xzaMVX6cP2GtggnZUmE2Y7jcYR9n2MKTHglRc=
+github.com/sylabs/singularity v3.1.1-0.20190307143835-83aee94f0a64+incompatible h1:ebwf+yli5WVZjwKAfhO4rBlH/BWrhGANhLcToJda2R0=
+github.com/sylabs/singularity v3.1.1-0.20190307143835-83aee94f0a64+incompatible/go.mod h1:os/hL6xzaMVX6cP2GtggnZUmE2Y7jcYR9n2MKTHglRc=
 github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 h1:b6uOv7YOFK0TYG7HtkIgExQo+2RdLuwRft63jn2HWj8=
 github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/tchap/go-patricia v2.2.6+incompatible h1:JvoDL7JSoIP2HDE8AbDH3zC8QBPxmzYe32HHy5yQ+Ck=
