@@ -174,7 +174,7 @@ func (dp *SingularityDevicePlugin) Allocate(ctx context.Context, req *k8sDP.Allo
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not search NVIDIA files: %v", err)
 	}
-	nvidiaMounts := make([]*k8sDP.Mount, len(libs)+len(bins), 0)
+	nvidiaMounts := make([]*k8sDP.Mount, 0, len(libs)+len(bins))
 	for _, libPath := range libs {
 		nvidiaMounts = append(nvidiaMounts, &k8sDP.Mount{
 			ContainerPath: libPath,
@@ -190,9 +190,9 @@ func (dp *SingularityDevicePlugin) Allocate(ctx context.Context, req *k8sDP.Allo
 		})
 	}
 
-	allocateResponses := make([]*k8sDP.ContainerAllocateResponse, len(req.ContainerRequests), 0)
+	allocateResponses := make([]*k8sDP.ContainerAllocateResponse, 0, len(req.ContainerRequests))
 	for _, allocateRequest := range req.ContainerRequests {
-		nvidiaDevices := make([]*k8sDP.DeviceSpec, len(allocateRequest.DevicesIDs), 0)
+		nvidiaDevices := make([]*k8sDP.DeviceSpec, 0, len(allocateRequest.DevicesIDs))
 		for _, devID := range allocateRequest.DevicesIDs {
 			device := dp.devices[devID]
 			nvidiaDevices = append(nvidiaDevices, &k8sDP.DeviceSpec{
@@ -219,7 +219,7 @@ func (*SingularityDevicePlugin) PreStartContainer(context.Context, *k8sDP.PreSta
 }
 
 func (dp *SingularityDevicePlugin) listK8sDevices() []*k8sDP.Device {
-	devices := make([]*k8sDP.Device, len(dp.hospital), 0)
+	devices := make([]*k8sDP.Device, 0, len(dp.hospital))
 	for devID, health := range dp.hospital {
 		devices = append(devices, &k8sDP.Device{
 			ID:     devID,
