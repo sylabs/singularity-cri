@@ -131,9 +131,9 @@ func NewSingularityDevicePlugin() (dp *SingularityDevicePlugin, err error) {
 
 // Shutdown shuts down device plugin and any GPU monitoring activity.
 func (dp *SingularityDevicePlugin) Shutdown() error {
-	glog.Infof("Shutdown of NVML returned: %v", nvml.Shutdown())
 	glog.Infof("Cancelling GPU monitoring")
 	close(dp.done)
+	glog.Infof("Shutdown of NVML returned: %v", nvml.Shutdown())
 	return nil
 }
 
