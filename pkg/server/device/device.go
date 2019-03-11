@@ -49,6 +49,7 @@ import (
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	"github.com/golang/glog"
+	"github.com/sylabs/singularity/pkg/util/nvidia"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
@@ -68,7 +69,8 @@ var (
 // SingularityDevicePlugin is Singularity implementation of a DevicePluginServer
 // interface that allows containers to request nvidia GPUs.
 type SingularityDevicePlugin struct {
-	devices []*k8sDP.Device
+	devices  map[string]*nvml.Device
+	hospital map[string]string
 
 	done         chan struct{}
 	unhealthyDev <-chan string
@@ -102,15 +104,24 @@ func NewSingularityDevicePlugin() (dp *SingularityDevicePlugin, err error) {
 	}
 	glog.Infof("Found graphic driver of version %v", v)
 
-	dp.devices, err = getDevices()
+	devices, err := getDevices()
 	if err != nil {
 		return nil, fmt.Errorf("could not get available devices: %v", err)
 	}
-	if len(dp.devices) == 0 {
+	if len(devices) == 0 {
 		return nil, ErrNoGPUs
 	}
 
-	dp.unhealthyDev, err = monitorGPUs(dp.done, dp.devices)
+	dp.devices = make(map[string]*nvml.Device, len(devices))
+	dp.hospital = make(map[string]string, len(devices))
+	devIDs := make([]string, len(devices))
+	for i, dev := range devices {
+		dp.devices[dev.UUID] = dev
+		dp.hospital[dev.UUID] = k8sDP.Healthy
+		devIDs[i] = dev.UUID
+	}
+
+	dp.unhealthyDev, err = monitorGPUs(dp.done, devIDs)
 	if err != nil {
 		return nil, fmt.Errorf("could not start GPU monitoring: %v", err)
 	}
@@ -136,7 +147,7 @@ func (*SingularityDevicePlugin) GetDevicePluginOptions(context.Context, *k8sDP.E
 // ListAndWatch returns a stream of List of Devices. Whenever a Device state changes
 // or a Device disappears, ListAndWatch returns the new list.
 func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.DevicePlugin_ListAndWatchServer) error {
-	err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: dp.devices})
+	err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: dp.listK8sDevices()})
 	if err != nil {
 		return status.Errorf(codes.Unknown, "could not send initial devices state: %v", err)
 	}
@@ -145,13 +156,9 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.Device
 		case <-dp.done:
 			return nil
 		case devID := <-dp.unhealthyDev:
-			for _, dev := range dp.devices {
-				if dev.ID == devID {
-					dev.Health = k8sDP.Unhealthy
-					break
-				}
-			}
-			err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: dp.devices})
+			dp.hospital[devID] = k8sDP.Unhealthy
+
+			err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: dp.listK8sDevices()})
 			if err != nil {
 				return status.Errorf(codes.Unknown, "could not send updated devices state: %v", err)
 			}
@@ -162,9 +169,46 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.Device
 // Allocate is called during container creation so that the Device Plugin can run
 // device specific operations and instruct Kubelet of the steps to make the Device
 // available in the container.
-func (*SingularityDevicePlugin) Allocate(context.Context, *k8sDP.AllocateRequest) (*k8sDP.AllocateResponse, error) {
-	glog.Infof("Allocate")
-	return &k8sDP.AllocateResponse{}, nil
+func (dp *SingularityDevicePlugin) Allocate(ctx context.Context, req *k8sDP.AllocateRequest) (*k8sDP.AllocateResponse, error) {
+	libs, bins, err := nvidia.Paths("/usr/local/etc/singularity", "")
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not search NVIDIA files: %v", err)
+	}
+	nvidiaMounts := make([]*k8sDP.Mount, len(libs)+len(bins), 0)
+	for _, libPath := range libs {
+		nvidiaMounts = append(nvidiaMounts, &k8sDP.Mount{
+			ContainerPath: libPath,
+			HostPath:      libPath,
+			ReadOnly:      true,
+		})
+	}
+	for _, binPath := range bins {
+		nvidiaMounts = append(nvidiaMounts, &k8sDP.Mount{
+			ContainerPath: binPath,
+			HostPath:      binPath,
+			ReadOnly:      true,
+		})
+	}
+
+	allocateResponses := make([]*k8sDP.ContainerAllocateResponse, len(req.ContainerRequests), 0)
+	for _, allocateRequest := range req.ContainerRequests {
+		nvidiaDevices := make([]*k8sDP.DeviceSpec, len(allocateRequest.DevicesIDs), 0)
+		for _, devID := range allocateRequest.DevicesIDs {
+			device := dp.devices[devID]
+			nvidiaDevices = append(nvidiaDevices, &k8sDP.DeviceSpec{
+				ContainerPath: device.Path,
+				HostPath:      device.Path,
+				Permissions:   "rw",
+			})
+		}
+		allocateResponses = append(allocateResponses, &k8sDP.ContainerAllocateResponse{
+			Mounts:  nvidiaMounts,
+			Devices: nvidiaDevices,
+		})
+	}
+	return &k8sDP.AllocateResponse{
+		ContainerResponses: allocateResponses,
+	}, nil
 }
 
 // PreStartContainer is called, if indicated by Device Plugin during registration phase,
@@ -172,4 +216,15 @@ func (*SingularityDevicePlugin) Allocate(context.Context, *k8sDP.AllocateRequest
 // such as resetting the device before making devices available to the container.
 func (*SingularityDevicePlugin) PreStartContainer(context.Context, *k8sDP.PreStartContainerRequest) (*k8sDP.PreStartContainerResponse, error) {
 	return &k8sDP.PreStartContainerResponse{}, nil
+}
+
+func (dp *SingularityDevicePlugin) listK8sDevices() []*k8sDP.Device {
+	devices := make([]*k8sDP.Device, len(dp.hospital), 0)
+	for devID, health := range dp.hospital {
+		devices = append(devices, &k8sDP.Device{
+			ID:     devID,
+			Health: health,
+		})
+	}
+	return devices
 }

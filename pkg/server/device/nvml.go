@@ -49,25 +49,21 @@ import (
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	"github.com/golang/glog"
-	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
-func getDevices() ([]*k8sDP.Device, error) {
+func getDevices() ([]*nvml.Device, error) {
 	n, err := nvml.GetDeviceCount()
 	if err != nil {
 		return nil, fmt.Errorf("could not get GPU count: %v", err)
 	}
 
-	devices := make([]*k8sDP.Device, n)
+	devices := make([]*nvml.Device, n)
 	for i := uint(0); i < n; i++ {
 		d, err := nvml.NewDeviceLite(i)
 		if err != nil {
 			return nil, fmt.Errorf("could not get device #%d: %v", i, err)
 		}
-		devices[i] = &k8sDP.Device{
-			ID:     d.UUID,
-			Health: k8sDP.Healthy,
-		}
+		devices[i] = d
 	}
 
 	return devices, nil
@@ -79,19 +75,19 @@ const (
 	errPreemptiveCleanup    = 45
 )
 
-func monitorGPUs(done <-chan struct{}, devices []*k8sDP.Device) (<-chan string, error) {
-	ill := make(chan string, len(devices))
+func monitorGPUs(done <-chan struct{}, devIDs []string) (<-chan string, error) {
+	ill := make(chan string, len(devIDs))
 	eventSet := nvml.NewEventSet()
-	for _, dev := range devices {
-		err := nvml.RegisterEventForDevice(eventSet, nvml.XidCriticalError, dev.ID)
+	for _, devID := range devIDs {
+		err := nvml.RegisterEventForDevice(eventSet, nvml.XidCriticalError, devID)
 		if err != nil && strings.HasSuffix(err.Error(), "Not Supported") {
-			glog.Warningf("Healthcheck is not supported for %s, marking it unhealthy", dev)
-			ill <- dev.ID
+			glog.Warningf("Healthcheck is not supported for %s, marking it unhealthy", devID)
+			ill <- devID
 			continue
 		}
 		if err != nil {
 			nvml.DeleteEventSet(eventSet)
-			return nil, fmt.Errorf("could not subscribe for %s events: %v", dev, err)
+			return nil, fmt.Errorf("could not subscribe for %s events: %v", devID, err)
 		}
 	}
 
@@ -122,8 +118,8 @@ func monitorGPUs(done <-chan struct{}, devices []*k8sDP.Device) (<-chan string, 
 
 				if event.UUID == nil || len(*event.UUID) == 0 {
 					// All devices are unhealthy
-					for _, dev := range devices {
-						ill <- dev.ID
+					for _, devID := range devIDs {
+						ill <- devID
 					}
 					continue
 				}
