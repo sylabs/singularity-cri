@@ -149,8 +149,15 @@ func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) er
 		return fmt.Errorf("could not create Singularity device plugin: %v", err)
 	}
 
+	cleanup := func() {
+		if err := devicePlugin.Shutdown(); err != nil {
+			glog.Errorf("Error during singularity device plugin shutdown: %v", err)
+		}
+	}
+
 	lis, err := net.Listen("unix", k8sDP.DevicePluginPath+devicePluginSocket)
 	if err != nil {
+		cleanup()
 		return fmt.Errorf("could not start device plugin listener: %v ", err)
 	}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC(config.Debug)))
@@ -167,9 +174,7 @@ func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) er
 
 		err := device.RegisterInKubelet(devicePluginSocket)
 		if err != nil {
-			if err := devicePlugin.Shutdown(); err != nil {
-				glog.Errorf("Error during singularity device plugin shutdown: %v", err)
-			}
+			cleanup()
 			register <- fmt.Errorf("could not register Singularity device plugin: %v", err)
 			return
 		}
@@ -179,9 +184,7 @@ func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) er
 		<-done
 
 		glog.Info("Singularity device plugin exiting...")
-		if err := devicePlugin.Shutdown(); err != nil {
-			glog.Errorf("Error during singularity device plugin shutdown: %v", err)
-		}
+		cleanup()
 	}()
 	return <-register
 }
