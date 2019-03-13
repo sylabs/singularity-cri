@@ -147,7 +147,9 @@ func (*SingularityDevicePlugin) GetDevicePluginOptions(context.Context, *k8sDP.E
 // ListAndWatch returns a stream of List of Devices. Whenever a Device state changes
 // or a Device disappears, ListAndWatch returns the new list.
 func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.DevicePlugin_ListAndWatchServer) error {
-	err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: dp.listK8sDevices()})
+	devList := dp.listK8sDevices()
+	glog.Infof("Sending initial device list: %v", devList)
+	err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: devList})
 	if err != nil {
 		return status.Errorf(codes.Unknown, "could not send initial devices state: %v", err)
 	}
@@ -157,6 +159,7 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.Device
 			return nil
 		case devID := <-dp.unhealthyDev:
 			dp.hospital[devID] = k8sDP.Unhealthy
+			glog.Warningf("Device %s is in hospital", devID)
 
 			err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: dp.listK8sDevices()})
 			if err != nil {

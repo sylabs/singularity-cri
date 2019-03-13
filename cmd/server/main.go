@@ -88,6 +88,7 @@ func main() {
 
 	if err := startDevicePlugin(wg, config, done); err != nil {
 		glog.Errorf("Could not start Singularity device plugin: %v", err)
+		return
 	}
 
 	glog.Infof("Received %s signal, shutting down...", <-exitCh)
