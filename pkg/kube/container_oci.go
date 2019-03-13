@@ -172,10 +172,10 @@ func (t *containerTranslator) device(from, to string) (*specs.LinuxDevice, error
 
 	mode := stat.Mode()
 	var devType string
-	if mode&syscall.S_IFBLK == syscall.S_IFBLK {
+	if mode&os.ModeDevice == os.ModeDevice {
 		devType = "b"
 	}
-	if mode&syscall.S_IFCHR == syscall.S_IFCHR {
+	if mode&os.ModeCharDevice == os.ModeCharDevice {
 		devType = "c"
 	}
 	if devType == "" {
