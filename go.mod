@@ -43,7 +43,7 @@ require (
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/stretchr/testify v1.2.2
 	github.com/sylabs/sif v1.0.2
-	github.com/sylabs/singularity v3.1.1-0.20190308153354-a00e5576536d+incompatible
+	github.com/sylabs/singularity v3.1.1-0.20190313224921-d40624b7dc25+incompatible
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/tchap/go-patricia v2.2.6+incompatible
 	github.com/vishvananda/netlink v1.0.0 // indirect

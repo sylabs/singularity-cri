@@ -177,6 +177,8 @@ func (dp *SingularityDevicePlugin) Allocate(ctx context.Context, req *k8sDP.Allo
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not search NVIDIA files: %v", err)
 	}
+	glog.V(4).Infof("NVIDIA paths are %v and %v", libs, bins)
+
 	nvidiaMounts := make([]*k8sDP.Mount, 0, len(libs)+len(bins))
 	for _, libPath := range libs {
 		nvidiaMounts = append(nvidiaMounts, &k8sDP.Mount{
@@ -201,7 +203,7 @@ func (dp *SingularityDevicePlugin) Allocate(ctx context.Context, req *k8sDP.Allo
 			nvidiaDevices = append(nvidiaDevices, &k8sDP.DeviceSpec{
 				ContainerPath: device.Path,
 				HostPath:      device.Path,
-				Permissions:   "rw",
+				Permissions:   "rwm",
 			})
 		}
 		allocateResponses = append(allocateResponses, &k8sDP.ContainerAllocateResponse{
