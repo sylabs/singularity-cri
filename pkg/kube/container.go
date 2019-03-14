@@ -199,6 +199,9 @@ func (c *Container) Create(baseDir string) error {
 			if err := c.cli.Delete(c.id); err != nil {
 				glog.Errorf("Could not delete container: %v", err)
 			}
+			if err := c.collectTrash(); err != nil {
+				glog.Errorf("Could not collect container trash: %v", err)
+			}
 			if err := c.cleanupFiles(true); err != nil {
 				glog.Errorf("Could not cleanup bundle: %v", err)
 			}
