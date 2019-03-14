@@ -138,16 +138,31 @@ func (t *containerTranslator) configureMounts() error {
 		t.g.AddMount(volume)
 	}
 
-	return nil
-}
-
-func (t *containerTranslator) configureDevices() error {
 	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
 		t.g.AddMount(specs.Mount{
 			Destination: "/dev",
 			Source:      "/dev",
 			Options:     []string{"rbind", "nosuid", "noexec"},
 		})
+	}
+
+	uniqueMount := make(map[string]struct{})
+	mounts := t.g.Config.Mounts
+	for i := len(mounts) - 1; i >= 0; i++ {
+		_, ok := uniqueMount[mounts[i].Destination]
+		if !ok {
+			uniqueMount[mounts[i].Destination] = struct{}{}
+			continue
+		}
+		mounts = append(mounts[:i], mounts[i+1:]...)
+	}
+	t.g.Config.Mounts = mounts
+
+	return nil
+}
+
+func (t *containerTranslator) configureDevices() error {
+	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
 		t.g.Config.Linux.Resources.Devices = []specs.LinuxDeviceCgroup{{Allow: true, Access: "rwm"}}
 		return nil
 	}
