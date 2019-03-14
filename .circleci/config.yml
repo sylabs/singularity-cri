@@ -161,6 +161,7 @@ jobs:
           command: |
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             sudo sycri -v=10 -config .circleci/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
+            sed -i 's/\x1b\[[0-9;]*m//g' $HOME/sycri.out
           background: true
       - run:
           name: Run validation tests
