@@ -180,7 +180,7 @@ func (s *SingularityRuntime) Version(context.Context, *k8s.VersionRequest) (*k8s
 
 	syVersion, err := exec.Command(s.singularity, "version").Output()
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "could not get Singularity version: %v", err)
 	}
 
 	return &k8s.VersionResponse{

@@ -94,11 +94,13 @@ func (t *containerTranslator) configureMounts() error {
 		Options:     []string{"bind", "ro"},
 	})
 
-	for _, maskedPath := range t.cont.GetLinux().GetSecurityContext().GetMaskedPaths() {
-		t.g.AddLinuxMaskedPaths(maskedPath)
-	}
-	for _, readonlyPath := range t.cont.GetLinux().GetSecurityContext().GetReadonlyPaths() {
-		t.g.AddLinuxReadonlyPaths(readonlyPath)
+	if !t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
+		for _, maskedPath := range t.cont.GetLinux().GetSecurityContext().GetMaskedPaths() {
+			t.g.AddLinuxMaskedPaths(maskedPath)
+		}
+		for _, readonlyPath := range t.cont.GetLinux().GetSecurityContext().GetReadonlyPaths() {
+			t.g.AddLinuxReadonlyPaths(readonlyPath)
+		}
 	}
 
 	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
@@ -170,10 +172,10 @@ func (t *containerTranslator) device(from, to string) (*specs.LinuxDevice, error
 
 	mode := stat.Mode()
 	var devType string
-	if mode&syscall.S_IFBLK == syscall.S_IFBLK {
+	if mode&os.ModeDevice == os.ModeDevice {
 		devType = "b"
 	}
-	if mode&syscall.S_IFCHR == syscall.S_IFCHR {
+	if mode&os.ModeCharDevice == os.ModeCharDevice {
 		devType = "c"
 	}
 	if devType == "" {
