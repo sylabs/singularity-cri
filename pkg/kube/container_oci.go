@@ -21,6 +21,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
@@ -143,11 +144,23 @@ func (t *containerTranslator) configureMounts() error {
 
 func (t *containerTranslator) configureDevices() error {
 	if t.cont.GetLinux().GetSecurityContext().GetPrivileged() {
-		t.g.AddMount(specs.Mount{
-			Destination: "/dev",
-			Source:      "/dev",
-			Options:     []string{"rbind", "nosuid", "noexec"},
-		})
+		hostDevices, err := devices.HostDevices()
+		if err != nil {
+			return err
+		}
+		for _, hostDevice := range hostDevices {
+			if hostDevice.Major == 0 && hostDevice.Minor == 0 {
+				continue
+			}
+			t.g.AddDevice(specs.LinuxDevice{
+				Path:  hostDevice.Path,
+				Type:  string(hostDevice.Type),
+				Major: hostDevice.Major,
+				Minor: hostDevice.Minor,
+				UID:   &hostDevice.Uid,
+				GID:   &hostDevice.Gid,
+			})
+		}
 		t.g.Config.Linux.Resources.Devices = []specs.LinuxDeviceCgroup{{Allow: true, Access: "rwm"}}
 		return nil
 	}
