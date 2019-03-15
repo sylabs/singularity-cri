@@ -28,11 +28,13 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sylabs/sif/pkg/sif"
 	"github.com/sylabs/singularity-cri/pkg/rand"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"github.com/sylabs/singularity-cri/pkg/slice"
 	library "github.com/sylabs/singularity/pkg/client/library"
+	"github.com/sylabs/singularity/pkg/image"
 	"github.com/sylabs/singularity/pkg/signing"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
@@ -47,11 +49,12 @@ var ErrIsUsed = fmt.Errorf("image is being used")
 
 // Info represents image stored on the host filesystem.
 type Info struct {
-	id     string
-	sha256 string
-	size   uint64
-	path   string
-	ref    *Reference
+	id        string
+	sha256    string
+	size      uint64
+	path      string
+	ref       *Reference
+	ociConfig *specs.ImageConfig
 
 	mu     sync.RWMutex
 	usedBy []string
@@ -81,6 +84,13 @@ func (i *Info) Size() uint64 {
 // Ref returns associated image reference.
 func (i *Info) Ref() *Reference {
 	return i.ref
+}
+
+// OciConfig returns image's embedded OCI config if any exists.
+// If image doesn't have OCI config, e.g it is a native SIF image,
+// this call will return nil.
+func (i *Info) OciConfig() *specs.ImageConfig {
+	return i.ociConfig
 }
 
 // SetRef sets associated image reference. Should be used
@@ -218,12 +228,18 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 		return nil, fmt.Errorf("could not save pulled image: %v", err)
 	}
 
+	ociConfig, err := fetchOCIConfig(path)
+	if err != nil {
+		glog.Errorf("Could not fetch image's OCI config: %v", err)
+	}
+
 	return &Info{
-		id:     checksum,
-		sha256: checksum,
-		size:   uint64(fi.Size()),
-		path:   path,
-		ref:    ref,
+		id:        checksum,
+		sha256:    checksum,
+		size:      uint64(fi.Size()),
+		path:      path,
+		ref:       ref,
+		ociConfig: ociConfig,
 	}, nil
 }
 
@@ -257,7 +273,7 @@ func (i *Info) Verify() error {
 
 	err = signing.Verify(i.path, singularity.KeysServer, 0, false, "", true)
 
-	noSignatures := strings.Contains(err.Error(), "no signatures found")
+	noSignatures := err != nil && strings.Contains(err.Error(), "no signatures found")
 	if noSignatures {
 		glog.V(4).Infof("Image %s is not signed", i.ref)
 	}
@@ -287,4 +303,30 @@ func (i *Info) Matches(filter *k8s.ImageFilter) bool {
 		}
 	}
 	return false
+}
+
+func fetchOCIConfig(imgPath string) (*specs.ImageConfig, error) {
+	const ociConfigSection = "oci-config.json"
+
+	img, err := image.Init(imgPath, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load SIF image %s: %v", i.path, err)
+	}
+	defer img.File.Close()
+
+	reader, err := image.NewSectionReader(img, ociConfigSection, -1)
+	if err != nil {
+		if err == image.ErrNoSection {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read %s section: %v", ociConfigSection, err)
+	}
+
+	var imgConfig specs.ImageConfig
+	err = json.NewDecoder(reader).Decode(&imgConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode %s section: %v", ociConfigSection, err)
+	}
+
+	return &imgConfig, nil
 }
