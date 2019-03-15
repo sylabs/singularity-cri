@@ -173,21 +173,27 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.Device
 // device specific operations and instruct Kubelet of the steps to make the Device
 // available in the container.
 func (dp *SingularityDevicePlugin) Allocate(ctx context.Context, req *k8sDP.AllocateRequest) (*k8sDP.AllocateResponse, error) {
-	libs, bins, err := nvidia.Paths("/usr/local/etc/singularity", "")
+	nvLibs, nvBins, err := nvidia.Paths("/usr/local/etc/singularity", "")
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not search NVIDIA files: %v", err)
 	}
-	glog.V(4).Infof("NVIDIA paths are %v and %v", libs, bins)
+	glog.V(4).Infof("NVIDIA paths are %v and %v", nvLibs, nvBins)
 
-	nvidiaMounts := make([]*k8sDP.Mount, 0, len(libs)+len(bins))
-	for _, libPath := range libs {
+	nvDevs, err := nvidia.Devices(false)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not search NVIDIA complementary devices: %v", err)
+	}
+	glog.V(4).Infof("NVIDIA complementary devices are %v", nvDevs)
+
+	nvidiaMounts := make([]*k8sDP.Mount, 0, len(nvLibs)+len(nvBins))
+	for _, libPath := range nvLibs {
 		nvidiaMounts = append(nvidiaMounts, &k8sDP.Mount{
 			ContainerPath: libPath,
 			HostPath:      libPath,
 			ReadOnly:      true,
 		})
 	}
-	for _, binPath := range bins {
+	for _, binPath := range nvBins {
 		nvidiaMounts = append(nvidiaMounts, &k8sDP.Mount{
 			ContainerPath: binPath,
 			HostPath:      binPath,
@@ -197,13 +203,20 @@ func (dp *SingularityDevicePlugin) Allocate(ctx context.Context, req *k8sDP.Allo
 
 	allocateResponses := make([]*k8sDP.ContainerAllocateResponse, 0, len(req.ContainerRequests))
 	for _, allocateRequest := range req.ContainerRequests {
-		nvidiaDevices := make([]*k8sDP.DeviceSpec, 0, len(allocateRequest.DevicesIDs))
+		nvidiaDevices := make([]*k8sDP.DeviceSpec, 0, len(nvDevs)+len(allocateRequest.DevicesIDs))
+		for _, nvDev := range nvDevs {
+			nvidiaDevices = append(nvidiaDevices, &k8sDP.DeviceSpec{
+				ContainerPath: nvDev,
+				HostPath:      nvDev,
+				Permissions:   "rw",
+			})
+		}
 		for _, devID := range allocateRequest.DevicesIDs {
 			device := dp.devices[devID]
 			nvidiaDevices = append(nvidiaDevices, &k8sDP.DeviceSpec{
 				ContainerPath: device.Path,
 				HostPath:      device.Path,
-				Permissions:   "rwm",
+				Permissions:   "rw",
 			})
 		}
 		allocateResponses = append(allocateResponses, &k8sDP.ContainerAllocateResponse{
