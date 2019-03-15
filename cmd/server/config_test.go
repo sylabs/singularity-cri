@@ -128,7 +128,7 @@ func TestValidConfig(t *testing.T) {
 			expectError:  fmt.Errorf("socket to serve cannot be empty"),
 		},
 		{
-			name: "missing pull dorectory",
+			name: "missing pull directory",
 			input: Config{
 				ListenSocket: "/var/run/sycri.sock",
 				StreamingURL: "127.0.0.10:8080",
