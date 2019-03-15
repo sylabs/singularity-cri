@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -148,12 +149,27 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 		}
 	}
 
+	var uid *k8s.Int64Value
+	var username string
+	if conf := info.OciConfig(); conf != nil && conf.User != "" {
+		userID, err := strconv.ParseInt(conf.User, 10, 32)
+		if err != nil {
+			username = conf.User
+		} else {
+			uid = &k8s.Int64Value{
+				Value: userID,
+			}
+		}
+
+	}
 	return &k8s.ImageStatusResponse{
 		Image: &k8s.Image{
 			Id:          info.ID(),
 			RepoTags:    info.Ref().Tags(),
 			RepoDigests: info.Ref().Digests(),
 			Size_:       info.Size(),
+			Uid:         uid,
+			Username:    username,
 		},
 		Info: verboseInfo,
 	}, nil
