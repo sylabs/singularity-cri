@@ -19,14 +19,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/runtime-tools/generate/seccomp"
-	"golang.org/x/sys/unix"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -149,16 +147,14 @@ func (t *containerTranslator) configureDevices() error {
 			return err
 		}
 		for _, hostDevice := range hostDevices {
-			if hostDevice.Major == 0 && hostDevice.Minor == 0 {
-				continue
-			}
 			t.g.AddDevice(specs.LinuxDevice{
-				Path:  hostDevice.Path,
-				Type:  string(hostDevice.Type),
-				Major: hostDevice.Major,
-				Minor: hostDevice.Minor,
-				UID:   &hostDevice.Uid,
-				GID:   &hostDevice.Gid,
+				Path:     hostDevice.Path,
+				Type:     string(hostDevice.Type),
+				Major:    hostDevice.Major,
+				Minor:    hostDevice.Minor,
+				FileMode: &hostDevice.FileMode,
+				UID:      &hostDevice.Uid,
+				GID:      &hostDevice.Gid,
 			})
 		}
 		t.g.Config.Linux.Resources.Devices = []specs.LinuxDeviceCgroup{{Allow: true, Access: "rwm"}}
@@ -166,46 +162,22 @@ func (t *containerTranslator) configureDevices() error {
 	}
 
 	for _, dev := range t.cont.GetDevices() {
-		device, err := t.device(dev.GetHostPath(), dev.GetContainerPath())
+		device, err := devices.DeviceFromPath(dev.GetHostPath(), dev.GetPermissions())
 		if err != nil {
-			return err
+			return fmt.Errorf("could not get device: %v", err)
 		}
-		t.g.AddDevice(*device)
-		t.g.AddLinuxResourcesDevice(true, device.Type, &device.Major, &device.Minor, dev.GetPermissions())
+		t.g.AddDevice(specs.LinuxDevice{
+			Path:     device.Path,
+			Type:     string(device.Type),
+			Major:    device.Major,
+			Minor:    device.Minor,
+			FileMode: &device.FileMode,
+			UID:      &device.Uid,
+			GID:      &device.Gid,
+		})
+		t.g.AddLinuxResourcesDevice(true, string(device.Type), &device.Major, &device.Minor, device.Permissions)
 	}
 	return nil
-}
-
-func (t *containerTranslator) device(from, to string) (*specs.LinuxDevice, error) {
-	stat, err := os.Stat(from)
-	if err != nil {
-		return nil, fmt.Errorf("invalid device source: %v", err)
-	}
-	sys := stat.Sys().(*syscall.Stat_t)
-
-	mode := stat.Mode()
-	var devType string
-	if mode&os.ModeDevice == os.ModeDevice {
-		devType = "b"
-	}
-	if mode&os.ModeCharDevice == os.ModeCharDevice {
-		devType = "c"
-	}
-	if devType == "" {
-		return nil, fmt.Errorf("unsupported device type")
-	}
-	major := int64(unix.Major(sys.Rdev))
-	minor := int64(unix.Minor(sys.Rdev))
-
-	return &specs.LinuxDevice{
-		Path:     to,
-		Type:     devType,
-		Major:    major,
-		Minor:    minor,
-		FileMode: &mode,
-		UID:      &sys.Uid,
-		GID:      &sys.Gid,
-	}, nil
 }
 
 func (t *containerTranslator) configureNamespaces() {
