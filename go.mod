@@ -32,7 +32,7 @@ require (
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/onsi/gomega v1.4.3 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
+	github.com/opencontainers/image-spec v1.0.1
 	github.com/opencontainers/runc v1.0.0-rc6
 	github.com/opencontainers/runtime-spec v0.0.0-20180913141938-5806c3563733
 	github.com/opencontainers/runtime-tools v0.8.0

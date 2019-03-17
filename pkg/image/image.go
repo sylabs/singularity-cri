@@ -310,7 +310,7 @@ func fetchOCIConfig(imgPath string) (*specs.ImageConfig, error) {
 
 	img, err := image.Init(imgPath, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load SIF image %s: %v", i.path, err)
+		return nil, fmt.Errorf("failed to load SIF image %s: %v", imgPath, err)
 	}
 	defer img.File.Close()
 
