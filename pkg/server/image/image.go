@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -152,9 +153,17 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 	var uid *k8s.Int64Value
 	var username string
 	if conf := info.OciConfig(); conf != nil && conf.User != "" {
-		userID, err := strconv.ParseInt(conf.User, 10, 32)
+		// If conf.User is not empty, possible options are:
+		//     * "user"
+		//     * "uid"
+		//     * "user:group"
+		//     * "uid:gid
+		//     * "user:gid"
+		//     * "uid:group"
+		user := strings.Split(conf.User, ":")[0]
+		userID, err := strconv.ParseInt(user, 10, 32)
 		if err != nil {
-			username = conf.User
+			username = user
 		} else {
 			uid = &k8s.Int64Value{
 				Value: userID,
