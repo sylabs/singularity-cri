@@ -15,6 +15,7 @@ CRI_CONFIG_INSTALL := /usr/local/etc/sycri/sycri.yaml
 all: $(SY_CRI) $(FAKE_SH)
 
 $(SY_CRI): SECCOMP := "$(shell echo '#include <seccomp.h>\nint main() { }' | gcc -x c -o /dev/null -lseccomp - >/dev/null 2>&1; echo $$?)"
+$(SY_CRI): export GO111MODULE=on
 $(SY_CRI):
 	@echo " GO" $@
 	@if [ $(SECCOMP) -eq "0" ] ; then \
@@ -22,7 +23,7 @@ $(SY_CRI):
 	else \
 		echo " WARNING: seccomp is not found, ignoring" ; \
 	fi
-	$(V)GO111MODULE=on GOOS=linux go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
+	$(V) GOOS=linux go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
 $(FAKE_SH): ARCH := `arch`
 $(FAKE_SH):
@@ -48,9 +49,10 @@ $(FAKE_SH_INSTALL):
 	$(V)install -m 0755 $(FAKE_SH) $(FAKE_SH_INSTALL)
 
 .PHONY: clean
+clean: export GO111MODULE=off
 clean:
 	@echo " CLEAN"
-	$(V)GO111MODULE=off go clean
+	$(V)go clean
 	$(V)rm -rf $(BIN_DIR)
 
 .PHONY: uninstall
@@ -59,6 +61,7 @@ uninstall:
 	$(V)rm -rf $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL) $(CRI_CONFIG_INSTALL)
 
 .PHONY: test
+test: export GO111MODULE=on
 test:
 	$(V)GOOS=linux go test -v -coverprofile=cover.out ./...
 
@@ -75,6 +78,7 @@ lint:
 	--enable=golint \
 	--deadline=3m ./...
 
+dep: export GO111MODULE=on
 dep:
 	$(V)go mod download
 	$(V)go mod tidy
