@@ -209,6 +209,11 @@ func (c *CLIClient) Kill(id string, force bool) error {
 	if force {
 		sig = "SIGKILL"
 	}
+	return c.Signal(id, sig)
+}
+
+// Signal asks runtime to send passed sig to container with passed id.
+func (c *CLIClient) Signal(id, sig string) error {
 	cmd := append(c.ociBaseCmd, "kill", "-s", sig, id)
 	return run(cmd)
 }
