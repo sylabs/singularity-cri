@@ -77,25 +77,25 @@ func main() {
 
 	done := make(chan struct{})
 	wg := new(sync.WaitGroup)
-	cleanup := func() {
+	waitShutdown := func() {
 		close(done)
 		wg.Wait()
 	}
 
 	if err := startCRI(wg, config, done); err != nil {
 		glog.Errorf("Could not start Singularity CRI server: %v", err)
-		cleanup()
+		waitShutdown()
 		return
 	}
 
 	if err := startDevicePlugin(wg, config, done); err != nil {
 		glog.Errorf("Could not start Singularity device plugin: %v", err)
-		cleanup()
+		waitShutdown()
 		return
 	}
 
 	glog.Infof("Received %s signal, shutting down...", <-exitCh)
-	cleanup()
+	waitShutdown()
 }
 
 func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {

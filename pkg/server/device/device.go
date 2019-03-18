@@ -46,9 +46,12 @@ package device
 import (
 	"context"
 	"fmt"
+	"os/exec"
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	"github.com/golang/glog"
+	"github.com/sylabs/singularity-cri/pkg/singularity"
+	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/util/nvidia"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -71,6 +74,7 @@ var (
 type SingularityDevicePlugin struct {
 	devices  map[string]*nvml.Device
 	hospital map[string]string
+	confDir  string
 
 	done         chan struct{}
 	unhealthyDev <-chan string
@@ -78,17 +82,27 @@ type SingularityDevicePlugin struct {
 
 // NewSingularityDevicePlugin initializes and returns Singularity device plugin
 // that allows us to access nvidia GPUs on host. It fails if there is no
-// graphic griver installed on host or if Nvidia Management Library (NVML)
+// graphic driver installed on host or if Nvidia Management Library (NVML)
 // fails to load.
-func NewSingularityDevicePlugin() (dp *SingularityDevicePlugin, err error) {
+func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
+	_, err := exec.LookPath(singularity.RuntimeName)
+	if err != nil {
+		return nil, fmt.Errorf("could not find %s on this machine: %v", singularity.RuntimeName, err)
+	}
+	config, err := runtime.NewCLIClient().BuildConfig()
+	if err != nil {
+		return nil, fmt.Errorf("could not get build config: %v", err)
+	}
+
 	glog.Infof("Loading NVML")
 	if err = nvml.Init(); err != nil {
 		glog.Errorf("Could not initialize NVML library: %v", err)
 		return nil, ErrUnableToLoad
 	}
 
-	dp = &SingularityDevicePlugin{
-		done: make(chan struct{}),
+	dp := &SingularityDevicePlugin{
+		done:    make(chan struct{}),
+		confDir: config.SingularityConfdir,
 	}
 	defer func() {
 		if err != nil {
@@ -173,7 +187,7 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.Device
 // device specific operations and instruct Kubelet of the steps to make the Device
 // available in the container.
 func (dp *SingularityDevicePlugin) Allocate(ctx context.Context, req *k8sDP.AllocateRequest) (*k8sDP.AllocateResponse, error) {
-	nvLibs, nvBins, err := nvidia.Paths("/usr/local/etc/singularity", "")
+	nvLibs, nvBins, err := nvidia.Paths(dp.confDir, "")
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not search NVIDIA files: %v", err)
 	}
