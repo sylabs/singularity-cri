@@ -15,236 +15,48 @@
 package runtime
 
 import (
+	"bufio"
 	"bytes"
-	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/golang/glog"
-	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
-	"github.com/sylabs/singularity/pkg/ociruntime"
 )
-
-const (
-	execScript = "/.singularity.d/actions/exec"
-)
-
-// ErrNotFound us returned when Singularity OCI engine responds with
-// corresponding error message and exit status 255
-var ErrNotFound = fmt.Errorf("no instance found for provided name")
 
 type (
 	// CLIClient is a type for convenient interaction with
 	// singularity OCI runtime engine via CLI.
 	CLIClient struct {
-		baseCmd []string
+		ociBaseCmd []string
 	}
 
-	// ExecResponse holds result of command execution inside a container.
-	ExecResponse struct {
-		// Captured command stdout output.
-		Stdout []byte
-		// Captured command stderr output.
-		Stderr []byte
-		// Exit code the command finished with.
-		ExitCode int32
+	// BuildConfig is Singularity's build configuration.
+	BuildConfig struct {
+		SingularityConfdir string
 	}
 )
 
 // NewCLIClient returns new CLIClient ready to use.
 func NewCLIClient() *CLIClient {
-	return &CLIClient{baseCmd: []string{singularity.RuntimeName, "-q", "oci"}}
+	return &CLIClient{ociBaseCmd: []string{singularity.RuntimeName, "-q", "oci"}}
 }
 
-// State returns state of a container with passed id. If runtime fails
-// to find object with given id, ErrNotFound is returned.
-func (c *CLIClient) State(id string) (*ociruntime.State, error) {
-	cmd := append(c.baseCmd, "state", id)
-	stateCmd := exec.Command(cmd[0], cmd[1:]...)
-
-	cliResp, err := stateCmd.Output()
+// BuildConfig returns configuration which was used to build
+// current Singularity installation.
+func (c *CLIClient) BuildConfig() (*BuildConfig, error) {
+	cmd := exec.Command(singularity.RuntimeName, "buildcfg")
+	confBytes, err := cmd.Output()
 	if err != nil {
-		if eErr, ok := err.(*exec.ExitError); ok {
-			if strings.Contains(string(eErr.Stderr), "no instance found") {
-				return nil, ErrNotFound
-			}
-			return nil, fmt.Errorf("could not query state: %s", eErr.Stderr)
-		}
-		return nil, fmt.Errorf("could not query state: %v", err)
+		return nil, fmt.Errorf("could not run buildcfg command: %v", err)
 	}
-
-	var state *ociruntime.State
-	err = json.Unmarshal(cliResp, &state)
-	if err != nil {
-		return nil, fmt.Errorf("could not decode state: %v", err)
+	conf := parseBuildConfig(confBytes)
+	if conf.SingularityConfdir == "" {
+		return nil, fmt.Errorf("invalid build configuration")
 	}
-	return state, nil
-}
-
-// Delete asks runtime to delete container with passed id. If runtime fails
-// to find object with given id, ErrNotFound is returned.
-func (c *CLIClient) Delete(id string) error {
-	cmd := append(c.baseCmd, "delete", id)
-	deleteCmd := exec.Command(cmd[0], cmd[1:]...)
-
-	_, err := deleteCmd.Output()
-	if err != nil {
-		if eErr, ok := err.(*exec.ExitError); ok {
-			if strings.Contains(string(eErr.Stderr), "no instance found") {
-				return ErrNotFound
-			}
-			return fmt.Errorf("could not delete instance %s: %s", id, eErr.Stderr)
-		}
-		return fmt.Errorf("could not delete instance %s: %s", id, err)
-	}
-
-	return nil
-}
-
-// Create asks runtime to create a container with passed parameters. When stdin is false
-// no stdin stream is allocated and all reads from stdin in the container will always result in EOF.
-// When stdin is true Create returns write end of the stdin pipe.
-func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.WriteCloser, error) {
-	var stdinWrite io.WriteCloser
-	var stdinRead io.Closer
-
-	cmd := append(c.baseCmd, "create")
-	cmd = append(cmd, flags...)
-	cmd = append(cmd, "-b", bundle, id)
-
-	createCmd := exec.Command(cmd[0], cmd[1:]...)
-	createCmd.Stderr = os.Stderr
-	if stdin {
-		pr, pw, err := os.Pipe()
-		if err != nil {
-			return nil, fmt.Errorf("could not create pipe: %v", err)
-		}
-		createCmd.Stdin = pr
-		stdinWrite = pw
-		stdinRead = pr
-	}
-
-	glog.V(4).Infof("Executing %v", cmd)
-	err := createCmd.Run()
-	if err != nil {
-		return nil, fmt.Errorf("could not execute create container command: %v", err)
-	}
-	if stdinRead != nil {
-		glog.V(10).Infof("Closing read end of stdin pipe")
-		if err := stdinRead.Close(); err != nil {
-			glog.Errorf("Could not close read end of stdin pipe: %v", err)
-		}
-	}
-	return stdinWrite, nil
-}
-
-// Start asks runtime to start container with passed id.
-func (c *CLIClient) Start(id string) error {
-	cmd := append(c.baseCmd, "start", id)
-	return run(cmd)
-}
-
-// ExecSync executes a command inside a container synchronously until
-// context is done and returns the result.
-func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*ExecResponse, error) {
-	cmd := append(c.baseCmd, "exec")
-	cmd = append(cmd, id, execScript)
-	cmd = append(cmd, args...)
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	runCmd := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
-	runCmd.Stdout = &stdout
-	runCmd.Stderr = &stderr
-
-	glog.V(4).Infof("Executing %v", cmd)
-	err := runCmd.Run()
-	var exitCode int32
-	exitErr, ok := err.(*exec.ExitError)
-	if ok {
-		var waitStatus syscall.WaitStatus
-		waitStatus, ok = exitErr.Sys().(syscall.WaitStatus)
-		if ok {
-			exitCode = int32(waitStatus.ExitStatus())
-		}
-	}
-	if !ok && err != nil {
-		return nil, fmt.Errorf("could not execute: %v", err)
-	}
-	return &ExecResponse{
-		Stdout:   stdout.Bytes(),
-		Stderr:   stderr.Bytes(),
-		ExitCode: exitCode,
-	}, nil
-}
-
-// Exec executes passed command inside a container setting io streams to passed ones.
-func (c *CLIClient) Exec(ctx context.Context, id string,
-	stdin io.Reader, stdout, stderr io.WriteCloser,
-	args ...string) error {
-
-	runCmd := c.PrepareExec(ctx, id, args...)
-	runCmd.Stdout = stdout
-	runCmd.Stderr = stderr
-	runCmd.Stdin = stdin
-
-	err := runCmd.Run()
-	_, ok := err.(*exec.ExitError)
-	if !ok && err != nil {
-		return fmt.Errorf("could not execute: %v", err)
-	}
-	return nil
-}
-
-// PrepareExec simply prepares command to call to execute inside a
-// given container. It makes sure singularity exec script is called.
-func (c *CLIClient) PrepareExec(ctx context.Context, id string, args ...string) *exec.Cmd {
-	cmd := append(c.baseCmd, "exec")
-	cmd = append(cmd, id, execScript)
-	cmd = append(cmd, args...)
-
-	glog.V(4).Infof("Prepared %v", cmd)
-	return exec.CommandContext(ctx, cmd[0], cmd[1:]...)
-}
-
-// Kill asks runtime to send SIGINT to container with passed id.
-// If force is true that SIGKILL is sent instead.
-func (c *CLIClient) Kill(id string, force bool) error {
-	sig := "SIGINT"
-	if force {
-		sig = "SIGKILL"
-	}
-	cmd := append(c.baseCmd, "kill", "-s", sig, id)
-	return run(cmd)
-}
-
-// UpdateContainerResources asks runtime to update container resources
-// according to the passed parameter.
-func (c *CLIClient) UpdateContainerResources(id string, req *specs.LinuxResources) error {
-	buf := bytes.NewBuffer(nil)
-	err := json.NewEncoder(buf).Encode(req)
-	if err != nil {
-		return fmt.Errorf("could not encode update request: %v", err)
-	}
-
-	cmd := append(c.baseCmd, "update", "--from-file", "-", id)
-	updCmd := exec.Command(cmd[0], cmd[1:]...)
-	updCmd.Stderr = os.Stderr
-	updCmd.Stdin = buf
-
-	glog.V(4).Infof("Executing %v", cmd)
-	err = updCmd.Run()
-	if err != nil {
-		return fmt.Errorf("could not execute: %v", err)
-	}
-	return nil
+	return &conf, nil
 }
 
 func run(cmd []string) error {
@@ -257,4 +69,26 @@ func run(cmd []string) error {
 		return fmt.Errorf("could not execute: %v", err)
 	}
 	return nil
+}
+
+func parseBuildConfig(data []byte) BuildConfig {
+	const singularityConfdir = "SINGULARITY_CONFDIR"
+
+	var cfg BuildConfig
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "=")
+		if len(parts) != 2 {
+			continue
+		}
+		if parts[0] == singularityConfdir {
+			cfg.SingularityConfdir = parts[1]
+			break
+		}
+	}
+	return cfg
 }

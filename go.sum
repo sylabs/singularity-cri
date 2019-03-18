@@ -1,4 +1,6 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
+github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20190227022151-81c885550fa1 h1:qKqXZZml088vwbo9zP0q2r/UNEUu6kg4lMM/eo0Rfs4=
+github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20190227022151-81c885550fa1/go.mod h1:nMOvShGpWaf0bXwXmeu4k+O4uziuaEI8pWzIj3BUrOA=
 github.com/blang/semver v3.5.1+incompatible h1:cQNTCjp13qL8KC3Nbxr/y2Bqb63oX6wdnnjpJbkM4JQ=
 github.com/blang/semver v3.5.1+incompatible/go.mod h1:kRBLl5iJ+tD4TcOOxsy/0fnwebNt5EWlYSAyrTnjyyk=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
@@ -109,8 +111,8 @@ github.com/sylabs/scs-key-client v0.2.0 h1:9nXqgcSotyvUMJEsA4lAFrKtUB14qw3xIKoF6
 github.com/sylabs/scs-key-client v0.2.0/go.mod h1:nMF8PplFD5ZmDz//GHjaip7+MlQ0z4Qe0RCzaT5Xjes=
 github.com/sylabs/sif v1.0.2 h1:yz86Avck4JUVjETWNwncvwkqJXW8GwwSOc5j7JeGA1s=
 github.com/sylabs/sif v1.0.2/go.mod h1:5FM5vX9RuQFr3sDVdQOnb7kKt9vLfRb7igH6GZMy4O4=
-github.com/sylabs/singularity v3.1.1-0.20190315144600-7e50d9372f26+incompatible h1:PogSIvAEbEFF3I1Yg5qpBEV2AgoiKEpSQJc7VqSNgdg=
-github.com/sylabs/singularity v3.1.1-0.20190315144600-7e50d9372f26+incompatible/go.mod h1:os/hL6xzaMVX6cP2GtggnZUmE2Y7jcYR9n2MKTHglRc=
+github.com/sylabs/singularity v3.1.1-0.20190317210357-3bc381b61d3f+incompatible h1:MH4eZO8A4zaFpIFU6HgyX39gwW6lHT4R4HKY8TEz29w=
+github.com/sylabs/singularity v3.1.1-0.20190317210357-3bc381b61d3f+incompatible/go.mod h1:os/hL6xzaMVX6cP2GtggnZUmE2Y7jcYR9n2MKTHglRc=
 github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 h1:b6uOv7YOFK0TYG7HtkIgExQo+2RdLuwRft63jn2HWj8=
 github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/tchap/go-patricia v2.2.6+incompatible h1:JvoDL7JSoIP2HDE8AbDH3zC8QBPxmzYe32HHy5yQ+Ck=
