@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
 	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
@@ -51,6 +52,10 @@ func TestPullImage(t *testing.T) {
 					uri:     singularity.DockerDomain,
 					tags:    []string{"gcr.io/cri-tools/test-image-latest"},
 					digests: nil,
+				},
+				ociConfig: &specs.ImageConfig{
+					Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+					Cmd: []string{"sh"},
 				},
 			},
 			expectError: nil,
