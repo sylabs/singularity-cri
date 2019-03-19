@@ -16,6 +16,7 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a // indirect
 	github.com/emicklei/go-restful v2.8.0+incompatible // indirect
 	github.com/fatih/color v1.7.0 // indirect
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8 // indirect
 	github.com/godbus/dbus v0.0.0-20181025153459-66d97aec3384 // indirect
@@ -46,7 +47,7 @@ require (
 	github.com/stretchr/testify v1.2.2
 	github.com/sylabs/scs-key-client v0.2.0 // indirect
 	github.com/sylabs/sif v1.0.2
-	github.com/sylabs/singularity v3.1.1-0.20190317210357-3bc381b61d3f+incompatible
+	github.com/sylabs/singularity v3.1.1-0.20190318191111-8d93b6061a76+incompatible
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/tchap/go-patricia v2.2.6+incompatible
 	github.com/vishvananda/netlink v1.0.0 // indirect

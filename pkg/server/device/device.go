@@ -153,9 +153,7 @@ func (dp *SingularityDevicePlugin) Shutdown() error {
 
 // GetDevicePluginOptions returns options to be communicated with Device Manager.
 func (*SingularityDevicePlugin) GetDevicePluginOptions(context.Context, *k8sDP.Empty) (*k8sDP.DevicePluginOptions, error) {
-	return &k8sDP.DevicePluginOptions{
-		PreStartRequired: true,
-	}, nil
+	return &k8sDP.DevicePluginOptions{}, nil
 }
 
 // ListAndWatch returns a stream of List of Devices. Whenever a Device state changes
