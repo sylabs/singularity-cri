@@ -92,21 +92,28 @@ func main() {
 	}
 
 	dpCtx, dpCancel := context.WithCancel(ctx)
-	if err := startDevicePlugin(dpCtx, dpWG, config); err != nil {
+	err = startDevicePlugin(dpCtx, dpWG, config)
+	devicePluginEnabled := err == nil
+	if err != nil && err != errNotSupported {
 		glog.Errorf("Could not start Singularity device plugin: %v", err)
 		waitShutdown()
 		return
 	}
 
-	watcher, err := fs.NewWatcher(k8sDP.DevicePluginPath)
-	if err != nil {
-		glog.Errorf("Could not create kubelet file watcher: %v", err)
-		waitShutdown()
-		return
+	// if device plugin is not enabled this channel will be nil
+	// and select below will not be triggered
+	var fsEvents <-chan fs.WatchEvent
+	if devicePluginEnabled {
+		watcher, err := fs.NewWatcher(k8sDP.DevicePluginPath)
+		if err != nil {
+			glog.Errorf("Could not create kubelet file watcher: %v", err)
+			waitShutdown()
+			return
+		}
+		defer watcher.Close()
+		fsEvents = watcher.Watch(ctx)
 	}
-	defer watcher.Close()
 
-	fsEvents := watcher.Watch(ctx)
 	for {
 		select {
 		case event := <-fsEvents:
@@ -175,13 +182,15 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 	return nil
 }
 
+var errNotSupported = fmt.Errorf("GPU device plugin is not supported on this host")
+
 func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 	const devicePluginSocket = "singularity.sock"
 
 	devicePlugin, err := device.NewSingularityDevicePlugin()
 	if err == device.ErrUnableToLoad || err == device.ErrNoGPUs {
 		glog.Warningf("GPU support is not enabled: %v", err)
-		return nil
+		return errNotSupported
 	}
 	if err != nil {
 		return fmt.Errorf("could not create Singularity device plugin: %v", err)
