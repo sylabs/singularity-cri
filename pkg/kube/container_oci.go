@@ -243,11 +243,23 @@ func (t *containerTranslator) configureProcess() error {
 		execScript = "/.singularity.d/actions/exec"
 		runScript  = "/.singularity.d/actions/run"
 	)
-
+	if t.cont.imgInfo.OciConfig() != nil {
+		// add image envs first and allow container config to override them
+		// assuming VARNAME=VARVALUE format
+		for _, env := range t.cont.imgInfo.OciConfig().Env {
+			parts := strings.Split(env, "=")
+			t.g.AddProcessEnv(parts[0], parts[1])
+		}
+	}
 	for _, env := range t.cont.GetEnvs() {
 		t.g.AddProcessEnv(env.GetKey(), env.GetValue())
 	}
-	t.g.SetProcessCwd(t.cont.GetWorkingDir())
+	cwd := t.cont.GetWorkingDir()
+	if cwd == "" && t.cont.imgInfo.OciConfig() != nil {
+		// if no working directory is set fallback to image config
+		cwd = t.cont.imgInfo.OciConfig().WorkingDir
+	}
+	t.g.SetProcessCwd(cwd)
 	t.g.SetProcessTerminal(t.cont.GetTty())
 
 	args := append(t.cont.GetCommand(), t.cont.GetArgs()...)
@@ -342,6 +354,11 @@ func (t *containerTranslator) configureUser() error {
 	}
 
 	userSpec := strings.Join(userParts, ":")
+	if userSpec == "" && t.cont.imgInfo.OciConfig() != nil {
+		// if no user is set fallback to image config
+		userSpec = t.cont.imgInfo.OciConfig().User
+	}
+
 	containerUser, err := getContainerUser(t.cont.rootfsPath(), userSpec)
 	if err != nil {
 		return err

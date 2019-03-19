@@ -94,7 +94,12 @@ func (c *Container) terminate(timeout int64) error {
 	}
 
 	// otherwise give container a chance to terminate gracefully
-	err := c.cli.Kill(c.id, false)
+	var err error
+	if c.imgInfo.OciConfig() != nil && c.imgInfo.OciConfig().StopSignal != "" {
+		err = c.cli.Signal(c.id, c.imgInfo.OciConfig().StopSignal)
+	} else {
+		err = c.cli.Kill(c.id, false)
+	}
 	if err != nil {
 		return fmt.Errorf("could not treminate container: %v", err)
 	}
