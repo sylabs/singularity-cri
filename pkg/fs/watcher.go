@@ -23,7 +23,7 @@ import (
 
 const (
 	// OpUnsupported stands for currently unsupported file operation type.
-	OpUnsupported = iota
+	OpUnsupported = Op(iota)
 	// OpRemove is used when watched file was removed.
 	OpRemove
 	// OpCreate is used when watched file was created.
@@ -36,10 +36,13 @@ type Watcher struct {
 	*fsnotify.Watcher
 }
 
+// Op is a separate type for watch file events.
+type Op int
+
 // WatchEvent is a single event that happens during filesystem watch.
 type WatchEvent struct {
 	Path string
-	Op   int
+	Op   Op
 }
 
 // NewWatcher creates new Watcher that will be watching passed files or directories
@@ -72,7 +75,7 @@ func (w *Watcher) Watch(ctx context.Context) <-chan WatchEvent {
 		for {
 			select {
 			case event := <-w.Events:
-				var op int
+				var op Op
 				if event.Op&fsnotify.Create == fsnotify.Create {
 					op = OpCreate
 				}
