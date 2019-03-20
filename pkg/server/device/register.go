@@ -63,7 +63,7 @@ func RegisterInKubelet(socket string) error {
 		if err != nil {
 			glog.Errorf("Registration failed: %v", err)
 			timeout := time.Second * time.Duration(attempt*2)
-			glog.Errorf("Retrying in %d seconds", timeout.Seconds())
+			glog.Errorf("Retrying in %f seconds", timeout.Seconds())
 			time.Sleep(timeout)
 			continue
 		}
