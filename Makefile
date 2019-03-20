@@ -66,6 +66,7 @@ test:
 	$(V)GOOS=linux go test -v -coverprofile=cover.out ./...
 
 .PHONY: lint
+lint: export GO111MODULE=on
 lint:
 	$(V)golangci-lint run --disable-all \
 	--enable=gofmt \
