@@ -38,6 +38,8 @@ import (
 	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
+var errGPUNotSupported = fmt.Errorf("GPU device plugin is not supported on this host")
+
 func logGRPC(debug bool) grpc.UnaryServerInterceptor {
 	return grpc.UnaryServerInterceptor(func(ctx context.Context, req interface{},
 		info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -94,7 +96,7 @@ func main() {
 	dpCtx, dpCancel := context.WithCancel(ctx)
 	err = startDevicePlugin(dpCtx, dpWG, config)
 	devicePluginEnabled := err == nil
-	if err != nil && err != errNotSupported {
+	if err != nil && err != errGPUNotSupported {
 		glog.Errorf("Could not start Singularity device plugin: %v", err)
 		return
 	}
@@ -180,15 +182,13 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 	return nil
 }
 
-var errNotSupported = fmt.Errorf("GPU device plugin is not supported on this host")
-
 func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 	const devicePluginSocket = "singularity.sock"
 
 	devicePlugin, err := device.NewSingularityDevicePlugin()
 	if err == device.ErrUnableToLoad || err == device.ErrNoGPUs {
 		glog.Warningf("GPU support is not enabled: %v", err)
-		return errNotSupported
+		return errGPUNotSupported
 	}
 	if err != nil {
 		return fmt.Errorf("could not create Singularity device plugin: %v", err)
