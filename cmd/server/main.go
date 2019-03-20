@@ -26,6 +26,7 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
+	"github.com/sylabs/singularity-cri/pkg/fs"
 	"github.com/sylabs/singularity-cri/pkg/index"
 	"github.com/sylabs/singularity-cri/pkg/server/device"
 	"github.com/sylabs/singularity-cri/pkg/server/image"
@@ -36,6 +37,8 @@ import (
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
+
+var errGPUNotSupported = fmt.Errorf("GPU device plugin is not supported on this host")
 
 func logGRPC(debug bool) grpc.UnaryServerInterceptor {
 	return grpc.UnaryServerInterceptor(func(ctx context.Context, req interface{},
@@ -75,30 +78,67 @@ func main() {
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	done := make(chan struct{})
-	wg := new(sync.WaitGroup)
+	ctx, cancel := context.WithCancel(context.Background())
+	criWG := new(sync.WaitGroup)
+	dpWG := new(sync.WaitGroup)
 	waitShutdown := func() {
-		close(done)
-		wg.Wait()
+		cancel()
+		criWG.Wait()
+		dpWG.Wait()
 	}
+	defer waitShutdown()
 
-	if err := startCRI(wg, config, done); err != nil {
+	if err := startCRI(ctx, criWG, config); err != nil {
 		glog.Errorf("Could not start Singularity CRI server: %v", err)
-		waitShutdown()
 		return
 	}
 
-	if err := startDevicePlugin(wg, config, done); err != nil {
+	dpCtx, dpCancel := context.WithCancel(ctx)
+	err = startDevicePlugin(dpCtx, dpWG, config)
+	devicePluginEnabled := err == nil
+	if err != nil && err != errGPUNotSupported {
 		glog.Errorf("Could not start Singularity device plugin: %v", err)
-		waitShutdown()
 		return
 	}
 
-	glog.Infof("Received %s signal, shutting down...", <-exitCh)
-	waitShutdown()
+	// if device plugin is not enabled this channel will be nil
+	// and select below will not be triggered
+	var fsEvents <-chan fs.WatchEvent
+	if devicePluginEnabled {
+		watcher, err := fs.NewWatcher(k8sDP.DevicePluginPath)
+		if err != nil {
+			glog.Errorf("Could not create kubelet file watcher: %v", err)
+			waitShutdown()
+			return
+		}
+		defer watcher.Close()
+		fsEvents = watcher.Watch(ctx)
+	}
+
+	for {
+		select {
+		case event := <-fsEvents:
+			if event.Path == k8sDP.KubeletSocket && event.Op == fs.OpCreate {
+				glog.Infof("Kubelet socket was recreated, restarting device plugin")
+				dpCancel()
+				dpWG.Wait()
+
+				dpCtx, dpCancel = context.WithCancel(ctx)
+				dpWG = new(sync.WaitGroup)
+				if err := startDevicePlugin(dpCtx, dpWG, config); err != nil {
+					glog.Errorf("Could not restart Singularity device plugin: %v", err)
+					return
+				}
+			}
+		case <-exitCh:
+			glog.Infof("Received %s signal, shutting down...", <-exitCh)
+			return
+		}
+	}
+
 }
 
-func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {
+func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 	imageIndex := index.NewImageIndex()
 	syImage, err := image.NewSingularityRegistry(config.StorageDir, imageIndex)
 	if err != nil {
@@ -132,7 +172,7 @@ func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {
 		defer grpcServer.Stop()
 
 		glog.Infof("Singularity CRI server started on %v", lis.Addr())
-		<-done
+		<-ctx.Done()
 
 		glog.Info("Singularity CRI service exiting...")
 		if err := syRuntime.Shutdown(); err != nil {
@@ -142,13 +182,13 @@ func startCRI(wg *sync.WaitGroup, config Config, done chan struct{}) error {
 	return nil
 }
 
-func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) error {
+func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 	const devicePluginSocket = "singularity.sock"
 
 	devicePlugin, err := device.NewSingularityDevicePlugin()
 	if err == device.ErrUnableToLoad || err == device.ErrNoGPUs {
 		glog.Warningf("GPU support is not enabled: %v", err)
-		return nil
+		return errGPUNotSupported
 	}
 	if err != nil {
 		return fmt.Errorf("could not create Singularity device plugin: %v", err)
@@ -186,7 +226,7 @@ func startDevicePlugin(wg *sync.WaitGroup, config Config, done chan struct{}) er
 		close(register)
 
 		glog.Infof("Singularity device plugin started on %v", lis.Addr())
-		<-done
+		<-ctx.Done()
 
 		glog.Info("Singularity device plugin exiting...")
 		cleanup()

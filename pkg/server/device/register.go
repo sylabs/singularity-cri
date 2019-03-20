@@ -46,7 +46,9 @@ package device
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/golang/glog"
 	"google.golang.org/grpc"
 	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
@@ -56,6 +58,21 @@ const resourceName = "nvidia.com/gpu"
 // RegisterInKubelet registers Singularity device plugin that is
 // listening on socket in kubelet.
 func RegisterInKubelet(socket string) error {
+	for attempt := 1; attempt < 5; attempt++ {
+		err := register(socket)
+		if err != nil {
+			glog.Errorf("Registration failed: %v", err)
+			timeout := time.Second * time.Duration(attempt*2)
+			glog.Errorf("Retrying in %f seconds", timeout.Seconds())
+			time.Sleep(timeout)
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("failed to register in kubelet")
+}
+
+func register(socket string) error {
 	conn, err := grpc.Dial("unix://"+k8sDP.KubeletSocket, grpc.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("could not dial kubelet: %v", err)
