@@ -58,12 +58,12 @@ const resourceName = "nvidia.com/gpu"
 // RegisterInKubelet registers Singularity device plugin that is
 // listening on socket in kubelet.
 func RegisterInKubelet(socket string) error {
-	for attempt := 1; attempt < 10; attempt += 2 {
+	for attempt := 1; attempt < 5; attempt++ {
 		err := register(socket)
 		if err != nil {
 			glog.Errorf("Registration failed: %v", err)
-			timeout := time.Second * time.Duration(attempt)
-			glog.Errorf("Retrying in %d seconds", attempt)
+			timeout := time.Second * time.Duration(attempt*2)
+			glog.Errorf("Retrying in %d seconds", timeout.Seconds())
 			time.Sleep(timeout)
 			continue
 		}
