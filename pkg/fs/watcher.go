@@ -68,6 +68,7 @@ func NewWatcher(files ...string) (*Watcher, error) {
 func (w *Watcher) Watch(ctx context.Context) <-chan WatchEvent {
 	events := make(chan WatchEvent)
 	go func() {
+		defer close(events)
 		for {
 			select {
 			case event := <-w.Events:
