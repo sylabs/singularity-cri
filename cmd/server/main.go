@@ -84,10 +84,10 @@ func main() {
 		criWG.Wait()
 		dpWG.Wait()
 	}
+	defer waitShutdown()
 
 	if err := startCRI(ctx, criWG, config); err != nil {
 		glog.Errorf("Could not start Singularity CRI server: %v", err)
-		waitShutdown()
 		return
 	}
 
@@ -96,7 +96,6 @@ func main() {
 	devicePluginEnabled := err == nil
 	if err != nil && err != errNotSupported {
 		glog.Errorf("Could not start Singularity device plugin: %v", err)
-		waitShutdown()
 		return
 	}
 
@@ -126,13 +125,12 @@ func main() {
 				dpWG = new(sync.WaitGroup)
 				if err := startDevicePlugin(dpCtx, dpWG, config); err != nil {
 					glog.Errorf("Could not restart Singularity device plugin: %v", err)
-					waitShutdown()
 					return
 				}
 			}
 		case <-exitCh:
 			glog.Infof("Received %s signal, shutting down...", <-exitCh)
-			waitShutdown()
+			return
 		}
 	}
 
