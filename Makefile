@@ -14,7 +14,7 @@ CRI_CONFIG_INSTALL := /usr/local/etc/sycri/sycri.yaml
 
 all: $(SY_CRI) $(FAKE_SH)
 
-$(SY_CRI): SECCOMP := "$(shell echo '#include <seccomp.h>\nint main() { }' | gcc -x c -o /dev/null -lseccomp - >/dev/null 2>&1; echo $$?)"
+$(SY_CRI): SECCOMP := "$(shell printf "#include <seccomp.h>\nint main() { seccomp_syscall_resolve_name(\"read\"); }" | gcc -x c -o /dev/null - -lseccomp >/dev/null 2>&1; echo $$?)"
 $(SY_CRI): export GO111MODULE=on
 $(SY_CRI):
 	@echo " GO" $@
