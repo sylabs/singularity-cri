@@ -108,7 +108,6 @@ func main() {
 		watcher, err := fs.NewWatcher(k8sDP.DevicePluginPath)
 		if err != nil {
 			glog.Errorf("Could not create kubelet file watcher: %v", err)
-			waitShutdown()
 			return
 		}
 		defer watcher.Close()
