@@ -94,6 +94,7 @@ func main() {
 	}
 
 	dpCtx, dpCancel := context.WithCancel(ctx)
+	defer dpCancel()
 	err = startDevicePlugin(dpCtx, dpWG, config)
 	devicePluginEnabled := err == nil
 	if err != nil && err != errGPUNotSupported {
