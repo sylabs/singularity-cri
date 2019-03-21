@@ -94,7 +94,6 @@ func main() {
 	}
 
 	dpCtx, dpCancel := context.WithCancel(ctx)
-	defer dpCancel()
 	err = startDevicePlugin(dpCtx, dpWG, config)
 	devicePluginEnabled := err == nil
 	if err != nil && err != errGPUNotSupported {
@@ -123,10 +122,12 @@ func main() {
 				dpCancel()
 				dpWG.Wait()
 
+				//nolint:vet
 				dpCtx, dpCancel = context.WithCancel(ctx)
 				dpWG = new(sync.WaitGroup)
 				if err := startDevicePlugin(dpCtx, dpWG, config); err != nil {
 					glog.Errorf("Could not restart Singularity device plugin: %v", err)
+					//nolint:vet
 					return
 				}
 			}
