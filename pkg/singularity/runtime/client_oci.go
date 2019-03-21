@@ -23,11 +23,11 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity/pkg/ociruntime"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -157,8 +157,8 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*E
 	var exitCode int32
 	exitErr, ok := err.(*exec.ExitError)
 	if ok {
-		var waitStatus syscall.WaitStatus
-		waitStatus, ok = exitErr.Sys().(syscall.WaitStatus)
+		var waitStatus unix.WaitStatus
+		waitStatus, ok = exitErr.Sys().(unix.WaitStatus)
 		if ok {
 			exitCode = int32(waitStatus.ExitStatus())
 		}
