@@ -17,6 +17,7 @@ To work on Singularity CRI install the following:
 - [go 1.11+](https://golang.org/doc/install)
 - [golangci-lint](https://github.com/golangci/golangci-lint#install)
 - [Singularity 3.1+ with OCI support](https://github.com/sylabs/singularity/blob/master/INSTALL.md)
+- [inotify](http://man7.org/linux/man-pages/man7/inotify.7.html) for device plugin
 - socat package to perform port forwarding
 
 Since Singularity-CRI is now built with [go modules](https://github.com/golang/go/wiki/Modules)

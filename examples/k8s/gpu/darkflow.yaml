@@ -1,0 +1,132 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: darkflow
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        name: darkflow
+    spec:
+      containers:
+        - name: darkflow
+          image: cloud.sylabs.io/sashayakovtseva/default/darkflow:server-gpu
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: output
+              mountPath: /output
+            - name: input
+              mountPath: /input
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+      volumes:
+        - name: output
+          hostPath:
+            type: DirectoryOrCreate
+            path: $HOME/darkflow/output
+        - name: input
+          hostPath:
+            type: DirectoryOrCreate
+            path: $HOME/darkflow/input
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: darkflow-front
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        name: darkflow-front
+    spec:
+      containers:
+        - name: darkflow-front
+          image: sashayakovtseva/darkflow-front:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - mountPath: /output
+              name: output
+            - mountPath: /input
+              name: input
+      volumes:
+        - name: output
+          hostPath:
+            type: DirectoryOrCreate
+            path: $HOME/darkflow/output
+        - name: input
+          hostPath:
+            type: DirectoryOrCreate
+            path: $HOME/darkflow/input
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: darkflow-web
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        name: darkflow-web
+    spec:
+      containers:
+        - name: darkflow-web
+          image: sashayakovtseva/darkflow-front:web
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: /usr/share/nginx/html/assets/config/config.json
+              name: config
+      volumes:
+        - name: config
+          hostPath:
+            type: File
+            path: $HOME/darkflow/web-config.json
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: darkflow
+  namespace: default
+  labels:
+    name: darkflow
+spec:
+  ports:
+    - port: 8000
+  selector:
+    name: darkflow
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: darkflow-front
+  namespace: default
+  labels:
+    name: darkflow-front
+spec:
+  ports:
+    - port: 8080
+  selector:
+    name: darkflow-front
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: darkflow-web
+  namespace: default
+  labels:
+    name: darkflow-web
+spec:
+  ports:
+    - port: 80
+  selector:
+    name: darkflow-web
+  type: NodePort
