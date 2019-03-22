@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/signal"
 	"sync"
-	"syscall"
 
 	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/fs"
@@ -32,6 +31,7 @@ import (
 	"github.com/sylabs/singularity-cri/pkg/server/image"
 	"github.com/sylabs/singularity-cri/pkg/server/runtime"
 	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -73,10 +73,10 @@ func main() {
 
 	// Initialize user agent strings
 	useragent.InitValue("singularity", "3.1.0")
-	syscall.Umask(0)
+	unix.Umask(0)
 
 	exitCh := make(chan os.Signal, 1)
-	signal.Notify(exitCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	signal.Notify(exitCh, unix.SIGINT, unix.SIGTERM, unix.SIGQUIT)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	criWG := new(sync.WaitGroup)
@@ -108,7 +108,6 @@ func main() {
 		watcher, err := fs.NewWatcher(k8sDP.DevicePluginPath)
 		if err != nil {
 			glog.Errorf("Could not create kubelet file watcher: %v", err)
-			waitShutdown()
 			return
 		}
 		defer watcher.Close()
@@ -123,10 +122,12 @@ func main() {
 				dpCancel()
 				dpWG.Wait()
 
+				//nolint:vet
 				dpCtx, dpCancel = context.WithCancel(ctx)
 				dpWG = new(sync.WaitGroup)
 				if err := startDevicePlugin(dpCtx, dpWG, config); err != nil {
 					glog.Errorf("Could not restart Singularity device plugin: %v", err)
+					//nolint:vet
 					return
 				}
 			}

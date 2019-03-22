@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"syscall"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/unix"
 )
 
 type (
@@ -33,27 +33,27 @@ type (
 var (
 	nsToInfo = map[specs.LinuxNamespaceType]nsInfo{
 		specs.PIDNamespace: {
-			cloneFlag: syscall.CLONE_NEWPID,
+			cloneFlag: unix.CLONE_NEWPID,
 			procFile:  "pid",
 		},
 		specs.NetworkNamespace: {
-			cloneFlag: syscall.CLONE_NEWNET,
+			cloneFlag: unix.CLONE_NEWNET,
 			procFile:  "net",
 		},
 		specs.MountNamespace: {
-			cloneFlag: syscall.CLONE_NEWNS,
+			cloneFlag: unix.CLONE_NEWNS,
 			procFile:  "mnt",
 		},
 		specs.IPCNamespace: {
-			cloneFlag: syscall.CLONE_NEWIPC,
+			cloneFlag: unix.CLONE_NEWIPC,
 			procFile:  "ipc",
 		},
 		specs.UTSNamespace: {
-			cloneFlag: syscall.CLONE_NEWUTS,
+			cloneFlag: unix.CLONE_NEWUTS,
 			procFile:  "uts",
 		},
 		specs.UserNamespace: {
-			cloneFlag: syscall.CLONE_NEWUSER,
+			cloneFlag: unix.CLONE_NEWUSER,
 			procFile:  "user",
 		},
 	}
@@ -72,7 +72,7 @@ func UnshareAll(namespaces []specs.LinuxNamespace) error {
 		cloneFlags |= nsToInfo[ns.Type].cloneFlag
 	}
 	cmd := exec.Command("/bin/sh")
-	cmd.SysProcAttr = &syscall.SysProcAttr{
+	cmd.SysProcAttr = &unix.SysProcAttr{
 		Cloneflags: uintptr(cloneFlags),
 	}
 	stdin, err := cmd.StdinPipe()
@@ -98,8 +98,8 @@ func UnshareAll(namespaces []specs.LinuxNamespace) error {
 // Remove unmounts and removes namespace file at ns.Path. Remove doesn't
 // return an error if namespace is not mounted or file doesn't exist.
 func Remove(ns specs.LinuxNamespace) error {
-	err := syscall.Unmount(ns.Path, syscall.MNT_DETACH)
-	if err != nil && err != syscall.ENOENT && err != syscall.EINVAL {
+	err := unix.Unmount(ns.Path, unix.MNT_DETACH)
+	if err != nil && err != unix.ENOENT && err != unix.EINVAL {
 		return fmt.Errorf("could not umount: %v", err)
 	}
 	err = os.Remove(ns.Path)
@@ -110,7 +110,7 @@ func Remove(ns specs.LinuxNamespace) error {
 }
 
 // Bind creates namespace file at ns.Path and mounts corresponding
-// namespace of process with passed pid to it with syscall.MS_BIND flag.
+// namespace of process with passed pid to it with unix.MS_BIND flag.
 func Bind(pid int, ns specs.LinuxNamespace) error {
 	f, err := os.Create(ns.Path)
 	if err != nil {
@@ -120,7 +120,7 @@ func Bind(pid int, ns specs.LinuxNamespace) error {
 		return fmt.Errorf("could not close %s: %v", ns.Path, err)
 	}
 	source := fmt.Sprintf("/proc/%d/ns/%s", pid, nsToInfo[ns.Type].procFile)
-	err = syscall.Mount(source, ns.Path, "", syscall.MS_BIND, "")
+	err = unix.Mount(source, ns.Path, "", unix.MS_BIND, "")
 	if err != nil {
 		return fmt.Errorf("could not mount %s: %v", source, err)
 	}

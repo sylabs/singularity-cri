@@ -56,6 +56,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v0.0.0-20180816142147-da425ebb7609 // indirect
 	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
+	golang.org/x/sys v0.0.0-20190321052220-f7bb7a8bee54
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/genproto v0.0.0-20181109154231-b5d43981345b // indirect
 	google.golang.org/grpc v1.16.0
