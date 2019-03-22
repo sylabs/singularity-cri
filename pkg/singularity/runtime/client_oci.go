@@ -157,6 +157,7 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*E
 	var exitCode int32
 	exitErr, ok := err.(*exec.ExitError)
 	if ok {
+		// TODO use unix package here
 		var waitStatus syscall.WaitStatus
 		waitStatus, ok = exitErr.Sys().(syscall.WaitStatus)
 		if ok {
