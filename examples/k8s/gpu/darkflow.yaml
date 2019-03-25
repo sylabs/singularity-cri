@@ -5,7 +5,7 @@ metadata:
 data:
   frontURL: |
     {
-      "serverUrl": "http://10.11.11.3:8080"
+      "serverUrl": "http://localhost:8080"
     }
 ---
 apiVersion: extensions/v1beta1
@@ -35,11 +35,11 @@ spec:
         - name: output
           hostPath:
             type: DirectoryOrCreate
-            path: ./output
+            path: /var/run/darkflow/output
         - name: input
           hostPath:
             type: DirectoryOrCreate
-            path: ./input
+            path: /var/run/darkflow/input
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
