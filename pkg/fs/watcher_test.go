@@ -76,11 +76,11 @@ func TestWatcher(t *testing.T) {
 
 	file2New := file2 + "_new"
 	require.NoError(t, os.Rename(file2, file2New), "could not rename test file")
-	select {
-	case <-upd:
-		t.Fatal("Unexpected event after rename")
-	default:
-	}
+	require.Equal(t, WatchEvent{
+		Path: file2New,
+		Op:   OpCreate,
+	}, <-upd, "unexpected update")
+
 	require.NoError(t, os.Remove(file2New), "could not remove renamed file")
 	require.NoError(t, os.Remove(file3), "could not remove test file")
 }
