@@ -47,7 +47,7 @@ require (
 	github.com/stretchr/testify v1.2.2
 	github.com/sylabs/scs-key-client v0.2.0 // indirect
 	github.com/sylabs/sif v1.0.2
-	github.com/sylabs/singularity v3.1.1-0.20190318191111-8d93b6061a76+incompatible
+	github.com/sylabs/singularity v3.1.1-0.20190325150222-0a7be9c7a338+incompatible
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/tchap/go-patricia v2.2.6+incompatible
 	github.com/vishvananda/netlink v1.0.0 // indirect
