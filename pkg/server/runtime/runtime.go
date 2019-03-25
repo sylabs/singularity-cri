@@ -310,6 +310,7 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 	if req.Filter != nil {
 		filter = &k8s.ContainerFilter{
 			Id:            req.Filter.GetId(),
+			State:         &k8s.ContainerStateValue{State: k8s.ContainerState_CONTAINER_RUNNING},
 			PodSandboxId:  req.Filter.GetPodSandboxId(),
 			LabelSelector: req.Filter.GetLabelSelector(),
 		}
