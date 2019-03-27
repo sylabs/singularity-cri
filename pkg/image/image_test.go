@@ -15,6 +15,7 @@
 package image
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -44,16 +45,16 @@ func TestPullImage(t *testing.T) {
 				digests: nil,
 			},
 			expectImage: &Info{
-				id:     "",
-				sha256: "",
-				size:   745472,
-				path:   "",
-				ref: &Reference{
+				ID:     "",
+				Sha256: "",
+				Size:   745472,
+				Path:   "",
+				Ref: &Reference{
 					uri:     singularity.DockerDomain,
 					tags:    []string{"gcr.io/cri-tools/test-image-latest"},
 					digests: nil,
 				},
-				ociConfig: &specs.ImageConfig{
+				OciConfig: &specs.ImageConfig{
 					Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
 					Cmd: []string{"sh"},
 				},
@@ -68,11 +69,11 @@ func TestPullImage(t *testing.T) {
 				digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
 			},
 			expectImage: &Info{
-				id:     "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
-				sha256: "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
-				size:   5521408,
-				path:   filepath.Join(os.TempDir(), "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"),
-				ref: &Reference{
+				ID:     "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
+				Sha256: "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
+				Size:   5521408,
+				Path:   filepath.Join(os.TempDir(), "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"),
+				Ref: &Reference{
 					uri:     singularity.LibraryDomain,
 					tags:    nil,
 					digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
@@ -90,9 +91,9 @@ func TestPullImage(t *testing.T) {
 				require.NoError(t, image.Remove(), "could not remove image")
 			}
 			if tc.ref.uri == singularity.DockerDomain {
-				image.id = ""
-				image.sha256 = ""
-				image.path = ""
+				image.ID = ""
+				image.Sha256 = ""
+				image.Path = ""
 			}
 			require.Equal(t, tc.expectImage, image, "image mismatch")
 		})
@@ -155,7 +156,7 @@ func TestInfo_Remove(t *testing.T) {
 			defer f.Close()
 
 			image := &Info{
-				path: f.Name(),
+				Path: f.Name(),
 			}
 			for _, b := range tc.borrow {
 				image.Borrow(b)
@@ -181,8 +182,8 @@ func TestInfo_Matches(t *testing.T) {
 		{
 			name: "no filter",
 			img: &Info{
-				id: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
-				ref: &Reference{
+				ID: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
+				Ref: &Reference{
 					tags:    []string{"gcr.io/cri-tools/test-image-tags:1", "gcr.io/cri-tools/test-image-tags:2"},
 					digests: []string{},
 				},
@@ -193,8 +194,8 @@ func TestInfo_Matches(t *testing.T) {
 		{
 			name: "id match",
 			img: &Info{
-				id: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
-				ref: &Reference{
+				ID: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
+				Ref: &Reference{
 					tags:    []string{"gcr.io/cri-tools/test-image-tags:1", "gcr.io/cri-tools/test-image-tags:2"},
 					digests: []string{},
 				},
@@ -209,8 +210,8 @@ func TestInfo_Matches(t *testing.T) {
 		{
 			name: "tag match",
 			img: &Info{
-				id: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
-				ref: &Reference{
+				ID: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
+				Ref: &Reference{
 					tags:    []string{"gcr.io/cri-tools/test-image-tags:1", "gcr.io/cri-tools/test-image-tags:2"},
 					digests: []string{},
 				},
@@ -225,8 +226,8 @@ func TestInfo_Matches(t *testing.T) {
 		{
 			name: "digest match",
 			img: &Info{
-				id: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
-				ref: &Reference{
+				ID: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
+				Ref: &Reference{
 					tags:    []string{},
 					digests: []string{"gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343"},
 				},
@@ -241,8 +242,8 @@ func TestInfo_Matches(t *testing.T) {
 		{
 			name: "empty filter",
 			img: &Info{
-				id: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
-				ref: &Reference{
+				ID: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
+				Ref: &Reference{
 					tags:    []string{},
 					digests: []string{"gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343"},
 				},
@@ -257,8 +258,8 @@ func TestInfo_Matches(t *testing.T) {
 		{
 			name: "no match",
 			img: &Info{
-				id: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
-				ref: &Reference{
+				ID: "7b0178cb4bac7227f83a56d62d3fdf9900645b6d53578aaad25a7df61ae15b39",
+				Ref: &Reference{
 					tags:    []string{},
 					digests: []string{"gcr.io/cri-tools/test-image-digest@sha256:9179135b4b4cc5a8721e09379244807553c318d92fa3111a65133241551ca343"},
 				},
@@ -280,43 +281,158 @@ func TestInfo_Matches(t *testing.T) {
 }
 
 func TestInfo_UnmarshalJSON(t *testing.T) {
-	input := `
-{"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-"sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-"size":741376,
-"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-"ref":{"uri":"docker.io","tags":["busybox:1.28"],"digests":null}}`
-
-	info := new(Info)
-	err := info.UnmarshalJSON([]byte(input))
-	require.NoError(t, err, "could not unmarshal image")
-	require.Equal(t, &Info{
-		id:     "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-		sha256: "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-		size:   741376,
-		path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-		ref: &Reference{
-			uri:  singularity.DockerDomain,
-			tags: []string{"busybox:1.28"},
+	tt := []struct {
+		name   string
+		input  string
+		expect *Info
+	}{
+		{
+			name: "all filled",
+			input: `
+				{
+					"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"size":741376,
+					"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"ref":{
+						"uri":"docker.io",
+						"tags":["busybox:1.28"],
+						"digests":null
+					},
+					"ociConfig":{
+						"User":"sasha",
+						"WorkingDir":"/opt/go",
+						"Cmd":["./my-server"]
+					}
+				}`,
+			expect: &Info{
+				ID:     "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Sha256: "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Size:   741376,
+				Path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Ref: &Reference{
+					uri:  singularity.DockerDomain,
+					tags: []string{"busybox:1.28"},
+				},
+				OciConfig: &specs.ImageConfig{
+					User:       "sasha",
+					Cmd:        []string{"./my-server"},
+					WorkingDir: "/opt/go",
+				},
+			},
 		},
-	}, info)
-}
-
-func TestInfo_MarshalJSON(t *testing.T) {
-	expect := []byte(`{"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","size":741376,"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0","ref":{"uri":"docker.io","tags":["busybox:1.28"],"digests":null}}`)
-
-	info := &Info{
-		id:     "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-		sha256: "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-		size:   741376,
-		path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
-		ref: &Reference{
-			uri:  singularity.DockerDomain,
-			tags: []string{"busybox:1.28"},
+		{
+			name: "no oci config",
+			input: `
+				{
+					"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"size":741376,
+					"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"ref":{
+						"uri":"docker.io",
+						"tags":["busybox:1.28"],
+						"digests":null
+					}
+				}`,
+			expect: &Info{
+				ID:     "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Sha256: "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Size:   741376,
+				Path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Ref: &Reference{
+					uri:  singularity.DockerDomain,
+					tags: []string{"busybox:1.28"},
+				},
+			},
 		},
 	}
 
-	res, err := info.MarshalJSON()
-	require.NoError(t, err, "could not marshal image")
-	require.Equal(t, expect, res)
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			var info *Info
+			err := json.Unmarshal([]byte(tc.input), &info)
+			require.NoError(t, err, "could not unmarshal image")
+			require.Equal(t, tc.expect, info)
+		})
+	}
+}
+
+func TestInfo_MarshalJSON(t *testing.T) {
+	tt := []struct {
+		name   string
+		input  *Info
+		expect string
+	}{
+		{
+			name: "all filled",
+			input: &Info{
+				ID:     "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Sha256: "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Size:   741376,
+				Path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Ref: &Reference{
+					uri:  singularity.DockerDomain,
+					tags: []string{"busybox:1.28"},
+				},
+				OciConfig: &specs.ImageConfig{
+					User:       "sasha",
+					Cmd:        []string{"./my-server"},
+					WorkingDir: "/opt/go",
+				},
+				usedBy: []string{"should-not-marshal"},
+			},
+			expect: `
+				{
+					"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"size":741376,
+					"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"ref":{
+						"uri":"docker.io",
+						"tags":["busybox:1.28"],
+						"digests":null
+					},
+					"ociConfig":{
+						"User":"sasha",
+						"WorkingDir":"/opt/go",
+						"Cmd":["./my-server"]
+					}
+				}`,
+		},
+		{
+			name: "no oci config",
+			input: &Info{
+				ID:     "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Sha256: "0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Size:   741376,
+				Path:   "/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+				Ref: &Reference{
+					uri:  singularity.DockerDomain,
+					tags: []string{"busybox:1.28"},
+				},
+				usedBy: []string{"should-not-marshal"},
+			},
+			expect: `
+				{
+					"id":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"sha256":"0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"size":741376,
+					"path":"/var/lib/singularity/0d408f32cc56b16509f30ae3dfa56ffb01269b2100036991d49af645a7b717a0",
+					"ref":{
+						"uri":"docker.io",
+						"tags":["busybox:1.28"],
+						"digests":null
+					}
+				}`,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := json.Marshal(tc.input)
+			require.NoError(t, err, "could not marshal image")
+			require.JSONEq(t, tc.expect, string(res))
+		})
+	}
 }

@@ -95,8 +95,8 @@ func (c *Container) terminate(timeout int64) error {
 
 	// otherwise give container a chance to terminate gracefully
 	var err error
-	if c.imgInfo.OciConfig() != nil && c.imgInfo.OciConfig().StopSignal != "" {
-		err = c.cli.Signal(c.id, c.imgInfo.OciConfig().StopSignal)
+	if c.imgInfo.OciConfig != nil && c.imgInfo.OciConfig.StopSignal != "" {
+		err = c.cli.Signal(c.id, c.imgInfo.OciConfig.StopSignal)
 	} else {
 		err = c.cli.Kill(c.id, false)
 	}

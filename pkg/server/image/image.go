@@ -102,7 +102,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 		glog.Warningf("Could not dump registry info: %v", err)
 	}
 	return &k8s.PullImageResponse{
-		ImageRef: info.ID(),
+		ImageRef: info.ID,
 	}, nil
 }
 
@@ -123,7 +123,7 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove image: %v", err)
 	}
-	if err := s.images.Remove(info.ID()); err != nil {
+	if err := s.images.Remove(info.ID); err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove image from index: %v", err)
 	}
 	if err = s.dumpInfo(); err != nil {
@@ -152,7 +152,7 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 
 	var uid *k8s.Int64Value
 	var username string
-	if conf := info.OciConfig(); conf != nil && conf.User != "" {
+	if info.OciConfig != nil && info.OciConfig.User != "" {
 		// If conf.User is not empty, possible options are:
 		//     * "user"
 		//     * "uid"
@@ -160,7 +160,7 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 		//     * "uid:gid
 		//     * "user:gid"
 		//     * "uid:group"
-		user := strings.Split(conf.User, ":")[0]
+		user := strings.Split(info.OciConfig.User, ":")[0]
 		userID, err := strconv.ParseInt(user, 10, 32)
 		if err != nil {
 			username = user
@@ -173,10 +173,10 @@ func (s *SingularityRegistry) ImageStatus(ctx context.Context, req *k8s.ImageSta
 	}
 	return &k8s.ImageStatusResponse{
 		Image: &k8s.Image{
-			Id:          info.ID(),
-			RepoTags:    info.Ref().Tags(),
-			RepoDigests: info.Ref().Digests(),
-			Size_:       info.Size(),
+			Id:          info.ID,
+			RepoTags:    info.Ref.Tags(),
+			RepoDigests: info.Ref.Digests(),
+			Size_:       info.Size,
 			Uid:         uid,
 			Username:    username,
 		},
@@ -190,10 +190,10 @@ func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImage
 	appendToResult := func(info *image.Info) {
 		if info.Matches(req.Filter) {
 			imgs = append(imgs, &k8s.Image{
-				Id:          info.ID(),
-				RepoTags:    info.Ref().Tags(),
-				RepoDigests: info.Ref().Digests(),
-				Size_:       info.Size(),
+				Id:          info.ID,
+				RepoTags:    info.Ref.Tags(),
+				RepoDigests: info.Ref.Digests(),
+				Size_:       info.Size,
 			})
 		}
 	}

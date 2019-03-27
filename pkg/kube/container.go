@@ -161,7 +161,7 @@ func (c *Container) LogPath() string {
 
 // ImageID returns id of the container base image.
 func (c *Container) ImageID() string {
-	return c.imgInfo.ID()
+	return c.imgInfo.ID
 }
 
 // Stdin returns write end of container's stdin, if any. If container
