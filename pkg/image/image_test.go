@@ -16,6 +16,7 @@ package image
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -38,21 +39,25 @@ func TestPullImage(t *testing.T) {
 		expectError error
 	}{
 		{
+			name: "unknown registry",
+			ref: &Reference{
+				uri:  "foo.io",
+				tags: []string{"foo.io/cri-tools/test-image-latest"},
+			},
+			expectImage: nil,
+			expectError: fmt.Errorf("could not pull image: unknown image registry: foo.io"),
+		},
+		{
 			name: "docker image",
 			ref: &Reference{
-				uri:     singularity.DockerDomain,
-				tags:    []string{"gcr.io/cri-tools/test-image-latest"},
-				digests: nil,
+				uri:  singularity.DockerDomain,
+				tags: []string{"gcr.io/cri-tools/test-image-latest"},
 			},
 			expectImage: &Info{
-				ID:     "",
-				Sha256: "",
-				Size:   745472,
-				Path:   "",
+				Size: 745472,
 				Ref: &Reference{
-					uri:     singularity.DockerDomain,
-					tags:    []string{"gcr.io/cri-tools/test-image-latest"},
-					digests: nil,
+					uri:  singularity.DockerDomain,
+					tags: []string{"gcr.io/cri-tools/test-image-latest"},
 				},
 				OciConfig: &specs.ImageConfig{
 					Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
@@ -65,7 +70,6 @@ func TestPullImage(t *testing.T) {
 			name: "library image",
 			ref: &Reference{
 				uri:     singularity.LibraryDomain,
-				tags:    nil,
 				digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
 			},
 			expectImage: &Info{
@@ -75,7 +79,6 @@ func TestPullImage(t *testing.T) {
 				Path:   filepath.Join(os.TempDir(), "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"),
 				Ref: &Reference{
 					uri:     singularity.LibraryDomain,
-					tags:    nil,
 					digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
 				},
 			},
@@ -100,7 +103,7 @@ func TestPullImage(t *testing.T) {
 	}
 }
 
-func TestInfo_Remove(t *testing.T) {
+func TestInfo_BorrowReturn(t *testing.T) {
 	useragent.InitValue("singularity", "3.0.0")
 
 	tt := []struct {
@@ -108,56 +111,36 @@ func TestInfo_Remove(t *testing.T) {
 		borrow       []string
 		ret          []string
 		expectUsedBy []string
-		expectError  error
 	}{
 		{
-			name:        "not used",
-			borrow:      nil,
-			ret:         nil,
-			expectError: nil,
+			name: "not used",
 		},
 		{
-			name:         "used and returned",
-			borrow:       []string{"first_container"},
-			ret:          []string{"first_container"},
-			expectUsedBy: nil,
-			expectError:  nil,
+			name:   "used and returned",
+			borrow: []string{"first_container"},
+			ret:    []string{"first_container"},
 		},
 		{
 			name:         "used and not returned",
 			borrow:       []string{"first_container"},
-			ret:          nil,
 			expectUsedBy: []string{"first_container"},
-			expectError:  ErrIsUsed,
 		},
 		{
-			name:         "multiple return",
-			borrow:       []string{"first_container", "second_container"},
-			ret:          []string{"first_container", "second_container"},
-			expectUsedBy: nil,
-			expectError:  nil,
+			name:   "multiple return",
+			borrow: []string{"first_container", "second_container"},
+			ret:    []string{"first_container", "second_container"},
 		},
 		{
 			name:         "multiple without return",
 			borrow:       []string{"first_container", "second_container"},
 			ret:          []string{"second_container"},
 			expectUsedBy: []string{"first_container"},
-			expectError:  ErrIsUsed,
 		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			f, err := ioutil.TempFile("", "")
-			require.NoError(t, err, "could not create temp image file")
-
-			t.Logf("temp file %s", f.Name())
-			defer os.Remove(f.Name())
-			defer f.Close()
-
-			image := &Info{
-				Path: f.Name(),
-			}
+			var image Info
 			for _, b := range tc.borrow {
 				image.Borrow(b)
 			}
@@ -166,7 +149,51 @@ func TestInfo_Remove(t *testing.T) {
 			}
 			actual := image.UsedBy()
 			require.ElementsMatch(t, tc.expectUsedBy, actual)
-			err = image.Remove()
+		})
+	}
+}
+
+func TestInfo_Remove(t *testing.T) {
+	useragent.InitValue("singularity", "3.0.0")
+
+	f, err := ioutil.TempFile("", "")
+	require.NoError(t, err, "could not create temp image file")
+	require.NoError(t, f.Close())
+
+	defer os.Remove(f.Name())
+
+	tt := []struct {
+		name        string
+		image       *Info
+		expectError error
+	}{
+		{
+			name: "non existent file",
+			image: &Info{
+				Path: "/foo/bar",
+			},
+			expectError: fmt.Errorf("could not remove image: remove /foo/bar: no such file or directory"),
+		},
+		{
+			name: "image is used",
+			image: &Info{
+				Path:   "/foo/bar",
+				usedBy: []string{"container_id"},
+			},
+			expectError: ErrIsUsed,
+		},
+		{
+			name: "all ok",
+			image: &Info{
+				Path: f.Name(),
+			},
+			expectError: nil,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			err = tc.image.Remove()
 			require.Equal(t, tc.expectError, err)
 		})
 	}
@@ -433,6 +460,83 @@ func TestInfo_MarshalJSON(t *testing.T) {
 			res, err := json.Marshal(tc.input)
 			require.NoError(t, err, "could not marshal image")
 			require.JSONEq(t, tc.expect, string(res))
+		})
+	}
+}
+
+func pullImage(t *testing.T, source *Reference) (*Info, func()) {
+	image, err := Pull(os.TempDir(), source)
+	require.NoError(t, err, "could not pull SIF")
+	return image, func() {
+		require.NoError(t, image.Remove(), "could not remove SIF")
+	}
+}
+
+func TestInfo_Verify(t *testing.T) {
+	tt := []struct {
+		name         string
+		imgRef       *Reference
+		image        *Info
+		expectConfig *specs.ImageConfig
+		expectError  error
+	}{
+		{
+			name: "docker image",
+			imgRef: &Reference{
+				uri:  singularity.DockerDomain,
+				tags: []string{"gcr.io/cri-tools/test-image-latest"},
+			},
+			expectError: nil,
+		},
+		{
+			name: "signed SIF",
+			imgRef: &Reference{
+				uri:  singularity.LibraryDomain,
+				tags: []string{"sashayakovtseva/test/test-info:signed"},
+			},
+			expectError: nil,
+		},
+		{
+			name: "non-signed SIF",
+			imgRef: &Reference{
+				uri:  singularity.LibraryDomain,
+				tags: []string{"sashayakovtseva/test/test-info:latest"},
+			},
+			expectError: nil,
+		},
+		{
+			name: "broken signature SIF",
+			imgRef: &Reference{
+				uri:  singularity.LibraryDomain,
+				tags: []string{"sashayakovtseva/test/test-info:broken-sig"},
+			},
+			expectError: fmt.Errorf("SIF verification failed: could not fetch public key from server: no matching keys found for fingerprint"),
+		},
+		{
+			name: "broken image info",
+			image: &Info{
+				Path: "/foo/bar",
+				Ref: &Reference{
+					uri: singularity.LibraryDomain,
+				},
+			},
+			expectError: fmt.Errorf("failed to load SIF image: opening(RDONLY) container file: open /foo/bar: no such file or directory"),
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.image != nil {
+				err := tc.image.Verify()
+				require.Equal(t, tc.expectError, err)
+				return
+			}
+
+			img, cleanup := pullImage(t, tc.imgRef)
+			defer cleanup()
+
+			err := img.Verify()
+			require.Equal(t, tc.expectError, err)
 		})
 	}
 }
