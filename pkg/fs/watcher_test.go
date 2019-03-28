@@ -24,9 +24,15 @@ import (
 )
 
 func TestWatcher(t *testing.T) {
-	file1 := filepath.Join(os.TempDir(), "test-watcher-1")
-	file2 := filepath.Join(os.TempDir(), "test-watcher-2")
-	file3 := filepath.Join(os.TempDir(), "test-watcher-3")
+	testDir := filepath.Join(os.TempDir(), "fs-test")
+	require.NoError(t, os.Mkdir(testDir, 0755))
+	defer func() {
+		require.NoError(t, os.RemoveAll(testDir), "could not remove test directory")
+	}()
+
+	file1 := filepath.Join(testDir, "test-watcher-1")
+	file2 := filepath.Join(testDir, "test-watcher-2")
+	file3 := filepath.Join(testDir, "test-watcher-3")
 
 	f1, err := os.Create(file1)
 	require.NoError(t, err, "could not create test file")
@@ -37,14 +43,14 @@ func TestWatcher(t *testing.T) {
 	require.NoError(t, f2.Close())
 
 	ctx, cancel := context.WithCancel(context.Background())
-	watcher, err := NewWatcher(os.TempDir())
+	watcher, err := NewWatcher(testDir)
 	require.NoError(t, err, "could not create watcher", err)
+	upd := watcher.Watch(ctx)
 	defer func() {
 		cancel()
+		require.Equalf(t, WatchEvent{}, <-upd, "unexpected update after close")
 		require.NoError(t, watcher.Close(), "could not close watcher")
 	}()
-
-	upd := watcher.Watch(ctx)
 
 	require.NoError(t, os.Remove(file1), "could not remove test file")
 	require.Equal(t, WatchEvent{
@@ -80,7 +86,4 @@ func TestWatcher(t *testing.T) {
 		Path: file2New,
 		Op:   OpCreate,
 	}, <-upd, "unexpected update")
-
-	require.NoError(t, os.Remove(file2New), "could not remove renamed file")
-	require.NoError(t, os.Remove(file3), "could not remove test file")
 }
