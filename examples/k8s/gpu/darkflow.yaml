@@ -66,11 +66,11 @@ spec:
         - name: output
           hostPath:
             type: DirectoryOrCreate
-            path: ./output
+            path: /var/run/darkflow/output
         - name: input
           hostPath:
             type: DirectoryOrCreate
-            path: ./input
+            path: /var/run/darkflow/input
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
