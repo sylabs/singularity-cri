@@ -75,7 +75,7 @@ func (c *Container) addLogDirectory() error {
 
 func (c *Container) addOCIBundle() error {
 	glog.V(8).Infof("Creating SIF bundle at %s", c.bundlePath())
-	d, err := ocibundle.FromSif(c.imgInfo.Path(), c.bundlePath(), true)
+	d, err := ocibundle.FromSif(c.imgInfo.Path, c.bundlePath(), true)
 	if err != nil {
 		return fmt.Errorf("could not create SIF bundle driver: %v", err)
 	}

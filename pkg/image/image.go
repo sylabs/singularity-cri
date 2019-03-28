@@ -49,55 +49,15 @@ var ErrIsUsed = fmt.Errorf("image is being used")
 
 // Info represents image stored on the host filesystem.
 type Info struct {
-	id        string
-	sha256    string
-	size      uint64
-	path      string
-	ref       *Reference
-	ociConfig *specs.ImageConfig
+	ID        string             `json:"id"`
+	Sha256    string             `json:"sha256"`
+	Size      uint64             `json:"size"`
+	Path      string             `json:"path"`
+	Ref       *Reference         `json:"ref"`
+	OciConfig *specs.ImageConfig `json:"ociConfig,omitempty"`
 
 	mu     sync.RWMutex
 	usedBy []string
-}
-
-// ID returns id of an image.
-func (i *Info) ID() string {
-	return i.id
-}
-
-// SetID sets desired image id. Should be used when
-// default ID (image sha256 checksum) doesn't fit needs.
-func (i *Info) SetID(id string) {
-	i.id = id
-}
-
-// Path returns path to image file.
-func (i *Info) Path() string {
-	return i.path
-}
-
-// Size returns image size in bytes.
-func (i *Info) Size() uint64 {
-	return i.size
-}
-
-// Ref returns associated image reference.
-func (i *Info) Ref() *Reference {
-	return i.ref
-}
-
-// OciConfig returns image's embedded OCI config if any exists.
-// If image doesn't have OCI config, e.g it is a native SIF image,
-// this call will return nil.
-func (i *Info) OciConfig() *specs.ImageConfig {
-	return i.ociConfig
-}
-
-// SetRef sets associated image reference. Should be used
-// in rare cases when one wishes to override Reference that
-// was used to pull image.
-func (i *Info) SetRef(ref *Reference) {
-	i.ref = ref
 }
 
 // Borrow notifies that image is used by some container and should
@@ -128,42 +88,6 @@ func (i *Info) UsedBy() []string {
 	usedBy := make([]string, len(i.usedBy))
 	copy(usedBy, i.usedBy)
 	return usedBy
-}
-
-// MarshalJSON marshals Info into a valid JSON.
-func (i *Info) MarshalJSON() ([]byte, error) {
-	jsonInfo := struct {
-		ID     string     `json:"id"`
-		Sha256 string     `json:"sha256"`
-		Size   uint64     `json:"size"`
-		Path   string     `json:"path"`
-		Ref    *Reference `json:"ref"`
-	}{
-		ID:     i.id,
-		Sha256: i.sha256,
-		Size:   i.size,
-		Path:   i.path,
-		Ref:    i.ref,
-	}
-	return json.Marshal(jsonInfo)
-}
-
-// UnmarshalJSON unmarshals a valid Info JSON into an object.
-func (i *Info) UnmarshalJSON(data []byte) error {
-	jsonInfo := struct {
-		ID     string     `json:"id"`
-		Sha256 string     `json:"sha256"`
-		Size   uint64     `json:"size"`
-		Path   string     `json:"path"`
-		Ref    *Reference `json:"ref"`
-	}{}
-	err := json.Unmarshal(data, &jsonInfo)
-	i.id = jsonInfo.ID
-	i.sha256 = jsonInfo.Sha256
-	i.size = jsonInfo.Size
-	i.path = jsonInfo.Path
-	i.ref = jsonInfo.Ref
-	return err
 }
 
 // Pull pulls image referenced by ref and saves it to the passed location.
@@ -234,12 +158,12 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	}
 
 	return &Info{
-		id:        checksum,
-		sha256:    checksum,
-		size:      uint64(fi.Size()),
-		path:      path,
-		ref:       ref,
-		ociConfig: ociConfig,
+		ID:        checksum,
+		Sha256:    checksum,
+		Size:      uint64(fi.Size()),
+		Path:      path,
+		Ref:       ref,
+		OciConfig: ociConfig,
 	}, nil
 }
 
@@ -253,7 +177,7 @@ func (i *Info) Remove() error {
 		return ErrIsUsed
 	}
 
-	err := os.Remove(i.path)
+	err := os.Remove(i.Path)
 	if err != nil {
 		return fmt.Errorf("could not remove image: %v", err)
 	}
@@ -262,20 +186,20 @@ func (i *Info) Remove() error {
 
 // Verify verifies image signatures.
 func (i *Info) Verify() error {
-	if i.ref.URI() == singularity.DockerDomain {
+	if i.Ref.URI() == singularity.DockerDomain {
 		return nil
 	}
-	fimg, err := sif.LoadContainer(i.path, true)
+	fimg, err := sif.LoadContainer(i.Path, true)
 	if err != nil {
 		return fmt.Errorf("failed to load SIF image: %v", err)
 	}
 	defer fimg.UnloadContainer()
 
-	err = signing.Verify(i.path, singularity.KeysServer, 0, false, "", true)
+	err = signing.Verify(i.Path, singularity.KeysServer, 0, false, "", true)
 
 	noSignatures := err != nil && strings.Contains(err.Error(), "no signatures found")
 	if noSignatures {
-		glog.V(4).Infof("Image %s is not signed", i.ref)
+		glog.V(4).Infof("Image %s is not signed", i.Ref)
 	}
 	if err != nil && !noSignatures {
 		return fmt.Errorf("SIF verification failed: %v", err)
@@ -289,15 +213,15 @@ func (i *Info) Matches(filter *k8s.ImageFilter) bool {
 		return true
 	}
 	ref := filter.Image.Image
-	if strings.HasPrefix(i.ID(), ref) {
+	if strings.HasPrefix(i.ID, ref) {
 		return true
 	}
-	for _, tag := range i.ref.tags {
+	for _, tag := range i.Ref.tags {
 		if strings.HasPrefix(tag, ref) {
 			return true
 		}
 	}
-	for _, digest := range i.ref.digests {
+	for _, digest := range i.Ref.digests {
 		if strings.HasPrefix(digest, ref) {
 			return true
 		}
