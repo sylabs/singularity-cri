@@ -66,7 +66,7 @@ func NewWatcher(files ...string) (*Watcher, error) {
 }
 
 // Watch starts filesystem watching, all occurred events will be sent
-// to returned channel. Returned channel in unbuffered, so make sure to read from
+// to returned channel. Returned channel is unbuffered, so make sure to read from
 // it. Watcher will be cancelled as soon as context is done.
 func (w *Watcher) Watch(ctx context.Context) <-chan WatchEvent {
 	events := make(chan WatchEvent)
