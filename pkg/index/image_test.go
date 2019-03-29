@@ -29,94 +29,113 @@ func TestImageIndex(t *testing.T) {
 func SmokeTestImageIndex(t *testing.T) {
 	indx := NewImageIndex()
 
-	img1 := new(image.Info)
-	img1.ID = "busybox"
 	ref, err := image.ParseRef("library://library/default/busybox:1.29")
 	require.NoError(t, err, "could not parse busybox ref")
-	img1.Ref = ref
+	busybox := &image.Info{
+		ID:  "busybox",
+		Ref: ref,
+	}
 
-	img2 := new(image.Info)
-	img2.ID = "nginx"
 	ref, err = image.ParseRef("nginx@sha256:31b8e90a349d1fce7621f5a5a08e4fc519b634f7d3feb09d53fac9b12aa4d991")
 	require.NoError(t, err, "could not parse nginx ref")
-	img2.Ref = ref
+	nginx := &image.Info{
+		ID:  "nginx",
+		Ref: ref,
+	}
 
-	img3 := new(image.Info)
-	img3.ID = "alpine"
 	ref, err = image.ParseRef("library://library/default/alpine:3.8")
 	require.NoError(t, err, "could not parse alpine ref")
-	img3.Ref = ref
+	alpine := &image.Info{
+		ID:  "alpine",
+		Ref: ref,
+	}
 
-	img4 := new(image.Info)
-	img4.ID = "alpine2"
 	ref, err = image.ParseRef("library://library/default/alpine")
 	require.NoError(t, err, "could not parse alpine ref")
-	img4.Ref = ref
+	alpine2 := &image.Info{
+		ID:  "alpine2",
+		Ref: ref,
+	}
 
 	t.Run("search empty index", func(t *testing.T) {
-		found, err := indx.Find(img1.ID)
-		require.Equal(t, ErrNotFound, err, "empty index didn't return ErrImageNotFound")
+		found, err := indx.Find(busybox.ID)
+		require.Equal(t, ErrNotFound, err, "empty index didn't return ErrNotFound")
 		require.Nil(t, found, "empty index returned image")
 	})
 
 	t.Run("add to empty index", func(t *testing.T) {
-		err := indx.Add(img1)
+		err := indx.Add(busybox)
 		require.NoError(t, err)
-		err = indx.Add(img2)
+		err = indx.Add(nginx)
 		require.NoError(t, err)
-		err = indx.Add(img3)
+		err = indx.Add(alpine)
 		require.NoError(t, err)
 	})
 
 	t.Run("search non-empty index", func(t *testing.T) {
-		found, err := indx.Find(img1.ID)
+		found, err := indx.Find(busybox.ID)
 		require.NoError(t, err, "index returned unexpected error")
-		require.Equal(t, found.ID, img1.ID, "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Tags(), img1.Ref.Tags(), "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Digests(), img1.Ref.Digests(), "index returned wrong image")
+		require.Equal(t, found.ID, busybox.ID, "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Tags(), busybox.Ref.Tags(), "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Digests(), busybox.Ref.Digests(), "index returned wrong image")
 
-		found, err = indx.Find(img2.ID)
+		found, err = indx.Find(nginx.ID)
 		require.NoError(t, err, "index returned unexpected error")
-		require.Equal(t, found.ID, img2.ID, "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Tags(), img2.Ref.Tags(), "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Digests(), img2.Ref.Digests(), "index returned wrong image")
+		require.Equal(t, found.ID, nginx.ID, "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Tags(), nginx.Ref.Tags(), "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Digests(), nginx.Ref.Digests(), "index returned wrong image")
 
-		found, err = indx.Find(img3.ID)
+		found, err = indx.Find(alpine.ID)
 		require.NoError(t, err, "index returned unexpected error")
-		require.Equal(t, found.ID, img3.ID, "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Tags(), img3.Ref.Tags(), "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Digests(), img3.Ref.Digests(), "index returned wrong image")
+		require.Equal(t, found.ID, alpine.ID, "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Tags(), alpine.Ref.Tags(), "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Digests(), alpine.Ref.Digests(), "index returned wrong image")
 
 		found, err = indx.Find("nonExistentID")
-		require.Equal(t, ErrNotFound, err, "empty index didn't return ErrImageNotFound")
-		require.Nil(t, found, "empty index returned image")
-	})
-
-	t.Run("remove from index", func(t *testing.T) {
-		err := indx.Remove(img2.Ref.Digests()[0])
-		require.NoError(t, err, "could not remove image from index")
-
-		found, err := indx.Find(img2.ID)
-		require.Equal(t, ErrNotFound, err, "empty index didn't return ErrImageNotFound")
+		require.Equal(t, ErrNotFound, err, "index didn't return ErrNotFound")
 		require.Nil(t, found, "index returned unexpected image")
 	})
 
+	t.Run("remove from index", func(t *testing.T) {
+		err := indx.Remove(nginx.Ref.Digests()[0])
+		require.NoError(t, err, "could not remove image from index")
+
+		found, err := indx.Find(nginx.ID)
+		require.Equal(t, ErrNotFound, err, "index didn't return ErrNotFound")
+		require.Nil(t, found, "removed image is still returned")
+	})
+
 	t.Run("ambiguous images", func(t *testing.T) {
-		err := indx.Add(img4)
+		err := indx.Add(alpine2)
 		require.NoError(t, err)
 
-		found, err := indx.Find(img3.ID)
-		require.Errorf(t, err, "index didn't error on ambiguous image id")
+		alpine.Ref.AddDigests([]string{"library://library/default/alpine:sha256.somefakesha"})
+		err = indx.Add(alpine)
+		require.EqualError(t, err,
+			"could not find old image: could not search index: multiple items found for provided prefix: alpine",
+			"index updated image even when ambiguous")
+
+		found, err := indx.Find(alpine.ID)
+		require.EqualError(t, err, "could not search index: multiple items found for provided prefix: alpine",
+			"index didn't error on ambiguous image id")
 		require.Nil(t, found, "index returned wrong image")
 
-		err = indx.Remove(img4.Ref.Tags()[0])
+		err = indx.Remove(alpine.ID)
+		require.EqualError(t, err, "could not search index: multiple items found for provided prefix: alpine",
+			"index didn't error on ambiguous image id")
+
+		err = indx.Remove(alpine2.Ref.Tags()[0])
 		require.NoError(t, err, "could not remove ambiguous image from index")
 
-		found, err = indx.Find(img3.ID)
+		alpine.Ref.AddDigests([]string{"library://library/default/alpine:sha256.somefakesha"})
+		err = indx.Add(alpine)
+		require.NoError(t, err, "could not update image after ambiguous removed")
+
+		found, err = indx.Find(alpine.ID)
 		require.NoError(t, err, "index returned unexpected error")
-		require.Equal(t, found.ID, img3.ID, "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Tags(), img3.Ref.Tags(), "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Digests(), img3.Ref.Digests(), "index returned wrong image")
+		require.Equal(t, found.ID, alpine.ID, "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Tags(), alpine.Ref.Tags(), "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Digests(), alpine.Ref.Digests(), "index returned wrong image")
 	})
 
 }
@@ -124,55 +143,58 @@ func SmokeTestImageIndex(t *testing.T) {
 func AdvancedTestImageIndex(t *testing.T) {
 	indx := NewImageIndex()
 
-	img1 := new(image.Info)
-	img1.ID = "busybox"
 	ref, err := image.ParseRef("library://library/default/busybox:1.29")
 	require.NoError(t, err, "could not parse busybox ref")
-	img1.Ref = ref
+	busybox := &image.Info{
+		ID:  "busybox",
+		Ref: ref,
+	}
 
-	img2 := new(image.Info)
-	img2.ID = "busybox"
 	ref, err = image.ParseRef("library://library/default/busybox:1.29")
 	require.NoError(t, err, "could not parse busybox ref")
 	ref.AddTags([]string{"library://library/default/busybox:latest"})
 	ref.AddDigests([]string{"library://library/default/busybox:sha256.165768770ca428e9e6d8290d5672652773edf1f80d442252a0ec737ed2cc312c"})
-	img2.Ref = ref
+	updBusybox := &image.Info{
+		ID:  "busybox",
+		Ref: ref,
+	}
 
-	img3 := new(image.Info)
-	img3.ID = "busyboxNew"
 	ref, err = image.ParseRef("library://library/default/busybox:latest")
 	require.NoError(t, err, "could not parse busybox ref")
-	img3.Ref = ref
+	busyboxNew := &image.Info{
+		ID:  "busyboxNew",
+		Ref: ref,
+	}
 
-	err = indx.Add(img1)
+	err = indx.Add(busybox)
 	require.NoError(t, err)
 
 	t.Run("merge images", func(t *testing.T) {
-		err := indx.Add(img2)
+		err := indx.Add(updBusybox)
 		require.NoError(t, err)
 
-		found, err := indx.Find(img1.ID)
+		found, err := indx.Find(busybox.ID)
 		require.NoError(t, err, "index returned unexpected error")
-		require.Equal(t, found.ID, img2.ID, "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Tags(), img2.Ref.Tags(), "index returned wrong image")
-		require.ElementsMatch(t, found.Ref.Digests(), img2.Ref.Digests(), "index returned wrong image")
+		require.Equal(t, found.ID, updBusybox.ID, "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Tags(), updBusybox.Ref.Tags(), "index returned wrong image")
+		require.ElementsMatch(t, found.Ref.Digests(), updBusybox.Ref.Digests(), "index returned wrong image")
 	})
 
 	t.Run("add overlapping image", func(t *testing.T) {
-		err := indx.Add(img3)
+		err := indx.Add(busyboxNew)
 		require.NoError(t, err)
 
 		var count int
 		indx.Iterate(func(image *image.Info) {
 			count++
 
-			if image.ID == img2.ID {
-				require.ElementsMatch(t, image.Ref.Tags(), img1.Ref.Tags(), "index returned wrong old image tags")
-				require.ElementsMatch(t, image.Ref.Digests(), img2.Ref.Digests(), "index returned wrong old image digests")
+			if image.ID == updBusybox.ID {
+				require.ElementsMatch(t, image.Ref.Tags(), busybox.Ref.Tags(), "index returned wrong old image tags")
+				require.ElementsMatch(t, image.Ref.Digests(), updBusybox.Ref.Digests(), "index returned wrong old image digests")
 			}
-			if image.ID == img3.ID {
-				require.ElementsMatch(t, image.Ref.Tags(), img3.Ref.Tags(), "index returned wrong new image tags")
-				require.ElementsMatch(t, image.Ref.Digests(), img3.Ref.Digests(), "index returned wrong new image digests")
+			if image.ID == busyboxNew.ID {
+				require.ElementsMatch(t, image.Ref.Tags(), busyboxNew.Ref.Tags(), "index returned wrong new image tags")
+				require.ElementsMatch(t, image.Ref.Digests(), busyboxNew.Ref.Digests(), "index returned wrong new image digests")
 			}
 		})
 		require.Equal(t, 2, count)
