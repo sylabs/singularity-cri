@@ -16,7 +16,6 @@ package image
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
 
@@ -100,8 +99,6 @@ func ParseRef(imgRef string) (*Reference, error) {
 		} else {
 			ref.tags = append(ref.tags, imgRef)
 		}
-	default:
-		return nil, fmt.Errorf("unknown image registry: %s", uri)
 	}
 
 	return &ref, nil

@@ -102,8 +102,8 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 		}
 	}()
 
-	pullURL := strings.TrimPrefix(ref.String(), ref.uri+"/")
-	switch ref.uri {
+	pullURL := strings.TrimPrefix(ref.String(), ref.URI()+"/")
+	switch ref.URI() {
 	case singularity.LibraryDomain:
 		err = library.DownloadImage(pullPath, pullURL, singularity.LibraryURL, true, "")
 	case singularity.DockerDomain:
@@ -117,7 +117,7 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 			err = fmt.Errorf("could not build image: %s", &errMsg)
 		}
 	default:
-		err = fmt.Errorf("unknown image registry: %s", ref.uri)
+		err = fmt.Errorf("unknown image registry: %s", ref.URI())
 	}
 	if err != nil {
 		return nil, fmt.Errorf("could not pull image: %v", err)
