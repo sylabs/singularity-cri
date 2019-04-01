@@ -12,10 +12,11 @@ FAKE_SH_INSTALL := $(INSTALL_DIR)/sycri-bin/fakesh
 CRI_CONFIG := ./config/sycri.yaml
 CRI_CONFIG_INSTALL := /usr/local/etc/sycri/sycri.yaml
 
+SECCOMP := "$(shell printf "\#include <seccomp.h>\nint main() { seccomp_syscall_resolve_name(\"read\"); }" | gcc -x c -o /dev/null - -lseccomp >/dev/null 2>&1; echo $$?)"
+ARCH := `arch`
+
 all: $(SY_CRI) $(FAKE_SH)
 
-$(SY_CRI): SECCOMP := "$(shell printf "#include <seccomp.h>\nint main() { seccomp_syscall_resolve_name(\"read\"); }" | gcc -x c -o /dev/null - -lseccomp >/dev/null 2>&1; echo $$?)"
-$(SY_CRI): export GO111MODULE=on
 $(SY_CRI):
 	@echo " GO" $@
 	@if [ $(SECCOMP) -eq "0" ] ; then \
@@ -23,9 +24,8 @@ $(SY_CRI):
 	else \
 		echo " WARNING: seccomp is not found, ignoring" ; \
 	fi
-	$(V) GOOS=linux go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
+	$(V)GO111MODULE=on GOOS=linux go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
-$(FAKE_SH): ARCH := `arch`
 $(FAKE_SH):
 	@echo " $(ARCH) SHELL"
 	$(V)wget -O $(FAKE_SH) https://busybox.net/downloads/binaries/1.21.1/busybox-$(ARCH) 2> /dev/null
@@ -49,10 +49,9 @@ $(FAKE_SH_INSTALL):
 	$(V)install -m 0755 $(FAKE_SH) $(FAKE_SH_INSTALL)
 
 .PHONY: clean
-clean: export GO111MODULE=off
 clean:
 	@echo " CLEAN"
-	$(V)go clean
+	$(V)GO111MODULE=off go clean
 	$(V)rm -rf $(BIN_DIR)
 
 .PHONY: uninstall
@@ -61,14 +60,12 @@ uninstall:
 	$(V)rm -rf $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL) $(CRI_CONFIG_INSTALL)
 
 .PHONY: test
-test: export GO111MODULE=on
 test:
-	$(V)GOOS=linux go test -v -coverprofile=cover.out ./...
+	$(V)GO111MODULE=on GOOS=linux go test -v -coverprofile=cover.out ./...
 
 .PHONY: lint
-lint: export GO111MODULE=on
 lint:
-	$(V)golangci-lint run --disable-all \
+	$(V)GO111MODULE=on golangci-lint run --disable-all \
 	--enable=gofmt \
 	--enable=goimports \
 	--enable=vet \
@@ -79,7 +76,6 @@ lint:
 	--enable=golint \
 	--deadline=3m ./...
 
-dep: export GO111MODULE=on
 dep:
-	$(V)go mod download
-	$(V)go mod tidy
+	$(V)GO111MODULE=on go mod download
+	$(V)GO111MODULE=on go mod tidy
