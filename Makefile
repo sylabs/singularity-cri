@@ -65,7 +65,7 @@ test:
 
 .PHONY: lint
 lint:
-	$(V)GO111MODULE=on golangci-lint run --disable-all \
+	$(V)golangci-lint run --disable-all \
 	--enable=gofmt \
 	--enable=goimports \
 	--enable=vet \
@@ -77,6 +77,5 @@ lint:
 	--deadline=3m ./...
 
 dep:
-	$(V)GO111MODULE=on go mod download
-	$(V)GO111MODULE=on go mod tidy
 	$(V)GO111MODULE=on go mod vendor
+	$(V)GO111MODULE=on go mod tidy

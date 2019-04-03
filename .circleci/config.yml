@@ -10,9 +10,6 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run:
-          name: Get dependencies
-          command: make dep
       - persist_to_workspace:
           root: /go
           paths:
