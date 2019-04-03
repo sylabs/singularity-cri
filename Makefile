@@ -24,7 +24,7 @@ $(SY_CRI):
 	else \
 		echo " WARNING: seccomp is not found, ignoring" ; \
 	fi
-	$(V)GO111MODULE=on GOOS=linux go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
+	$(V)GO111MODULE=off GOOS=linux go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
 $(FAKE_SH):
 	@echo " $(ARCH) SHELL"
@@ -61,7 +61,7 @@ uninstall:
 
 .PHONY: test
 test:
-	$(V)GO111MODULE=on GOOS=linux go test -v -coverprofile=cover.out ./...
+	$(V)GO111MODULE=off GOOS=linux go test -v -coverprofile=cover.out ./...
 
 .PHONY: lint
 lint:
@@ -79,3 +79,4 @@ lint:
 dep:
 	$(V)GO111MODULE=on go mod download
 	$(V)GO111MODULE=on go mod tidy
+	$(V)GO111MODULE=on go mod vendor
