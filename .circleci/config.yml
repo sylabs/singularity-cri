@@ -10,23 +10,10 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - restore_cache:
-          name: Restoring go mod cache
-          key: v1-gomod-{{ checksum "go.sum" }}
-      - run:
-          environment:
-            GO111MODULE: "on"
-          name: Get dependencies
-          command: make dep
-      - save_cache:
-          name: Saving go mod cache
-          paths: /go/pkg/mod
-          key: v1-gomod-{{ checksum "go.sum" }}
       - persist_to_workspace:
           root: /go
           paths:
             - src/github.com/sylabs/singularity-cri
-            - pkg/mod
 
   gometalinter_check:
     <<: *defaults
@@ -53,8 +40,6 @@ jobs:
             apt-get install -y libseccomp-dev
       - run:
           name: Build source
-          environment:
-            GO111MODULE: "on"
           command: make
 
   unit_test:
@@ -91,8 +76,6 @@ jobs:
             sudo make -C ./builddir install
       - run:
           name: Run tests
-          environment:
-            GO111MODULE: "on"
           command: |
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             make test
@@ -138,8 +121,6 @@ jobs:
             sudo make -C ./builddir install
       - run:
           name: Install singularity CRI
-          environment:
-            GO111MODULE: "on"
           command: |
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             make
