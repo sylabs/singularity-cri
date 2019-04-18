@@ -22,7 +22,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity-cri/pkg/namespace"
 	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 func (p *Pod) spawnOCIPod() error {

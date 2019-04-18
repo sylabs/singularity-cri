@@ -22,7 +22,7 @@ import (
 	"github.com/containernetworking/cni/libcni"
 	"github.com/golang/glog"
 	snetwork "github.com/sylabs/singularity/pkg/network"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 const (

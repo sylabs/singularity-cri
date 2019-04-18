@@ -25,7 +25,7 @@ import (
 	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 // RunPodSandbox creates and starts a pod-level sandbox. Runtimes must ensure

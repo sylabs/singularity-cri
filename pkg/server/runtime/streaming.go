@@ -29,7 +29,7 @@ import (
 	"github.com/sylabs/singularity/pkg/ociruntime"
 	"github.com/sylabs/singularity/pkg/util/unix"
 	"k8s.io/client-go/tools/remotecommand"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 type streamingRuntime struct {

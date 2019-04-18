@@ -23,7 +23,7 @@ import (
 
 	"github.com/golang/glog"
 	ocibundle "github.com/sylabs/singularity/pkg/ocibundle/sif"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 const (

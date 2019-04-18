@@ -24,7 +24,7 @@ import (
 	"github.com/sylabs/singularity-cri/pkg/kube"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 // CreateContainer creates a new container in specified PodSandbox.

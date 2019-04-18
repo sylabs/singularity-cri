@@ -26,7 +26,7 @@ import (
 	"github.com/sylabs/singularity-cri/pkg/rand"
 	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/ociruntime"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 const (

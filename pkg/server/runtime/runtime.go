@@ -29,7 +29,7 @@ import (
 	snetwork "github.com/sylabs/singularity/pkg/network"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/kubernetes/pkg/kubelet/server/streaming"
 )
 

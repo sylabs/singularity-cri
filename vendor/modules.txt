@@ -163,7 +163,7 @@ golang.org/x/crypto/openpgp/errors
 golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/cast5
 golang.org/x/crypto/openpgp/elgamal
-# golang.org/x/net v0.0.0-20181114220301-adae6a3d119a
+# golang.org/x/net v0.0.0-20190206173232-65e2d4e15006
 golang.org/x/net/context
 golang.org/x/net/trace
 golang.org/x/net/internal/timeseries
@@ -175,7 +175,7 @@ golang.org/x/net/websocket
 # golang.org/x/sys v0.0.0-20190321052220-f7bb7a8bee54
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.3.0
+# golang.org/x/text v0.3.1-0.20181227161524-e6919f6577db
 golang.org/x/text/secure/bidirule
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
@@ -280,13 +280,15 @@ k8s.io/client-go/pkg/apis/clientauthentication/v1alpha1
 k8s.io/client-go/pkg/apis/clientauthentication/v1beta1
 k8s.io/client-go/util/connrotation
 k8s.io/client-go/util/integer
+# k8s.io/cri-api v0.0.0-20190416054120-c67206fa0386
+k8s.io/cri-api/pkg/apis/runtime/v1alpha2
 # k8s.io/klog v0.2.0
 k8s.io/klog
 # k8s.io/kubernetes v1.12.5
 k8s.io/kubernetes/pkg/kubectl/util/logs
-k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2
 k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1
 k8s.io/kubernetes/pkg/kubelet/server/streaming
+k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2
 k8s.io/kubernetes/pkg/kubelet/server/portforward
 k8s.io/kubernetes/pkg/kubelet/server/remotecommand
 k8s.io/kubernetes/pkg/apis/core

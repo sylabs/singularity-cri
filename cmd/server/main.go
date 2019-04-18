@@ -33,8 +33,8 @@ import (
 	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"k8s.io/kubernetes/pkg/kubectl/util/logs"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 

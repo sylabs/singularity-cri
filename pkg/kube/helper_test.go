@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 func TestWriteResolvConf(t *testing.T) {

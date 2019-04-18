@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
 	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 func TestPullImage(t *testing.T) {

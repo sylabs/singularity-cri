@@ -55,7 +55,6 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v0.0.0-20180816142147-da425ebb7609 // indirect
-	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
 	golang.org/x/sys v0.0.0-20190321052220-f7bb7a8bee54
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/genproto v0.0.0-20181109154231-b5d43981345b // indirect
@@ -67,6 +66,7 @@ require (
 	k8s.io/apimachinery v0.0.0-20181126123124-70adfbae261e // indirect
 	k8s.io/apiserver v0.0.0-20181121231732-e3c8fa95bba5 // indirect
 	k8s.io/client-go v0.0.0-20181010045704-56e7a63b5e38
+	k8s.io/cri-api v0.0.0-20190416054120-c67206fa0386
 	k8s.io/klog v0.2.0 // indirect
 	k8s.io/kubernetes v1.12.5
 	k8s.io/utils v0.0.0-20181115163542-0d26856f57b3 // indirect

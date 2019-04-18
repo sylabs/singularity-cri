@@ -22,7 +22,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
+	k8s "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 var (
