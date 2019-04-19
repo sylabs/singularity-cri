@@ -20,9 +20,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity-cri/pkg/namespace"
+	"k8s.io/klog"
 )
 
 const (
@@ -85,7 +85,7 @@ func (p *Pod) bindNamespacePath(nsType specs.LinuxNamespaceType) string {
 
 func (p *Pod) prepareFiles() error {
 	nsStorePath := filepath.Join(p.baseDir, podNsStorePath)
-	glog.V(8).Infof("Creating %s", nsStorePath)
+	klog.V(8).Infof("Creating %s", nsStorePath)
 	err := os.MkdirAll(nsStorePath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create directory for pod: %v", err)
@@ -103,7 +103,7 @@ func (p *Pod) prepareFiles() error {
 }
 
 func (p *Pod) addHostname() error {
-	glog.V(8).Infof("Creating hostname file %s", p.hostnameFilePath())
+	klog.V(8).Infof("Creating hostname file %s", p.hostnameFilePath())
 	host, err := os.OpenFile(p.hostnameFilePath(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", podHostnamePath, err)
@@ -120,7 +120,7 @@ func (p *Pod) addLogDirectory() error {
 	if logDir == "" {
 		return nil
 	}
-	glog.V(8).Infof("Creating log directory %s", logDir)
+	klog.V(8).Infof("Creating log directory %s", logDir)
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", logDir, err)
@@ -129,7 +129,7 @@ func (p *Pod) addLogDirectory() error {
 }
 
 func (p *Pod) addOCIBundle() error {
-	glog.V(8).Infof("Creating %s", p.rootfsPath())
+	klog.V(8).Infof("Creating %s", p.rootfsPath())
 	err := os.MkdirAll(p.rootfsPath(), 0755)
 	if err != nil {
 		return fmt.Errorf("could not create rootfs directory for pod: %v", err)
@@ -138,7 +138,7 @@ func (p *Pod) addOCIBundle() error {
 	if err != nil {
 		return fmt.Errorf("could not generate OCI spec for pod: %v", err)
 	}
-	glog.V(8).Infof("Creating oci config %s", p.ociConfigPath())
+	klog.V(8).Infof("Creating oci config %s", p.ociConfigPath())
 	config, err := os.OpenFile(p.ociConfigPath(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create OCI config file: %v", err)
@@ -155,18 +155,18 @@ func (p *Pod) addOCIBundle() error {
 // If silent is true then any errors occurred during cleanupFiles are ignored.
 func (p *Pod) cleanupFiles(silent bool) error {
 	for _, ns := range p.namespaces {
-		glog.V(8).Infof("Removing binded namespace %s", ns.Path)
+		klog.V(8).Infof("Removing binded namespace %s", ns.Path)
 		err := namespace.Remove(ns)
 		if err != nil && !silent {
 			return fmt.Errorf("could not remove namespace: %v", err)
 		}
 	}
-	glog.V(8).Infof("Removing pod base directory %s", p.baseDir)
+	klog.V(8).Infof("Removing pod base directory %s", p.baseDir)
 	err := os.RemoveAll(p.baseDir)
 	if err != nil && !silent {
 		return fmt.Errorf("could not cleanup pod: %v", err)
 	}
-	glog.V(8).Infof("Removing pod log directory %s", p.GetLogDirectory())
+	klog.V(8).Infof("Removing pod log directory %s", p.GetLogDirectory())
 	err = os.RemoveAll(p.GetLogDirectory())
 	if err != nil && !silent {
 		return fmt.Errorf("could not remove log directory: %v", err)

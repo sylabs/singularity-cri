@@ -24,7 +24,6 @@ import (
 	"os/signal"
 	"sync"
 
-	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/fs"
 	"github.com/sylabs/singularity-cri/pkg/index"
 	"github.com/sylabs/singularity-cri/pkg/server/device"
@@ -33,7 +32,7 @@ import (
 	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
-	"k8s.io/kubernetes/pkg/kubectl/util/logs"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
@@ -47,9 +46,9 @@ func logGRPC(debug bool) grpc.UnaryServerInterceptor {
 		if debug || err != nil {
 			jsonReq, _ := json.Marshal(req)
 			jsonResp, _ := json.Marshal(resp)
-			logFunc := glog.Infof
+			logFunc := klog.Infof
 			if err != nil {
-				logFunc = glog.Errorf
+				logFunc = klog.Errorf
 			}
 			logFunc("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
 		}
@@ -62,12 +61,12 @@ func main() {
 	flag.StringVar(&configPath, "config", "/usr/local/etc/sycri/sycri.yaml", "path to config file")
 	flag.Parse()
 
-	logs.InitLogs()
-	defer logs.FlushLogs()
+	klog.InitFlags(nil)
+	defer klog.Flush()
 
 	config, err := parseConfig(configPath)
 	if err != nil {
-		glog.Errorf("Could not parse config: %v", err)
+		klog.Errorf("Could not parse config: %v", err)
 		return
 	}
 
@@ -89,7 +88,7 @@ func main() {
 	defer waitShutdown()
 
 	if err := startCRI(ctx, criWG, config); err != nil {
-		glog.Errorf("Could not start Singularity CRI server: %v", err)
+		klog.Errorf("Could not start Singularity CRI server: %v", err)
 		return
 	}
 
@@ -97,7 +96,7 @@ func main() {
 	err = startDevicePlugin(dpCtx, dpWG, config)
 	devicePluginEnabled := err == nil
 	if err != nil && err != errGPUNotSupported {
-		glog.Errorf("Could not start Singularity device plugin: %v", err)
+		klog.Errorf("Could not start Singularity device plugin: %v", err)
 		return
 	}
 
@@ -107,7 +106,7 @@ func main() {
 	if devicePluginEnabled {
 		watcher, err := fs.NewWatcher(k8sDP.DevicePluginPath)
 		if err != nil {
-			glog.Errorf("Could not create kubelet file watcher: %v", err)
+			klog.Errorf("Could not create kubelet file watcher: %v", err)
 			return
 		}
 		defer watcher.Close()
@@ -118,7 +117,7 @@ func main() {
 		select {
 		case event := <-fsEvents:
 			if event.Path == k8sDP.KubeletSocket && event.Op == fs.OpCreate {
-				glog.Infof("Kubelet socket was recreated, restarting device plugin")
+				klog.Infof("Kubelet socket was recreated, restarting device plugin")
 				dpCancel()
 				dpWG.Wait()
 
@@ -126,13 +125,13 @@ func main() {
 				dpCtx, dpCancel = context.WithCancel(ctx)
 				dpWG = new(sync.WaitGroup)
 				if err := startDevicePlugin(dpCtx, dpWG, config); err != nil {
-					glog.Errorf("Could not restart Singularity device plugin: %v", err)
+					klog.Errorf("Could not restart Singularity device plugin: %v", err)
 					//nolint:vet
 					return
 				}
 			}
 		case <-exitCh:
-			glog.Infof("Received %s signal, shutting down...", <-exitCh)
+			klog.Infof("Received %s signal, shutting down...", <-exitCh)
 			return
 		}
 	}
@@ -172,12 +171,12 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 		go grpcServer.Serve(lis)
 		defer grpcServer.Stop()
 
-		glog.Infof("Singularity CRI server started on %v", lis.Addr())
+		klog.Infof("Singularity CRI server started on %v", lis.Addr())
 		<-ctx.Done()
 
-		glog.Info("Singularity CRI service exiting...")
+		klog.Info("Singularity CRI service exiting...")
 		if err := syRuntime.Shutdown(); err != nil {
-			glog.Errorf("Error during singularity runtime service shutdown: %v", err)
+			klog.Errorf("Error during singularity runtime service shutdown: %v", err)
 		}
 	}()
 	return nil
@@ -188,7 +187,7 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 
 	devicePlugin, err := device.NewSingularityDevicePlugin()
 	if err == device.ErrUnableToLoad || err == device.ErrNoGPUs {
-		glog.Warningf("GPU support is not enabled: %v", err)
+		klog.Warningf("GPU support is not enabled: %v", err)
 		return errGPUNotSupported
 	}
 	if err != nil {
@@ -197,7 +196,7 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 
 	cleanup := func() {
 		if err := devicePlugin.Shutdown(); err != nil {
-			glog.Errorf("Error during singularity device plugin shutdown: %v", err)
+			klog.Errorf("Error during singularity device plugin shutdown: %v", err)
 		}
 	}
 
@@ -226,10 +225,10 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		}
 		close(register)
 
-		glog.Infof("Singularity device plugin started on %v", lis.Addr())
+		klog.Infof("Singularity device plugin started on %v", lis.Addr())
 		<-ctx.Done()
 
-		glog.Info("Singularity device plugin exiting...")
+		klog.Info("Singularity device plugin exiting...")
 		cleanup()
 	}()
 	return <-register

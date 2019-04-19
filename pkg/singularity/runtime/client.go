@@ -22,8 +22,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
+	"k8s.io/klog"
 )
 
 type (
@@ -63,7 +63,7 @@ func run(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
 	runCmd.Stderr = os.Stderr
 
-	glog.V(4).Infof("Executing %v", cmd)
+	klog.V(4).Infof("Executing %v", cmd)
 	err := runCmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not execute: %v", err)

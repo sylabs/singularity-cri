@@ -22,13 +22,13 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/kr/pty"
 	"github.com/kubernetes-sigs/cri-o/utils"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 	"github.com/sylabs/singularity/pkg/util/unix"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -41,7 +41,7 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 	stdin io.Reader, stdout, stderr io.WriteCloser,
 	tty bool, resize <-chan remotecommand.TerminalSize) error {
 
-	glog.V(4).Infof("Exec %v in %s...", cmd, containerID)
+	klog.V(4).Infof("Exec %v in %s...", cmd, containerID)
 	c, err := s.runtime.containers.Find(containerID)
 	if err != nil {
 		return fmt.Errorf("could not fetch container: %v", err)
@@ -66,20 +66,20 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 
 		done := make(chan struct{})
 		go func() {
-			glog.V(4).Infof("Resize start for %s", containerID)
+			klog.V(4).Infof("Resize start for %s", containerID)
 			for {
 				select {
 				case <-done:
-					glog.V(8).Infof("Resize end for %s", containerID)
+					klog.V(8).Infof("Resize end for %s", containerID)
 					return
 				case size := <-resize:
-					glog.V(8).Infof("Got resize event for %s: %+v", containerID, size)
+					klog.V(8).Infof("Got resize event for %s: %+v", containerID, size)
 					s := &pty.Winsize{
 						Cols: uint16(size.Width),
 						Rows: uint16(size.Height),
 					}
 					if err := pty.Setsize(master, s); err != nil {
-						glog.Errorf("Could not resize terminal: %v", err)
+						klog.Errorf("Could not resize terminal: %v", err)
 					}
 				}
 			}
@@ -99,7 +99,7 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 		execErr = c.Exec(cmd, stdin, stdout, stderr)
 	}
 
-	glog.V(4).Infof("Exec for %s returned %v...", containerID, execErr)
+	klog.V(4).Infof("Exec for %s returned %v...", containerID, execErr)
 	return execErr
 }
 
@@ -108,7 +108,7 @@ func (s *streamingRuntime) Attach(containerID string,
 	stdin io.Reader, stdout, stderr io.WriteCloser,
 	tty bool, resize <-chan remotecommand.TerminalSize) error {
 
-	glog.V(4).Infof("Attaching to %s...", containerID)
+	klog.V(4).Infof("Attaching to %s...", containerID)
 	c, err := s.runtime.containers.Find(containerID)
 	if err != nil {
 		return fmt.Errorf("could not fetch container: %v", err)
@@ -135,21 +135,21 @@ func (s *streamingRuntime) Attach(containerID string,
 	go func() {
 		socket := c.ControlSocket()
 		if socket == "" {
-			glog.Errorf("Container didn't provide control socket: %v", err)
+			klog.Errorf("Container didn't provide control socket: %v", err)
 			return
 		}
 
-		glog.V(4).Infof("Resize start for %s", containerID)
+		klog.V(4).Infof("Resize start for %s", containerID)
 		for {
 			select {
 			case <-done:
-				glog.V(8).Infof("Resize end for %s", containerID)
+				klog.V(8).Infof("Resize end for %s", containerID)
 				return
 			case size := <-resize:
-				glog.V(8).Infof("Got resize event for %s: %+v", containerID, size)
+				klog.V(8).Infof("Got resize event for %s: %+v", containerID, size)
 				ctrlSock, err := unix.Dial(socket)
 				if err != nil {
-					glog.Errorf("Could not connect to control socket: %v", err)
+					klog.Errorf("Could not connect to control socket: %v", err)
 					continue
 				}
 				ctrl := ociruntime.Control{
@@ -160,7 +160,7 @@ func (s *streamingRuntime) Attach(containerID string,
 				}
 				err = json.NewEncoder(ctrlSock).Encode(&ctrl)
 				if err != nil {
-					glog.Errorf("Could not send resize event to control socket: %v", err)
+					klog.Errorf("Could not send resize event to control socket: %v", err)
 				}
 				ctrlSock.Close()
 			}
@@ -176,7 +176,7 @@ func (s *streamingRuntime) Attach(containerID string,
 			}
 
 			_, err := io.Copy(out, attachSock)
-			glog.Errorf("Could not copy stdout/stderr: %v", err)
+			klog.Errorf("Could not copy stdout/stderr: %v", err)
 			errors <- err
 		}()
 	}
@@ -184,22 +184,22 @@ func (s *streamingRuntime) Attach(containerID string,
 		go func() {
 			// copy until ctrl-d hits
 			_, err := utils.CopyDetachable(c.Stdin(), stdin, []byte{4})
-			glog.Errorf("Could not copy stdin: %v", err)
+			klog.Errorf("Could not copy stdin: %v", err)
 			errors <- err
 		}()
 	}
 
 	err = <-errors
 	close(done)
-	glog.V(4).Infof("Attach for %s returned %v...", containerID, err)
+	klog.V(4).Infof("Attach for %s returned %v...", containerID, err)
 	if (err == utils.DetachError{}) {
 		return nil
 	}
 	if c.GetStdinOnce() {
-		glog.Infof("Closing stdin for container %s", c.ID())
+		klog.Infof("Closing stdin for container %s", c.ID())
 		err := c.CloseStdin()
 		if err != nil {
-			glog.Errorf("Could not close container stdin: %v", err)
+			klog.Errorf("Could not close container stdin: %v", err)
 		}
 	}
 	return err
@@ -231,7 +231,7 @@ func (s *streamingRuntime) PortForward(podSandboxID string, port int32, stream i
 
 	args := []string{"-t", fmt.Sprintf("%d", p.Pid()), "-n", socatPath, "-", fmt.Sprintf("TCP4:localhost:%d", port)}
 	commandString := fmt.Sprintf("%s %s", nsenterPath, strings.Join(args, " "))
-	glog.V(4).Infof("Executing port forwarding command: %s", commandString)
+	klog.V(4).Infof("Executing port forwarding command: %s", commandString)
 
 	var stderr bytes.Buffer
 	cmd := exec.Command(nsenterPath, args...)

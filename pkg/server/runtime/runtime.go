@@ -21,7 +21,6 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/index"
 	"github.com/sylabs/singularity-cri/pkg/kube"
 	"github.com/sylabs/singularity-cri/pkg/network"
@@ -29,6 +28,7 @@ import (
 	snetwork "github.com/sylabs/singularity/pkg/network"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 	"k8s.io/kubernetes/pkg/kubelet/server/streaming"
 )
@@ -95,15 +95,15 @@ func WithStreaming(url string) Option {
 		streamingConfig.Addr = url
 		streamingServer, err := streaming.NewServer(streamingConfig, streamingRuntime)
 		if err != nil {
-			glog.Errorf("Could not create streaming server: %v", err)
-			glog.Infof("Streaming endpoints are disabled")
+			klog.Errorf("Could not create streaming server: %v", err)
+			klog.Infof("Streaming endpoints are disabled")
 			return
 		}
 
 		go func() {
 			err := streamingServer.Start(true)
 			if err != nil && err != http.ErrServerClosed {
-				glog.Infof("Streaming server error: %v", err)
+				klog.Infof("Streaming server error: %v", err)
 			}
 		}()
 
@@ -128,7 +128,7 @@ func WithNetwork(cniBin, cniConf string) Option {
 		}
 		r.networkManager = &network.Manager{}
 		if err := r.networkManager.Init(cniPath); err != nil {
-			glog.Errorf("Could not initialize network manager: %v", err)
+			klog.Errorf("Could not initialize network manager: %v", err)
 		}
 	}
 }
@@ -157,18 +157,18 @@ func (s *SingularityRuntime) Shutdown() error {
 	}
 
 	var cleanupErr error
-	glog.V(4).Infof("Stopping all running pods")
+	klog.V(4).Infof("Stopping all running pods")
 	s.pods.Iterate(func(pod *kube.Pod) {
 		if err := pod.Stop(); err != nil {
 			cleanupErr = fmt.Errorf("could not stop pod %s: %v", pod.ID(), err)
-			glog.Errorf("Cleanup failed: %v", cleanupErr)
+			klog.Errorf("Cleanup failed: %v", cleanupErr)
 		}
 	})
-	glog.V(4).Infof("Removing all pods")
+	klog.V(4).Infof("Removing all pods")
 	s.pods.Iterate(func(pod *kube.Pod) {
 		if err := pod.Remove(); err != nil {
 			cleanupErr = fmt.Errorf("could not remove pod %s: %v", pod.ID(), err)
-			glog.Errorf("Cleanup failed: %v", cleanupErr)
+			klog.Errorf("Cleanup failed: %v", cleanupErr)
 		}
 	})
 	return cleanupErr
@@ -320,7 +320,7 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 		if cont.MatchesFilter(filter) {
 			stat, err := cont.Stat()
 			if err != nil {
-				glog.Warningf("Skipping container %s due to %v", cont.ID(), err)
+				klog.Warningf("Skipping container %s due to %v", cont.ID(), err)
 				return
 			}
 			containers = append(containers, containerStats(cont, stat))

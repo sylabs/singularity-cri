@@ -48,7 +48,7 @@ import (
 	"strings"
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 func getDevices() ([]*nvml.Device, error) {
@@ -81,7 +81,7 @@ func monitorGPUs(done <-chan struct{}, devIDs []string) (<-chan string, error) {
 	for _, devID := range devIDs {
 		err := nvml.RegisterEventForDevice(eventSet, nvml.XidCriticalError, devID)
 		if err != nil && strings.HasSuffix(err.Error(), "Not Supported") {
-			glog.Warningf("Healthcheck is not supported for %s, marking it unhealthy", devID)
+			klog.Warningf("Healthcheck is not supported for %s, marking it unhealthy", devID)
 			ill <- devID
 			continue
 		}
@@ -104,7 +104,7 @@ func monitorGPUs(done <-chan struct{}, devIDs []string) (<-chan string, error) {
 					continue
 				}
 				if err != nil {
-					glog.Errorf("Could not wait for event: %v", err)
+					klog.Errorf("Could not wait for event: %v", err)
 					continue
 				}
 

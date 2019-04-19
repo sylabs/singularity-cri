@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity-cri/pkg/namespace"
 	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -46,7 +46,7 @@ func (p *Pod) spawnOCIPod() error {
 		return fmt.Errorf("could not listen for state changes: %v", err)
 	}
 
-	glog.V(10).Infof("Creating pod %s", p.id)
+	klog.V(10).Infof("Creating pod %s", p.id)
 	_, err = p.cli.Create(p.id, p.bundlePath(), false, "--empty-process", "--sync-socket", p.socketPath())
 	if err != nil {
 		return fmt.Errorf("could not create pod: %v", err)
@@ -59,7 +59,7 @@ func (p *Pod) spawnOCIPod() error {
 		return err
 	}
 
-	glog.V(10).Infof("Starting pod %s", p.id)
+	klog.V(10).Infof("Starting pod %s", p.id)
 	if err := p.cli.Start(p.id); err != nil {
 		return fmt.Errorf("could not start pod: %v", err)
 	}
@@ -127,9 +127,9 @@ func (p *Pod) terminate(force bool) error {
 	}
 
 	if force {
-		glog.V(4).Infof("Forcibly stopping pod %s", p.ID())
+		klog.V(4).Infof("Forcibly stopping pod %s", p.ID())
 	} else {
-		glog.V(4).Infof("Terminating pod %s", p.ID())
+		klog.V(4).Infof("Terminating pod %s", p.ID())
 	}
 	err := p.cli.Kill(p.id, force)
 	if err != nil {

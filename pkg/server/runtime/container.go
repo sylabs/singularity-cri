@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/index"
 	"github.com/sylabs/singularity-cri/pkg/kube"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -55,7 +55,7 @@ func (s *SingularityRuntime) CreateContainer(_ context.Context, req *k8s.CreateC
 	cont := kube.NewContainer(req.Config, pod, info, s.trashDir)
 	cleanupOnFailure := func() {
 		if err := s.containers.Remove(cont.ID()); err != nil {
-			glog.Errorf("Could not remove container from index: %v", err)
+			klog.Errorf("Could not remove container from index: %v", err)
 		}
 	}
 	contBaseDir := filepath.Join(s.baseRunDir, "containers", cont.ID())
@@ -174,7 +174,7 @@ func (s *SingularityRuntime) ListContainers(_ context.Context, req *k8s.ListCont
 
 	appendContToResult := func(cont *kube.Container) {
 		if err := cont.UpdateState(); err != nil {
-			glog.Errorf("Could not fetch container %s: %v", cont.ID(), err)
+			klog.Errorf("Could not fetch container %s: %v", cont.ID(), err)
 			return
 		}
 		if cont.MatchesFilter(req.Filter) {

@@ -21,8 +21,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/golang/glog"
 	ocibundle "github.com/sylabs/singularity/pkg/ocibundle/sif"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -64,7 +64,7 @@ func (c *Container) addLogDirectory() error {
 
 	logPath = filepath.Join(logDir, logPath)
 	logDir = filepath.Dir(logPath)
-	glog.V(8).Infof("Creating log directory %s", logDir)
+	klog.V(8).Infof("Creating log directory %s", logDir)
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", logDir, err)
@@ -74,7 +74,7 @@ func (c *Container) addLogDirectory() error {
 }
 
 func (c *Container) addOCIBundle() error {
-	glog.V(8).Infof("Creating SIF bundle at %s", c.bundlePath())
+	klog.V(8).Infof("Creating SIF bundle at %s", c.bundlePath())
 	d, err := ocibundle.FromSif(c.imgInfo.Path, c.bundlePath(), true)
 	if err != nil {
 		return fmt.Errorf("could not create SIF bundle driver: %v", err)
@@ -86,7 +86,7 @@ func (c *Container) addOCIBundle() error {
 		return err
 	}
 
-	glog.V(8).Infof("Generating OCI config for container %s", c.ID())
+	klog.V(8).Infof("Generating OCI config for container %s", c.ID())
 	ociSpec, err := translateContainer(c, c.pod)
 	if err != nil {
 		return fmt.Errorf("could not generate oci spec for container: %v", err)
@@ -104,7 +104,7 @@ func (c *Container) addOCIBundle() error {
 }
 
 func (c *Container) cleanupFiles(silent bool) error {
-	glog.V(8).Infof("Removing bundle at %s", c.bundlePath())
+	klog.V(8).Infof("Removing bundle at %s", c.bundlePath())
 	d, err := ocibundle.FromSif("", c.bundlePath(), true)
 	if err != nil && !silent {
 		return fmt.Errorf("could not create SIF bundle driver: %v", err)
@@ -112,7 +112,7 @@ func (c *Container) cleanupFiles(silent bool) error {
 	if err := d.Delete(); err != nil && !silent {
 		return fmt.Errorf("could not delete SIF bundle: %v", err)
 	}
-	glog.V(8).Infof("Removing container base directory %s", c.baseDir)
+	klog.V(8).Infof("Removing container base directory %s", c.baseDir)
 	err = os.RemoveAll(c.baseDir)
 	if err != nil && !silent {
 		return fmt.Errorf("could not cleanup container: %v", err)
@@ -121,7 +121,7 @@ func (c *Container) cleanupFiles(silent bool) error {
 		dir := filepath.Dir(c.logPath)
 		if dir != c.pod.GetLogDirectory() {
 			// container has its own log directory
-			glog.V(8).Infof("Removing container log directory %s", dir)
+			klog.V(8).Infof("Removing container log directory %s", dir)
 			err = os.RemoveAll(dir)
 			if err != nil && !silent {
 				return fmt.Errorf("could not remove logs: %v", err)
@@ -185,7 +185,7 @@ func (c *Container) collectTrash() error {
 func (c *Container) ensureSh() error {
 	_, err := os.Lstat(filepath.Join(c.rootfsPath(), "bin", "sh"))
 	if os.IsNotExist(err) {
-		glog.V(8).Infof("Mounting fake sh into container %s", c.ID())
+		klog.V(8).Infof("Mounting fake sh into container %s", c.ID())
 		c.Mounts = append(c.Mounts, &k8s.Mount{
 			ContainerPath: "/bin/sh",
 			HostPath:      fakeShPath,

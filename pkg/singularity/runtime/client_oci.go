@@ -25,9 +25,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity/pkg/ociruntime"
+	"k8s.io/klog"
 )
 
 const (
@@ -118,15 +118,15 @@ func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.W
 		stdinRead = pr
 	}
 
-	glog.V(4).Infof("Executing %v", cmd)
+	klog.V(4).Infof("Executing %v", cmd)
 	err := createCmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("could not execute create container command: %v", err)
 	}
 	if stdinRead != nil {
-		glog.V(10).Infof("Closing read end of stdin pipe")
+		klog.V(10).Infof("Closing read end of stdin pipe")
 		if err := stdinRead.Close(); err != nil {
-			glog.Errorf("Could not close read end of stdin pipe: %v", err)
+			klog.Errorf("Could not close read end of stdin pipe: %v", err)
 		}
 	}
 	return stdinWrite, nil
@@ -152,7 +152,7 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*E
 	runCmd.Stdout = &stdout
 	runCmd.Stderr = &stderr
 
-	glog.V(4).Infof("Executing %v", cmd)
+	klog.V(4).Infof("Executing %v", cmd)
 	err := runCmd.Run()
 	var exitCode int32
 	exitErr, ok := err.(*exec.ExitError)
@@ -199,7 +199,7 @@ func (c *CLIClient) PrepareExec(ctx context.Context, id string, args ...string) 
 	cmd = append(cmd, id, execScript)
 	cmd = append(cmd, args...)
 
-	glog.V(4).Infof("Prepared %v", cmd)
+	klog.V(4).Infof("Prepared %v", cmd)
 	return exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 }
 
@@ -233,7 +233,7 @@ func (c *CLIClient) UpdateContainerResources(id string, req *specs.LinuxResource
 	updCmd.Stderr = os.Stderr
 	updCmd.Stdin = buf
 
-	glog.V(4).Infof("Executing %v", cmd)
+	klog.V(4).Infof("Executing %v", cmd)
 	err = updCmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not execute: %v", err)

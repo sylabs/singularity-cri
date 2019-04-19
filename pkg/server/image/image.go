@@ -27,13 +27,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/fs"
 	"github.com/sylabs/singularity-cri/pkg/image"
 	"github.com/sylabs/singularity-cri/pkg/index"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -99,7 +99,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 		return nil, status.Errorf(codes.Internal, "could not index image: %v", err)
 	}
 	if err = s.dumpInfo(); err != nil {
-		glog.Warningf("Could not dump registry info: %v", err)
+		klog.Warningf("Could not dump registry info: %v", err)
 	}
 	return &k8s.PullImageResponse{
 		ImageRef: info.ID,
@@ -127,7 +127,7 @@ func (s *SingularityRegistry) RemoveImage(ctx context.Context, req *k8s.RemoveIm
 		return nil, status.Errorf(codes.Internal, "could not remove image from index: %v", err)
 	}
 	if err = s.dumpInfo(); err != nil {
-		glog.Warningf("Could not dump registry info: %v", err)
+		klog.Warningf("Could not dump registry info: %v", err)
 	}
 	return &k8s.RemoveImageResponse{}, nil
 }

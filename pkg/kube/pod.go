@@ -19,13 +19,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity-cri/pkg/namespace"
 	"github.com/sylabs/singularity-cri/pkg/network"
 	"github.com/sylabs/singularity-cri/pkg/rand"
 	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/ociruntime"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -97,13 +97,13 @@ func (p *Pod) Run(baseDir string) error {
 	defer func() {
 		if err != nil {
 			if err := p.terminate(true); err != nil {
-				glog.Errorf("Could not kill pod after failed run: %v", err)
+				klog.Errorf("Could not kill pod after failed run: %v", err)
 			}
 			if err := p.cli.Delete(p.id); err != nil {
-				glog.Errorf("Could not remove pod: %v", err)
+				klog.Errorf("Could not remove pod: %v", err)
 			}
 			if err := p.cleanupFiles(true); err != nil {
-				glog.Errorf("Could not cleanup pod after failed run: %v", err)
+				klog.Errorf("Could not cleanup pod after failed run: %v", err)
 			}
 		}
 	}()
@@ -181,7 +181,7 @@ func (p *Pod) Remove() error {
 		return fmt.Errorf("could not remove pod: %v", err)
 	}
 	if err := p.cleanupFiles(false); err != nil {
-		glog.Errorf("Pod cleanup failed: %v", err)
+		klog.Errorf("Pod cleanup failed: %v", err)
 	}
 	p.isRemoved = true
 	return nil

@@ -23,12 +23,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/image"
 	"github.com/sylabs/singularity-cri/pkg/rand"
 	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 	"github.com/sylabs/singularity/pkg/util/unix"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -194,16 +194,16 @@ func (c *Container) Create(baseDir string) error {
 		if err != nil {
 			c.imgInfo.Return(c.ID())
 			if err := c.kill(); err != nil {
-				glog.Errorf("Could not kill container after failed run: %v", err)
+				klog.Errorf("Could not kill container after failed run: %v", err)
 			}
 			if err := c.cli.Delete(c.id); err != nil {
-				glog.Errorf("Could not delete container: %v", err)
+				klog.Errorf("Could not delete container: %v", err)
 			}
 			if err := c.collectTrash(); err != nil {
-				glog.Errorf("Could not collect container trash: %v", err)
+				klog.Errorf("Could not collect container trash: %v", err)
 			}
 			if err := c.cleanupFiles(true); err != nil {
-				glog.Errorf("Could not cleanup bundle: %v", err)
+				klog.Errorf("Could not cleanup bundle: %v", err)
 			}
 		}
 	}()
@@ -244,7 +244,7 @@ func (c *Container) Start() error {
 	if c.State() != k8s.ContainerState_CONTAINER_CREATED {
 		return ErrContainerNotCreated
 	}
-	glog.V(10).Infof("Starting container %s", c.id)
+	klog.V(10).Infof("Starting container %s", c.id)
 	if err := c.cli.Start(c.id); err != nil {
 		return fmt.Errorf("could not start container: %v", err)
 	}
@@ -299,13 +299,13 @@ func (c *Container) Remove() error {
 		}
 	}
 	if err := c.CloseStdin(); err != nil {
-		glog.Errorf("Could not close container stdin: %v", err)
+		klog.Errorf("Could not close container stdin: %v", err)
 	}
 	if err := c.collectTrash(); err != nil {
-		glog.Errorf("Could not collect container trash: %v", err)
+		klog.Errorf("Could not collect container trash: %v", err)
 	}
 	if err := c.cleanupFiles(false); err != nil {
-		glog.Errorf("Container cleanup failed: %v", err)
+		klog.Errorf("Container cleanup failed: %v", err)
 	}
 	c.imgInfo.Return(c.ID())
 	c.pod.removeContainer(c)

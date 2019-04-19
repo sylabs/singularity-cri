@@ -49,12 +49,12 @@ import (
 	"os/exec"
 
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
-	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/util/nvidia"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
@@ -94,9 +94,9 @@ func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
 		return nil, fmt.Errorf("could not get build config: %v", err)
 	}
 
-	glog.Infof("Loading NVML")
+	klog.Infof("Loading NVML")
 	if err = nvml.Init(); err != nil {
-		glog.Errorf("Could not initialize NVML library: %v", err)
+		klog.Errorf("Could not initialize NVML library: %v", err)
 		return nil, ErrUnableToLoad
 	}
 
@@ -106,17 +106,17 @@ func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
 	}
 	defer func() {
 		if err != nil {
-			glog.Errorf("Shutting down device plugin due to %v", err)
+			klog.Errorf("Shutting down device plugin due to %v", err)
 			dp.Shutdown()
 		}
 	}()
 
 	v, err := nvml.GetDriverVersion()
 	if err != nil {
-		glog.Errorf("Could not get driver version: %v", err)
+		klog.Errorf("Could not get driver version: %v", err)
 		return nil, ErrUnableToLoad
 	}
-	glog.Infof("Found graphic driver of version %v", v)
+	klog.Infof("Found graphic driver of version %v", v)
 
 	devices, err := getDevices()
 	if err != nil {
@@ -145,9 +145,9 @@ func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
 
 // Shutdown shuts down device plugin and any GPU monitoring activity.
 func (dp *SingularityDevicePlugin) Shutdown() error {
-	glog.Infof("Cancelling GPU monitoring")
+	klog.Infof("Cancelling GPU monitoring")
 	close(dp.done)
-	glog.Infof("Shutdown of NVML returned: %v", nvml.Shutdown())
+	klog.Infof("Shutdown of NVML returned: %v", nvml.Shutdown())
 	return nil
 }
 
@@ -160,7 +160,7 @@ func (*SingularityDevicePlugin) GetDevicePluginOptions(context.Context, *k8sDP.E
 // or a Device disappears, ListAndWatch returns the new list.
 func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.DevicePlugin_ListAndWatchServer) error {
 	devList := dp.listK8sDevices()
-	glog.Infof("Sending initial device list: %v", devList)
+	klog.Infof("Sending initial device list: %v", devList)
 	err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: devList})
 	if err != nil {
 		return status.Errorf(codes.Unknown, "could not send initial devices state: %v", err)
@@ -171,7 +171,7 @@ func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.Device
 			return nil
 		case devID := <-dp.unhealthyDev:
 			dp.hospital[devID] = k8sDP.Unhealthy
-			glog.Warningf("Device %s is in hospital", devID)
+			klog.Warningf("Device %s is in hospital", devID)
 
 			err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: dp.listK8sDevices()})
 			if err != nil {
@@ -189,13 +189,13 @@ func (dp *SingularityDevicePlugin) Allocate(ctx context.Context, req *k8sDP.Allo
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not search NVIDIA files: %v", err)
 	}
-	glog.V(4).Infof("NVIDIA paths are %v and %v", nvLibs, nvBins)
+	klog.V(4).Infof("NVIDIA paths are %v and %v", nvLibs, nvBins)
 
 	nvDevs, err := nvidia.Devices(false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not search NVIDIA complementary devices: %v", err)
 	}
-	glog.V(4).Infof("NVIDIA complementary devices are %v", nvDevs)
+	klog.V(4).Infof("NVIDIA complementary devices are %v", nvDevs)
 
 	nvidiaMounts := make([]*k8sDP.Mount, 0, len(nvLibs)+len(nvBins))
 	for _, libPath := range nvLibs {

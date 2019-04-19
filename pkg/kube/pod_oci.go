@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/golang/glog"
 	"github.com/kubernetes-sigs/cri-o/pkg/seccomp"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -113,9 +113,9 @@ func setupSELinux(g *generate.Generator, options *k8s.SELinuxOption) error {
 	if err != nil {
 		return fmt.Errorf("could not init selinux labels: %v", err)
 	}
-	glog.V(4).Infof("Setting mount label to %q", mountLabel)
+	klog.V(4).Infof("Setting mount label to %q", mountLabel)
 	g.SetLinuxMountLabel(mountLabel)
-	glog.V(4).Infof("Setting process selinux label to %q", processLabel)
+	klog.V(4).Infof("Setting process selinux label to %q", processLabel)
 	g.SetProcessSelinuxLabel(processLabel)
 	return nil
 }

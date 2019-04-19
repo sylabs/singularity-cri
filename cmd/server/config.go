@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/golang/glog"
 	"gopkg.in/yaml.v2"
+	"k8s.io/klog"
 )
 
 // Config hold all possible parameters that are used to
@@ -56,7 +56,7 @@ func parseConfig(path string) (Config, error) {
 
 	f, err := os.Open(path)
 	if os.IsNotExist(err) {
-		glog.Warningf("No config file found, using default")
+		klog.Warningf("No config file found, using default")
 		return defaultConfig, nil
 	}
 	if err != nil {

@@ -20,8 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -61,14 +61,14 @@ func (p *Pod) validateConfig() error {
 		if err != nil {
 			return fmt.Errorf("could not get default hostname: %v", err)
 		}
-		glog.Infof("Setting pod hostname to default value %q", hostname)
+		klog.Infof("Setting pod hostname to default value %q", hostname)
 		p.Hostname = hostname
 	}
 
 	cgroupsPath := p.GetLinux().GetCgroupParent()
 	if cgroupsPath == "" {
 		cgroupsPath = filepath.Join(defaultCgroup, p.ID())
-		glog.Infof("Setting pod cgroup parent to default value %q", cgroupsPath)
+		klog.Infof("Setting pod cgroup parent to default value %q", cgroupsPath)
 		if p.GetLinux() == nil {
 			p.Linux = new(k8s.LinuxPodSandboxConfig)
 		}

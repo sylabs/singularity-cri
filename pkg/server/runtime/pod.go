@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/index"
 	"github.com/sylabs/singularity-cri/pkg/kube"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -38,7 +38,7 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 	pod := kube.NewPod(req.Config)
 	cleanupOnFailure := func() {
 		if err := s.pods.Remove(pod.ID()); err != nil {
-			glog.Errorf("Could not remove pod from index: %v", err)
+			klog.Errorf("Could not remove pod from index: %v", err)
 		}
 	}
 	podBaseDir := filepath.Join(s.baseRunDir, "pods", pod.ID())
@@ -48,7 +48,7 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 	}
 
 	// bring up network interface if requested
-	glog.V(4).Infof("Bringing up network for pod %s", pod.ID())
+	klog.V(4).Infof("Bringing up network for pod %s", pod.ID())
 	if err := pod.SetUpNetwork(s.networkManager); err != nil {
 		cleanupOnFailure()
 		return nil, status.Errorf(codes.Internal, "could not set up pod network interface: %v", err)
@@ -84,9 +84,9 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodS
 	}
 
 	// tear down network interface
-	glog.V(4).Infof("Tearing down network for pod %s", pod.ID())
+	klog.V(4).Infof("Tearing down network for pod %s", pod.ID())
 	if err := pod.TearDownNetwork(s.networkManager); err != nil {
-		glog.Warningf("Could not tear down network interface: %v", err)
+		klog.Warningf("Could not tear down network interface: %v", err)
 	}
 
 	return &k8s.StopPodSandboxResponse{}, nil
@@ -161,7 +161,7 @@ func (s *SingularityRuntime) ListPodSandbox(_ context.Context, req *k8s.ListPodS
 
 	appendPodToResult := func(pod *kube.Pod) {
 		if err := pod.UpdateState(); err != nil {
-			glog.Errorf("Could not update pod state: %v", err)
+			klog.Errorf("Could not update pod state: %v", err)
 			return
 		}
 		if pod.MatchesFilter(req.Filter) {

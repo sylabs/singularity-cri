@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/golang/glog"
 	"github.com/sylabs/singularity/pkg/util/unix"
+	"k8s.io/klog"
 )
 
 // State defines type for manipulating with container's state.
@@ -60,19 +60,19 @@ func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 		for {
 			select {
 			case <-ctx.Done():
-				glog.V(8).Infof("Context is done")
+				klog.V(8).Infof("Context is done")
 				return
 			case conn := <-nextConn(ln):
 				if conn == nil {
-					glog.Errorf("Could not accept sync socket connection")
+					klog.Errorf("Could not accept sync socket connection")
 					return
 				}
 				state, err := readState(conn)
 				if err != nil {
-					glog.Errorf("Could not read state at %s: %v", socket, err)
+					klog.Errorf("Could not read state at %s: %v", socket, err)
 					return
 				}
-				glog.V(4).Infof("Received state %d at %s", state, socket)
+				klog.V(4).Infof("Received state %d at %s", state, socket)
 				syncChan <- state
 				if state == StateExited {
 					return
@@ -110,7 +110,7 @@ func nextConn(ln net.Listener) <-chan net.Conn {
 		defer close(next)
 		conn, err := ln.Accept()
 		if err != nil {
-			glog.Errorf("Accept failed: %v", err)
+			klog.Errorf("Accept failed: %v", err)
 			return
 		}
 		next <- conn

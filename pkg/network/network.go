@@ -20,8 +20,8 @@ import (
 	"sync"
 
 	"github.com/containernetworking/cni/libcni"
-	"github.com/golang/glog"
 	snetwork "github.com/sylabs/singularity/pkg/network"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -88,7 +88,7 @@ func (m *Manager) checkInit() error {
 		}
 	}
 	if !ipRanges && m.podCIDR != "" {
-		glog.Infof("Resetting pod CIDR, network plugin doesn't support it")
+		klog.Infof("Resetting pod CIDR, network plugin doesn't support it")
 		m.podCIDR = ""
 	}
 	return nil
@@ -109,7 +109,7 @@ func (m *Manager) setDefaultNetwork() error {
 		return fmt.Errorf("no CNI network configuration found in %s", m.cniPath.Conf)
 	}
 	m.defaultNetwork = netConfList[0]
-	glog.Infof("Network configuration found: %s", m.defaultNetwork.Name)
+	klog.Infof("Network configuration found: %s", m.defaultNetwork.Name)
 	return nil
 }
 
@@ -165,7 +165,7 @@ func (m *Manager) SetUpPod(podConfig *PodConfig) error {
 			args += fmt.Sprintf(";portmap=%d:%d/%s", hostport, pm.ContainerPort, strings.ToLower(pm.Protocol.String()))
 		}
 	}
-	glog.V(4).Infof("Network for pod %s args: %s", podConfig.ID, args)
+	klog.V(4).Infof("Network for pod %s args: %s", podConfig.ID, args)
 	if err := podConfig.Setup.SetArgs([]string{args}); err != nil {
 		return err
 	}

@@ -48,8 +48,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"google.golang.org/grpc"
+	"k8s.io/klog"
 	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
@@ -61,9 +61,9 @@ func RegisterInKubelet(socket string) error {
 	for attempt := 1; attempt < 5; attempt++ {
 		err := register(socket)
 		if err != nil {
-			glog.Errorf("Registration failed: %v", err)
+			klog.Errorf("Registration failed: %v", err)
 			timeout := time.Second * time.Duration(attempt*2)
-			glog.Errorf("Retrying in %f seconds", timeout.Seconds())
+			klog.Errorf("Retrying in %f seconds", timeout.Seconds())
 			time.Sleep(timeout)
 			continue
 		}

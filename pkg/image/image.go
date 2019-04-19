@@ -27,7 +27,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/golang/glog"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sylabs/sif/pkg/sif"
 	"github.com/sylabs/singularity-cri/pkg/rand"
@@ -36,6 +35,7 @@ import (
 	library "github.com/sylabs/singularity/pkg/client/library"
 	"github.com/sylabs/singularity/pkg/image"
 	"github.com/sylabs/singularity/pkg/signing"
+	"k8s.io/klog"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -93,11 +93,11 @@ func (i *Info) UsedBy() []string {
 // Pull pulls image referenced by ref and saves it to the passed location.
 func Pull(location string, ref *Reference) (img *Info, err error) {
 	pullPath := filepath.Join(location, "."+rand.GenerateID(64))
-	glog.V(8).Infof("Pulling to temporary file %s", pullPath)
+	klog.V(8).Infof("Pulling to temporary file %s", pullPath)
 	defer func() {
 		if err != nil {
 			if err := os.Remove(pullPath); err != nil {
-				glog.Errorf("Could not remove temporary image file: %v", err)
+				klog.Errorf("Could not remove temporary image file: %v", err)
 			}
 		}
 	}()
@@ -146,7 +146,7 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	}
 
 	path := filepath.Join(location, checksum)
-	glog.V(8).Infof("Renaming %s to %s", pullPath, path)
+	klog.V(8).Infof("Renaming %s to %s", pullPath, path)
 	err = os.Rename(pullPath, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not save pulled image: %v", err)
@@ -154,7 +154,7 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 
 	ociConfig, err := fetchOCIConfig(path)
 	if err != nil {
-		glog.Errorf("Could not fetch image's OCI config: %v", err)
+		klog.Errorf("Could not fetch image's OCI config: %v", err)
 	}
 
 	return &Info{
@@ -199,7 +199,7 @@ func (i *Info) Verify() error {
 
 	noSignatures := err != nil && strings.Contains(err.Error(), "no signatures found")
 	if noSignatures {
-		glog.V(4).Infof("Image %s is not signed", i.Ref)
+		klog.V(4).Infof("Image %s is not signed", i.Ref)
 	}
 	if err != nil && !noSignatures {
 		return fmt.Errorf("SIF verification failed: %v", err)
