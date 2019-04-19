@@ -17,20 +17,16 @@ require (
 	github.com/emicklei/go-restful v2.8.0+incompatible // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.7
-	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8 // indirect
 	github.com/godbus/dbus v0.0.0-20181025153459-66d97aec3384 // indirect
 	github.com/gogo/protobuf v1.1.1 // indirect
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
+	github.com/google/gofuzz v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.5 // indirect
 	github.com/kr/pty v1.1.3
 	github.com/kubernetes-sigs/cri-o v1.12.3
 	github.com/mattn/go-colorable v0.1.1 // indirect
 	github.com/mattn/go-runewidth v0.0.3 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
 	github.com/onsi/ginkgo v1.7.0 // indirect
 	github.com/onsi/gomega v1.4.3 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
@@ -39,10 +35,10 @@ require (
 	github.com/opencontainers/runtime-spec v0.0.0-20180913141938-5806c3563733
 	github.com/opencontainers/runtime-tools v0.8.0
 	github.com/opencontainers/selinux v1.0.0-rc1
-	github.com/pkg/errors v0.8.0 // indirect
+	github.com/pkg/errors v0.8.1 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/seccomp/libseccomp-golang v0.9.0 // indirect
-	github.com/sirupsen/logrus v1.2.0 // indirect
+	github.com/sirupsen/logrus v1.4.1 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/stretchr/testify v1.2.2
 	github.com/sylabs/scs-key-client v0.2.0 // indirect
@@ -55,7 +51,6 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v0.0.0-20180816142147-da425ebb7609 // indirect
-	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
 	golang.org/x/sys v0.0.0-20190321052220-f7bb7a8bee54
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/genproto v0.0.0-20181109154231-b5d43981345b // indirect
@@ -63,13 +58,13 @@ require (
 	gopkg.in/cheggaaa/pb.v1 v1.0.26 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.2.1
-	k8s.io/api v0.0.0-20181121071145-b7bd5f2d334c // indirect
-	k8s.io/apimachinery v0.0.0-20181126123124-70adfbae261e // indirect
-	k8s.io/apiserver v0.0.0-20181121231732-e3c8fa95bba5 // indirect
-	k8s.io/client-go v0.0.0-20181010045704-56e7a63b5e38
-	k8s.io/klog v0.2.0 // indirect
+	k8s.io/apiserver v0.0.0-20190418213308-0a718f081a3a // indirect
+	k8s.io/client-go v0.0.0-20190418212717-1d2e9628a1ee
+	k8s.io/klog v0.3.0
 	k8s.io/kubernetes v1.13.5
-	k8s.io/utils v0.0.0-20181115163542-0d26856f57b3 // indirect
+	k8s.io/utils v0.0.0-20190308190857-21c4ce38f2a7 // indirect
 )
 
 replace golang.org/x/crypto => github.com/sylabs/golang-x-crypto v0.0.0-20181006204705-4bce89e8e9a9
+
+replace github.com/golang/glog => k8s.io/klog v0.2.0

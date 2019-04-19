@@ -35,8 +35,6 @@ github.com/emicklei/go-restful
 github.com/emicklei/go-restful/log
 # github.com/fsnotify/fsnotify v1.4.7
 github.com/fsnotify/fsnotify
-# github.com/ghodss/yaml v1.0.0
-github.com/ghodss/yaml
 # github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
 github.com/globalsign/mgo/bson
 github.com/globalsign/mgo/internal/json
@@ -47,15 +45,13 @@ github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
-# github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-github.com/golang/glog
 # github.com/golang/protobuf v1.2.0
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf
+# github.com/google/gofuzz v1.0.0
 github.com/google/gofuzz
 # github.com/hashicorp/errwrap v1.0.0
 github.com/hashicorp/errwrap
@@ -74,7 +70,7 @@ github.com/kubernetes-sigs/cri-o/utils
 github.com/mattn/go-runewidth
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 github.com/modern-go/concurrent
-# github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742
+# github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
 # github.com/opencontainers/go-digest v1.0.0-rc1
 github.com/opencontainers/go-digest
@@ -97,7 +93,7 @@ github.com/opencontainers/runtime-tools/error
 # github.com/opencontainers/selinux v1.0.0-rc1
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/go-selinux
-# github.com/pkg/errors v0.8.0
+# github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
@@ -105,10 +101,8 @@ github.com/pmezard/go-difflib/difflib
 github.com/satori/go.uuid
 # github.com/seccomp/libseccomp-golang v0.9.0
 github.com/seccomp/libseccomp-golang
-# github.com/sirupsen/logrus v1.2.0
+# github.com/sirupsen/logrus v1.4.1
 github.com/sirupsen/logrus
-# github.com/spf13/pflag v1.0.3
-github.com/spf13/pflag
 # github.com/stretchr/testify v1.2.2
 github.com/stretchr/testify/require
 github.com/stretchr/testify/assert
@@ -153,7 +147,7 @@ github.com/xeipuuv/gojsonpointer
 github.com/xeipuuv/gojsonreference
 # github.com/xeipuuv/gojsonschema v0.0.0-20180816142147-da425ebb7609
 github.com/xeipuuv/gojsonschema
-# golang.org/x/crypto v0.0.0-20180904163835-0709b304e793 => github.com/sylabs/golang-x-crypto v0.0.0-20181006204705-4bce89e8e9a9
+# golang.org/x/crypto v0.0.0-20181025213731-e84da0312774 => github.com/sylabs/golang-x-crypto v0.0.0-20181006204705-4bce89e8e9a9
 golang.org/x/crypto/openpgp
 golang.org/x/crypto/openpgp/clearsign
 golang.org/x/crypto/openpgp/armor
@@ -163,7 +157,7 @@ golang.org/x/crypto/openpgp/errors
 golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/cast5
 golang.org/x/crypto/openpgp/elgamal
-# golang.org/x/net v0.0.0-20181114220301-adae6a3d119a
+# golang.org/x/net v0.0.0-20190206173232-65e2d4e15006
 golang.org/x/net/context
 golang.org/x/net/trace
 golang.org/x/net/internal/timeseries
@@ -172,16 +166,28 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/http/httpguts
 golang.org/x/net/idna
 golang.org/x/net/websocket
+golang.org/x/net/context/ctxhttp
+# golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
+golang.org/x/oauth2
+golang.org/x/oauth2/internal
 # golang.org/x/sys v0.0.0-20190321052220-f7bb7a8bee54
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.3.0
+# golang.org/x/text v0.3.1-0.20181227161524-e6919f6577db
 golang.org/x/text/secure/bidirule
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 golang.org/x/text/transform
 # golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
 golang.org/x/time/rate
+# google.golang.org/appengine v1.5.0
+google.golang.org/appengine/urlfetch
+google.golang.org/appengine/internal
+google.golang.org/appengine/internal/urlfetch
+google.golang.org/appengine/internal/base
+google.golang.org/appengine/internal/datastore
+google.golang.org/appengine/internal/log
+google.golang.org/appengine/internal/remote_api
 # google.golang.org/genproto v0.0.0-20181109154231-b5d43981345b
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.16.0
@@ -217,10 +223,9 @@ gopkg.in/cheggaaa/pb.v1
 gopkg.in/inf.v0
 # gopkg.in/yaml.v2 v2.2.1
 gopkg.in/yaml.v2
-# k8s.io/api v0.0.0-20181121071145-b7bd5f2d334c
+# k8s.io/api v0.0.0-20190418212532-b8e4ab4b136a
 k8s.io/api/core/v1
-# k8s.io/apimachinery v0.0.0-20181126123124-70adfbae261e
-k8s.io/apimachinery/pkg/util/wait
+# k8s.io/apimachinery v0.0.0-20190418212431-b3683fe6b520
 k8s.io/apimachinery/pkg/apis/meta/v1
 k8s.io/apimachinery/pkg/util/httpstream
 k8s.io/apimachinery/pkg/util/remotecommand
@@ -244,6 +249,7 @@ k8s.io/apimachinery/pkg/util/httpstream/spdy
 k8s.io/apimachinery/pkg/conversion/queryparams
 k8s.io/apimachinery/pkg/util/errors
 k8s.io/apimachinery/pkg/util/json
+k8s.io/apimachinery/pkg/util/naming
 k8s.io/apimachinery/third_party/forked/golang/reflect
 k8s.io/apimachinery/pkg/util/validation
 k8s.io/apimachinery/pkg/util/validation/field
@@ -259,10 +265,10 @@ k8s.io/apimachinery/pkg/apis/meta/v1beta1
 k8s.io/apimachinery/pkg/util/framer
 k8s.io/apimachinery/pkg/util/yaml
 k8s.io/apimachinery/pkg/apis/meta/v1/unstructured
-# k8s.io/apiserver v0.0.0-20181121231732-e3c8fa95bba5
+# k8s.io/apiserver v0.0.0-20190418213308-0a718f081a3a
 k8s.io/apiserver/pkg/server/httplog
 k8s.io/apiserver/pkg/util/wsstream
-# k8s.io/client-go v0.0.0-20181010045704-56e7a63b5e38
+# k8s.io/client-go v0.0.0-20190418212717-1d2e9628a1ee
 k8s.io/client-go/tools/remotecommand
 k8s.io/client-go/rest
 k8s.io/client-go/transport/spdy
@@ -279,16 +285,18 @@ k8s.io/client-go/pkg/apis/clientauthentication
 k8s.io/client-go/pkg/apis/clientauthentication/v1alpha1
 k8s.io/client-go/pkg/apis/clientauthentication/v1beta1
 k8s.io/client-go/util/connrotation
-k8s.io/client-go/util/integer
-# k8s.io/klog v0.2.0
+k8s.io/client-go/util/keyutil
+# k8s.io/klog v0.3.0
 k8s.io/klog
 # k8s.io/kubernetes v1.13.5
-k8s.io/kubernetes/pkg/kubectl/util/logs
 k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2
 k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1
 k8s.io/kubernetes/pkg/kubelet/server/streaming
 k8s.io/kubernetes/pkg/kubelet/server/portforward
 k8s.io/kubernetes/pkg/kubelet/server/remotecommand
 k8s.io/kubernetes/pkg/apis/core
-# k8s.io/utils v0.0.0-20181115163542-0d26856f57b3
+# k8s.io/utils v0.0.0-20190308190857-21c4ce38f2a7
 k8s.io/utils/exec
+k8s.io/utils/integer
+# sigs.k8s.io/yaml v1.1.0
+sigs.k8s.io/yaml

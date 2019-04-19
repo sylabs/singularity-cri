@@ -58,10 +58,9 @@ func logGRPC(debug bool) grpc.UnaryServerInterceptor {
 
 func main() {
 	var configPath string
+	klog.InitFlags(nil)
 	flag.StringVar(&configPath, "config", "/usr/local/etc/sycri/sycri.yaml", "path to config file")
 	flag.Parse()
-
-	klog.InitFlags(nil)
 	defer klog.Flush()
 
 	config, err := parseConfig(configPath)
