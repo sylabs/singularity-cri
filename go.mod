@@ -68,7 +68,7 @@ require (
 	k8s.io/apiserver v0.0.0-20181121231732-e3c8fa95bba5 // indirect
 	k8s.io/client-go v0.0.0-20181010045704-56e7a63b5e38
 	k8s.io/klog v0.2.0 // indirect
-	k8s.io/kubernetes v1.12.5
+	k8s.io/kubernetes v1.13.5
 	k8s.io/utils v0.0.0-20181115163542-0d26856f57b3 // indirect
 )
 
