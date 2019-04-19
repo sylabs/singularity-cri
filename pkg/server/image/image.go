@@ -86,7 +86,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not parse image reference: %v", err)
 	}
-	info, err := image.Pull(s.storage, ref)
+	info, err := image.Pull(s.storage, ref, req.GetAuth())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not pull image: %v", err)
 	}

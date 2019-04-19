@@ -88,7 +88,7 @@ func TestPullImage(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			image, err := Pull(os.TempDir(), tc.ref)
+			image, err := Pull(os.TempDir(), tc.ref, nil)
 			require.Equal(t, tc.expectError, err, "could not pull image")
 			if image != nil {
 				require.NoError(t, image.Remove(), "could not remove image")
@@ -465,7 +465,7 @@ func TestInfo_MarshalJSON(t *testing.T) {
 }
 
 func pullImage(t *testing.T, source *Reference) (*Info, func()) {
-	image, err := Pull(os.TempDir(), source)
+	image, err := Pull(os.TempDir(), source, nil)
 	require.NoError(t, err, "could not pull SIF")
 	return image, func() {
 		require.NoError(t, image.Remove(), "could not remove SIF")
