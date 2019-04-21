@@ -23,6 +23,7 @@ require (
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
 	github.com/hashicorp/go-multierror v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.5 // indirect
+	github.com/kr/pretty v0.1.0 // indirect
 	github.com/kr/pty v1.1.3
 	github.com/kubernetes-sigs/cri-o v1.12.3
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -42,7 +43,7 @@ require (
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/stretchr/testify v1.2.2
 	github.com/sylabs/scs-key-client v0.2.0 // indirect
-	github.com/sylabs/scs-library-client v0.0.2-0.20190418163439-2a71376f376f
+	github.com/sylabs/scs-library-client v0.1.0
 	github.com/sylabs/sif v1.0.2
 	github.com/sylabs/singularity v3.1.1-0.20190325150222-0a7be9c7a338+incompatible
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
@@ -57,6 +58,7 @@ require (
 	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
 	google.golang.org/genproto v0.0.0-20181109154231-b5d43981345b // indirect
 	google.golang.org/grpc v1.16.0
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.2.1
 	k8s.io/api v0.0.0-20181121071145-b7bd5f2d334c // indirect

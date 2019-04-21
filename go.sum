@@ -30,8 +30,8 @@ github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/ghodss/yaml v1.0.0 h1:wQHKEahhL6wmXdzwWG11gIVCkOv05bNOh+Rxn0yngAk=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
-github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8 h1:DujepqpGd1hyOd7aW59XpK7Qymp8iy83xq74fLr21is=
-github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8/go.mod h1:xkRDCp4j0OGD1HRkm4kmhM+pmpv3AKq5SU7GMg4oO/Q=
+github.com/go-log/log v0.1.0 h1:wudGTNsiGzrD5ZjgIkVZ517ugi2XRe9Q/xRCzwEO4/U=
+github.com/go-log/log v0.1.0/go.mod h1:4mBwpdRMFLiuXZDCwU2lKQFsoSCo72j3HqBK9d81N2M=
 github.com/godbus/dbus v0.0.0-20181025153459-66d97aec3384 h1:xNwo3yd3PZYRDAr/Dz0sBfDWY6El2xPCKJrwJVfMFjY=
 github.com/godbus/dbus v0.0.0-20181025153459-66d97aec3384/go.mod h1:/YcGZj5zSblfDWMMoOzV4fas9FZnQYTkDnsGvmh2Grw=
 github.com/gogo/protobuf v1.1.1 h1:72R+M5VuhED/KujmZVcIquuo8mBgX4oVda//DQb3PXo=
@@ -106,8 +106,8 @@ github.com/sylabs/json-resp v0.5.0 h1:AWdKu6aS0WrkkltX1M0ex0lENrIcx5TISox902s2L2
 github.com/sylabs/json-resp v0.5.0/go.mod h1:anCzED2SGHHZQDubMuoVtwMuJZdpqQ+7iso8yDFm/nQ=
 github.com/sylabs/scs-key-client v0.2.0 h1:9nXqgcSotyvUMJEsA4lAFrKtUB14qw3xIKoF6X0pO74=
 github.com/sylabs/scs-key-client v0.2.0/go.mod h1:nMF8PplFD5ZmDz//GHjaip7+MlQ0z4Qe0RCzaT5Xjes=
-github.com/sylabs/scs-library-client v0.0.2-0.20190418163439-2a71376f376f h1:5TEn4mauH5XGvizD7W7jCVrxU3punvofGpeIVok29Cc=
-github.com/sylabs/scs-library-client v0.0.2-0.20190418163439-2a71376f376f/go.mod h1:19zXSytnjAdvArIu5m7AlOAavMUXMvblZodtTjC08oM=
+github.com/sylabs/scs-library-client v0.1.0 h1:uSxsXGGdQwY690t4QJE2Hxqm/D8iRbYIYIF2RMpjZ1U=
+github.com/sylabs/scs-library-client v0.1.0/go.mod h1:qfp6pi2pAo0Pb1QzSdhF+Oy2ZXIsy82DozLCJ7j+qIQ=
 github.com/sylabs/sif v1.0.2 h1:yz86Avck4JUVjETWNwncvwkqJXW8GwwSOc5j7JeGA1s=
 github.com/sylabs/sif v1.0.2/go.mod h1:5FM5vX9RuQFr3sDVdQOnb7kKt9vLfRb7igH6GZMy4O4=
 github.com/sylabs/singularity v3.1.1-0.20190325150222-0a7be9c7a338+incompatible h1:P2JhrvDZy3c/dURL5/h6Bpg/WA2U9dV0f6P9xGwo2NY=

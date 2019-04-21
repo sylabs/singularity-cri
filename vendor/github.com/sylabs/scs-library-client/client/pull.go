@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/golang/glog"
 	jsonresp "github.com/sylabs/json-resp"
 )
 
@@ -32,7 +31,7 @@ func (c *Client) DownloadImage(ctx context.Context, w io.Writer, path, tag strin
 
 	url := fmt.Sprintf("/v1/imagefile/%s:%s", path, tag)
 
-	glog.V(2).Infof("Pulling from URL: %s", url)
+	c.Logger.Logf("Pulling from URL: %s", url)
 
 	req, err := c.newRequest(http.MethodGet, url, "", nil)
 	if err != nil {
@@ -57,7 +56,7 @@ func (c *Client) DownloadImage(ctx context.Context, w io.Writer, path, tag strin
 		return fmt.Errorf("unexpected http status code: %d", res.StatusCode)
 	}
 
-	glog.V(2).Infof("OK response received, beginning body download")
+	c.Logger.Logf("OK response received, beginning body download")
 
 	if callback != nil {
 		err = callback(res.ContentLength, res.Body, w)
@@ -68,7 +67,7 @@ func (c *Client) DownloadImage(ctx context.Context, w io.Writer, path, tag strin
 		return err
 	}
 
-	glog.V(2).Infof("Download complete")
+	c.Logger.Logf("Download complete")
 
 	return nil
 
