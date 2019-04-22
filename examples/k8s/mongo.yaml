@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mongo
@@ -7,6 +7,9 @@ spec:
   revisionHistoryLimit: 1
   strategy:
     type: Recreate
+  selector:
+    matchLabels:
+      name: mongo-pod
   template:
     metadata:
       labels:
