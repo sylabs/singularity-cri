@@ -341,6 +341,11 @@ func (t *containerTranslator) configureAnnotations() {
 }
 
 func (t *containerTranslator) configureUser() error {
+	// Docs https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#securitycontext-v1-core say
+	// if container's security context is empty we should fall back to pod's. However, in api.pb.go it is said
+	// that pod's security context is not applicable to containers. To eliminate further confusion it has
+	// been tested and results are the following: kubelet updates container's security context with values
+	// from pod's if necessary so that CRI should not take care of that.
 	security := t.cont.GetLinux().GetSecurityContext()
 	var userParts []string
 	if security.GetRunAsUsername() != "" {
