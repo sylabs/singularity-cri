@@ -37,9 +37,8 @@ github.com/emicklei/go-restful/log
 github.com/fsnotify/fsnotify
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
-# github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
-github.com/globalsign/mgo/bson
-github.com/globalsign/mgo/internal/json
+# github.com/go-log/log v0.1.0
+github.com/go-log/log
 # github.com/godbus/dbus v0.0.0-20181025153459-66d97aec3384
 github.com/godbus/dbus
 # github.com/gogo/protobuf v1.1.1
@@ -70,8 +69,6 @@ github.com/kr/pty
 # github.com/kubernetes-sigs/cri-o v1.12.3
 github.com/kubernetes-sigs/cri-o/pkg/seccomp
 github.com/kubernetes-sigs/cri-o/utils
-# github.com/mattn/go-runewidth v0.0.3
-github.com/mattn/go-runewidth
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742
@@ -116,12 +113,13 @@ github.com/stretchr/testify/assert
 github.com/sylabs/json-resp
 # github.com/sylabs/scs-key-client v0.2.0
 github.com/sylabs/scs-key-client/client
+# github.com/sylabs/scs-library-client v0.1.0
+github.com/sylabs/scs-library-client/client
 # github.com/sylabs/sif v1.0.2
 github.com/sylabs/sif/pkg/sif
 # github.com/sylabs/singularity v3.1.1-0.20190325150222-0a7be9c7a338+incompatible
 github.com/sylabs/singularity/pkg/util/user-agent
 github.com/sylabs/singularity/pkg/util/fs/proc
-github.com/sylabs/singularity/pkg/client/library
 github.com/sylabs/singularity/pkg/image
 github.com/sylabs/singularity/pkg/signing
 github.com/sylabs/singularity/pkg/ocibundle/sif
@@ -211,8 +209,6 @@ google.golang.org/grpc/resolver/passthrough
 google.golang.org/grpc/stats
 google.golang.org/grpc/tap
 google.golang.org/grpc/balancer/base
-# gopkg.in/cheggaaa/pb.v1 v1.0.26
-gopkg.in/cheggaaa/pb.v1
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
 # gopkg.in/yaml.v2 v2.2.1

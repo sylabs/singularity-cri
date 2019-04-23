@@ -16,6 +16,7 @@ package image
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -29,11 +30,11 @@ import (
 
 	"github.com/golang/glog"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	library "github.com/sylabs/scs-library-client/client"
 	"github.com/sylabs/sif/pkg/sif"
 	"github.com/sylabs/singularity-cri/pkg/rand"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"github.com/sylabs/singularity-cri/pkg/slice"
-	library "github.com/sylabs/singularity/pkg/client/library"
 	"github.com/sylabs/singularity/pkg/image"
 	"github.com/sylabs/singularity/pkg/signing"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -91,7 +92,7 @@ func (i *Info) UsedBy() []string {
 }
 
 // Pull pulls image referenced by ref and saves it to the passed location.
-func Pull(location string, ref *Reference) (img *Info, err error) {
+func Pull(location string, ref *Reference, auth *k8s.AuthConfig) (img *Info, err error) {
 	pullPath := filepath.Join(location, "."+rand.GenerateID(64))
 	glog.V(8).Infof("Pulling to temporary file %s", pullPath)
 	defer func() {
@@ -105,7 +106,25 @@ func Pull(location string, ref *Reference) (img *Info, err error) {
 	pullURL := strings.TrimPrefix(ref.String(), ref.URI()+"/")
 	switch ref.URI() {
 	case singularity.LibraryDomain:
-		err = library.DownloadImage(pullPath, pullURL, singularity.LibraryURL, true, "")
+		config := &library.Config{
+			BaseURL:   auth.GetServerAddress(),
+			AuthToken: auth.GetRegistryToken(),
+		}
+		client, err := library.NewClient(config)
+		if err != nil {
+			return nil, fmt.Errorf("could not create library client: %v", err)
+		}
+		w, err := os.Create(pullPath)
+		if err != nil {
+			return nil, fmt.Errorf("could not create file to pull image: %v", err)
+		}
+		parts := strings.Split(pullURL, ":")
+		// don't check index out of range since we add :latest by default when parsing ref
+		err = client.DownloadImage(context.Background(), w, parts[0], parts[1], nil)
+		_ = w.Close()
+		if err != nil {
+			return nil, fmt.Errorf("could not pull library image: %v", err)
+		}
 	case singularity.DockerDomain:
 		remote := fmt.Sprintf("%s://%s", singularity.DockerProtocol, pullURL)
 		var errMsg bytes.Buffer
