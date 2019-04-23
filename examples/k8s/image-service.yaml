@@ -1,10 +1,13 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: image-service-deployment
   namespace: default
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: image-service
   template:
     metadata:
       labels:
@@ -17,6 +20,8 @@ spec:
         image: cloud.sylabs.io/sashayakovtseva/test/image-server
         ports:
         - containerPort: 8080
+      securityContext:
+        runAsUser: 1000
 ---
 apiVersion: v1
 kind: Service
