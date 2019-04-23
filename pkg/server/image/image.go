@@ -86,7 +86,22 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not parse image reference: %v", err)
 	}
-	info, err := image.Pull(s.storage, ref, req.GetAuth())
+
+	info, err := image.LibraryInfo(ctx, ref, req.GetAuth())
+	if err == image.ErrNotFound {
+		return nil, status.Errorf(codes.NotFound, "image %s is not found", ref)
+	}
+	if info != nil {
+		_, err := s.images.Find(info.Sha256)
+		if err == nil {
+			glog.Infof("Image %s is already present with the same checksum, skipping pull", ref)
+			return &k8s.PullImageResponse{
+				ImageRef: info.ID,
+			}, nil
+		}
+	}
+
+	info, err = image.Pull(ctx, s.storage, ref, req.GetAuth())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not pull image: %v", err)
 	}
