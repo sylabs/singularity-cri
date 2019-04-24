@@ -45,8 +45,15 @@ const (
 	IDLen = 64
 )
 
-// ErrIsUsed notifies that image is currently being used by someone.
-var ErrIsUsed = fmt.Errorf("image is being used")
+var (
+	// ErrIsUsed notifies that image is currently being used by someone.
+	ErrIsUsed = fmt.Errorf("image is being used")
+	// ErrNotFound notifies that image is not found thus cannot be pulled.
+	ErrNotFound = fmt.Errorf("image is not found")
+	// ErrNotLibrary is used when user tried to get library image metadata but
+	// provided non library image reference.
+	ErrNotLibrary = fmt.Errorf("not library image")
+)
 
 // Info represents image stored on the host filesystem.
 type Info struct {
@@ -92,7 +99,7 @@ func (i *Info) UsedBy() []string {
 }
 
 // Pull pulls image referenced by ref and saves it to the passed location.
-func Pull(location string, ref *Reference, auth *k8s.AuthConfig) (img *Info, err error) {
+func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthConfig) (img *Info, err error) {
 	pullPath := filepath.Join(location, "."+rand.GenerateID(64))
 	glog.V(8).Infof("Pulling to temporary file %s", pullPath)
 	defer func() {
@@ -120,7 +127,7 @@ func Pull(location string, ref *Reference, auth *k8s.AuthConfig) (img *Info, err
 		}
 		parts := strings.Split(pullURL, ":")
 		// don't check index out of range since we add :latest by default when parsing ref
-		err = client.DownloadImage(context.Background(), w, parts[0], parts[1], nil)
+		err = client.DownloadImage(ctx, w, parts[0], parts[1], nil)
 		_ = w.Close()
 		if err != nil {
 			return nil, fmt.Errorf("could not pull library image: %v", err)
@@ -128,7 +135,7 @@ func Pull(location string, ref *Reference, auth *k8s.AuthConfig) (img *Info, err
 	case singularity.DockerDomain:
 		remote := fmt.Sprintf("%s://%s", singularity.DockerProtocol, pullURL)
 		var errMsg bytes.Buffer
-		buildCmd := exec.Command(singularity.RuntimeName, "build", "-F", pullPath, remote)
+		buildCmd := exec.CommandContext(ctx, singularity.RuntimeName, "build", "-F", pullPath, remote)
 		buildCmd.Stderr = &errMsg
 		buildCmd.Stdout = ioutil.Discard
 		err = buildCmd.Run()
@@ -183,6 +190,42 @@ func Pull(location string, ref *Reference, auth *k8s.AuthConfig) (img *Info, err
 		Path:      path,
 		Ref:       ref,
 		OciConfig: ociConfig,
+	}, nil
+}
+
+// LibraryInfo queries remote library to get info about the image.
+// If image is not found returns ErrNotFound. For references other than
+// library returns ErrNotLibrary.
+func LibraryInfo(ctx context.Context, ref *Reference, auth *k8s.AuthConfig) (*Info, error) {
+	if ref.URI() != singularity.LibraryDomain {
+		return nil, ErrNotLibrary
+	}
+
+	pullURL := strings.TrimPrefix(ref.String(), ref.URI()+"/")
+	config := &library.Config{
+		BaseURL:   auth.GetServerAddress(),
+		AuthToken: auth.GetRegistryToken(),
+	}
+	client, err := library.NewClient(config)
+	if err != nil {
+		return nil, fmt.Errorf("could not create library client: %v", err)
+	}
+	img, found, err := client.GetImage(ctx, pullURL)
+	if err != nil {
+		return nil, fmt.Errorf("could not get library image info: %v", err)
+	}
+	if !found {
+		return nil, ErrNotFound
+	}
+
+	// library API uses sha256 hash func and returns image hash in form sha256.<hash>
+	// we need to trim it before it can be used
+	id := strings.TrimPrefix(img.Hash, "sha256.")
+	return &Info{
+		ID:     id,
+		Sha256: id,
+		Size:   uint64(img.Size),
+		Ref:    ref,
 	}, nil
 }
 

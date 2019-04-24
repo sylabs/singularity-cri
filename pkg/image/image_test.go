@@ -15,6 +15,7 @@
 package image
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -88,7 +89,7 @@ func TestPullImage(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			image, err := Pull(os.TempDir(), tc.ref, nil)
+			image, err := Pull(context.Background(), os.TempDir(), tc.ref, nil)
 			require.Equal(t, tc.expectError, err, "could not pull image")
 			if image != nil {
 				require.NoError(t, image.Remove(), "could not remove image")
@@ -98,6 +99,70 @@ func TestPullImage(t *testing.T) {
 				image.Sha256 = ""
 				image.Path = ""
 			}
+			require.Equal(t, tc.expectImage, image, "image mismatch")
+		})
+	}
+}
+
+func TestLibraryInfo(t *testing.T) {
+	useragent.InitValue("singularity", "3.0.0")
+
+	tt := []struct {
+		name        string
+		ref         *Reference
+		expectImage *Info
+		expectError error
+	}{
+		{
+			name: "unknown registry",
+			ref: &Reference{
+				uri:  "foo.io",
+				tags: []string{"foo.io/cri-tools/test-image-latest"},
+			},
+			expectImage: nil,
+			expectError: ErrNotLibrary,
+		},
+		{
+			name: "docker image",
+			ref: &Reference{
+				uri:  singularity.DockerDomain,
+				tags: []string{"gcr.io/cri-tools/test-image-latest"},
+			},
+			expectImage: nil,
+			expectError: ErrNotLibrary,
+		},
+		{
+			name: "library image",
+			ref: &Reference{
+				uri:     singularity.LibraryDomain,
+				digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
+			},
+			expectImage: &Info{
+				ID:     "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
+				Sha256: "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
+				Size:   5521408,
+				Ref: &Reference{
+					uri:     singularity.LibraryDomain,
+					digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
+				},
+			},
+			expectError: nil,
+		},
+		{
+			name: "library not found",
+			ref: &Reference{
+				uri:     singularity.LibraryDomain,
+				digests: []string{"cloud.sylabs.io/sashayakovtseva/foo/bar:latest"},
+			},
+			expectImage: nil,
+			expectError: ErrNotFound,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			image, err := LibraryInfo(context.Background(), tc.ref, nil)
+			require.Equal(t, tc.expectError, err, "could not get library image info")
 			require.Equal(t, tc.expectImage, image, "image mismatch")
 		})
 	}
@@ -465,7 +530,7 @@ func TestInfo_MarshalJSON(t *testing.T) {
 }
 
 func pullImage(t *testing.T, source *Reference) (*Info, func()) {
-	image, err := Pull(os.TempDir(), source, nil)
+	image, err := Pull(context.Background(), os.TempDir(), source, nil)
 	require.NoError(t, err, "could not pull SIF")
 	return image, func() {
 		require.NoError(t, image.Remove(), "could not remove SIF")
