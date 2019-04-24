@@ -94,7 +94,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 	if info != nil {
 		_, err := s.images.Find(info.Sha256)
 		if err == nil {
-			glog.Infof("Image %s is already present with the same checksum, skipping pull", ref)
+			glog.V(2).Infof("Image %s is already present with the same checksum, skipping pull", ref)
 			return &k8s.PullImageResponse{
 				ImageRef: info.ID,
 			}, nil
