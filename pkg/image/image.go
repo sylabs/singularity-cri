@@ -50,6 +50,9 @@ var (
 	ErrIsUsed = fmt.Errorf("image is being used")
 	// ErrNotFound notifies that image is not found thus cannot be pulled.
 	ErrNotFound = fmt.Errorf("image is not found")
+	// ErrNotLibrary is used when user tried to get library image metadata but
+	// provided non library image reference.
+	ErrNotLibrary = fmt.Errorf("not library image")
 )
 
 // Info represents image stored on the host filesystem.
@@ -192,10 +195,10 @@ func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthCo
 
 // LibraryInfo queries remote library to get info about the image.
 // If image is not found returns ErrNotFound. For references other than
-// library returns nil, nil.
+// library returns ErrNotLibrary.
 func LibraryInfo(ctx context.Context, ref *Reference, auth *k8s.AuthConfig) (*Info, error) {
 	if ref.URI() != singularity.LibraryDomain {
-		return nil, nil
+		return nil, ErrNotLibrary
 	}
 
 	pullURL := strings.TrimPrefix(ref.String(), ref.URI()+"/")
