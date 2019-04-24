@@ -215,6 +215,8 @@ func LibraryInfo(ctx context.Context, ref *Reference, auth *k8s.AuthConfig) (*In
 		return nil, ErrNotFound
 	}
 
+	// library API uses sha256 hash func and returns image hash in form sha256.<hash>
+	// we need to trim it before it can be used
 	id := strings.TrimPrefix(img.Hash, "sha256.")
 	return &Info{
 		ID:     id,
