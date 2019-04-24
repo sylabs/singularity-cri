@@ -129,7 +129,7 @@ func TestLibraryInfo(t *testing.T) {
 				tags: []string{"gcr.io/cri-tools/test-image-latest"},
 			},
 			expectImage: nil,
-			expectError: nil,
+			expectError: ErrNotLibrary,
 		},
 		{
 			name: "library image",
