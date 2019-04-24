@@ -120,7 +120,7 @@ func TestLibraryInfo(t *testing.T) {
 				tags: []string{"foo.io/cri-tools/test-image-latest"},
 			},
 			expectImage: nil,
-			expectError: nil,
+			expectError: ErrNotLibrary,
 		},
 		{
 			name: "docker image",
