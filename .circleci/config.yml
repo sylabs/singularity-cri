@@ -83,7 +83,7 @@ jobs:
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             make test
       - codecov/upload:
-          file: cover.out
+          file: $GOPATH/src/github.com/sylabs/singularity-cri/cover.out
 
   validation_test:
     machine: true
