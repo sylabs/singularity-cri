@@ -146,6 +146,11 @@ func (c *Container) ExitDescription() string {
 // K8s requires us to return CamelCase here, but we will fallback to full description
 // in case of unknown container state.
 func (c *Container) StateReason() string {
+	const (
+		reasonCompleted = "Competed"
+		reasonError     = "Error"
+	)
+
 	if c.runtimeState == runtime.StateRunning {
 		// no need for any reason here
 		return ""
@@ -153,9 +158,9 @@ func (c *Container) StateReason() string {
 
 	if c.runtimeState == runtime.StateExited {
 		if c.ExitCode() == 0 {
-			return "Completed"
+			return reasonCompleted
 		}
-		return "Error"
+		return reasonError
 	}
 
 	// fallback to the description as a last resort
