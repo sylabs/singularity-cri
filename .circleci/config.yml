@@ -46,6 +46,7 @@ jobs:
           command: make
 
   unit_test:
+    working_directory: ~/go/src/github.com/sylabs/singularity-cri
     machine: true
     steps:
       - attach_workspace:
@@ -79,11 +80,9 @@ jobs:
             sudo make -C ./builddir install
       - run:
           name: Run tests
-          command: |
-            cd $GOPATH/src/github.com/sylabs/singularity-cri
-            make test
+          command: make test
       - codecov/upload:
-          file: $GOPATH/src/github.com/sylabs/singularity-cri/cover.out
+          file: cover.out
 
   validation_test:
     machine: true
