@@ -61,7 +61,7 @@ uninstall:
 
 .PHONY: test
 test:
-	$(V)GO111MODULE=off GOOS=linux go test -v -coverprofile=cover.out ./...
+	$(V)GO111MODULE=off GOOS=linux go test -v -coverprofile=cover.out -race ./...
 
 .PHONY: lint
 lint:
