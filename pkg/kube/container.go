@@ -129,7 +129,7 @@ func (c *Container) FinishedAt() int64 {
 	return *c.ociState.FinishedAt
 }
 
-// ExitCode returns container ext code.
+// ExitCode returns container exit code.
 func (c *Container) ExitCode() int32 {
 	if c.ociState.ExitCode == nil {
 		return 0
@@ -139,6 +139,26 @@ func (c *Container) ExitCode() int32 {
 
 // ExitDescription returns human readable message of why container has exited.
 func (c *Container) ExitDescription() string {
+	return c.ociState.ExitDesc
+}
+
+// StateReason returns brief string explaining why container is in its current state.
+// K8s requires us to return CamelCase here, but we will fallback to full description
+// in case of unknown container state.
+func (c *Container) StateReason() string {
+	if c.runtimeState == runtime.StateRunning {
+		// no need for any reason here
+		return ""
+	}
+
+	if c.runtimeState == runtime.StateExited {
+		if c.ExitCode() == 0 {
+			return "Completed"
+		}
+		return "Error"
+	}
+
+	// fallback to the description as a last resort
 	return c.ociState.ExitDesc
 }
 

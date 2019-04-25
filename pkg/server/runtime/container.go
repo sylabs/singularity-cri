@@ -157,7 +157,7 @@ func (s *SingularityRuntime) ContainerStatus(_ context.Context, req *k8s.Contain
 			ExitCode:    cont.ExitCode(),
 			Image:       cont.GetImage(),
 			ImageRef:    cont.ImageID(),
-			Reason:      cont.ExitDescription(),
+			Reason:      cont.StateReason(),
 			Message:     cont.ExitDescription(),
 			Labels:      cont.GetLabels(),
 			Annotations: cont.GetAnnotations(),
