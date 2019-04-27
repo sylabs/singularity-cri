@@ -30,28 +30,11 @@ func TestParseConfig(t *testing.T) {
 	defer tempConfig.Close()
 
 	_, err = tempConfig.WriteString(`
-# unix socket to serve CRI requests on
-# default: /var/run/singularity.sock
 listenSocket: /home/user/singularity.sock
-
-# directory to store all pulled images in
-# default: /var/lib/singularity
 storageDir: /var/lib/cri-images
-
-# address to serve streaming requests on (exec, attach, portforward)
-# default: 127.0.0.1:12345
 streamingURL: 127.0.0.12:8080
-
-# directory to look for CNI plugin binaries
-# default: /usr/local/libexec/singularity/cni
 cniBinDir: /opt/cni/bin
-
-# directory to look for CNI network configuration files
-# default: /usr/local/etc/singularity/network
 cniConfDir: /etc/cni/net.d
-
-# directory to store currently running pods and containers
-# default: /var/run/singularity
 baseRunDir: /var/run/cri
 `)
 

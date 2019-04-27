@@ -57,9 +57,13 @@ func logGRPC(debug bool) grpc.UnaryServerInterceptor {
 	})
 }
 
-func main() {
-	var configPath string
+var configPath string
+
+func init() {
 	flag.StringVar(&configPath, "config", "/usr/local/etc/sycri/sycri.yaml", "path to config file")
+}
+
+func main() {
 	flag.Parse()
 
 	logs.InitLogs()
