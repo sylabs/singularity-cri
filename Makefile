@@ -3,7 +3,6 @@ V := @
 
 BIN_DIR := ./bin
 SY_CRI := $(BIN_DIR)/sycri
-SY_CRI_TEST := $(BIN_DIR)/sycri.test
 FAKE_SH := $(BIN_DIR)/fakesh
 
 INSTALL_DIR := /usr/local/bin
@@ -29,7 +28,6 @@ $(SY_CRI):
 
 $(FAKE_SH):
 	@echo " $(ARCH) SHELL"
-	$(V)mkdir -p $(BIN_DIR)
 	$(V)wget -O $(FAKE_SH) https://busybox.net/downloads/binaries/1.21.1/busybox-$(ARCH) 2> /dev/null
 	$(V)chmod +x $(FAKE_SH)
 
@@ -63,16 +61,7 @@ uninstall:
 
 .PHONY: test
 test:
-	$(V)GO111MODULE=off GOOS=linux go test -v -coverpkg=./... -coverprofile=cover.out -race ./...
-
-$(SY_CRI_TEST):
-	@if [ $(SECCOMP) -eq "0" ] ; then \
-		_=$(eval BUILD_TAGS = seccomp) ; \
-	else \
-		echo " WARNING: seccomp is not found, ignoring" ; \
-	fi
-	$(V)GO111MODULE=off GOOS=linux go test -c -o $(SY_CRI_TEST) -tags "selinux $(BUILD_TAGS) testrunmain" \
-	-coverpkg=./... ./cmd/server
+	$(V)GO111MODULE=off GOOS=linux go test -v -coverprofile=cover.out -race ./...
 
 .PHONY: lint
 lint:

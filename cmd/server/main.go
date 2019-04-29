@@ -57,17 +57,9 @@ func logGRPC(debug bool) grpc.UnaryServerInterceptor {
 	})
 }
 
-var configPath string
-
-func init() {
-	// We want this in init so that this flag can be set even when running test binary
-	// compiled from TestRunMain. Otherwise we won't be able to pass this flag to the
-	// test binary b/c it won't be initialized before main() is called and we will have
-	// 'flag provided but not defined' error.
-	flag.StringVar(&configPath, "config", "/usr/local/etc/sycri/sycri.yaml", "path to config file")
-}
-
 func main() {
+	var configPath string
+	flag.StringVar(&configPath, "config", "/usr/local/etc/sycri/sycri.yaml", "path to config file")
 	flag.Parse()
 
 	logs.InitLogs()
