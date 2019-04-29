@@ -131,8 +131,8 @@ func main() {
 					return
 				}
 			}
-		case <-exitCh:
-			glog.Infof("Received %s signal, shutting down...", <-exitCh)
+		case s := <-exitCh:
+			glog.Infof("Received %s signal, shutting down...", s)
 			return
 		}
 	}
