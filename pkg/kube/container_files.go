@@ -106,16 +106,25 @@ func (c *Container) addOCIBundle() error {
 func (c *Container) cleanupFiles(silent bool) error {
 	glog.V(8).Infof("Removing bundle at %s", c.bundlePath())
 	d, err := ocibundle.FromSif("", c.bundlePath(), true)
-	if err != nil && !silent {
-		return fmt.Errorf("could not create SIF bundle driver: %v", err)
+	if err != nil {
+		if !silent {
+			return fmt.Errorf("could not create SIF bundle driver: %v", err)
+		}
+		glog.Errorf("Could not create SIF bundle driver: %v", err)
 	}
-	if err := d.Delete(); err != nil && !silent {
-		return fmt.Errorf("could not delete SIF bundle: %v", err)
+	if err := d.Delete(); err != nil {
+		if !silent {
+			return fmt.Errorf("could not delete SIF bundle: %v", err)
+		}
+		glog.Errorf("Could not delete SIF bundle: %v", err)
 	}
 	glog.V(8).Infof("Removing container base directory %s", c.baseDir)
 	err = os.RemoveAll(c.baseDir)
-	if err != nil && !silent {
-		return fmt.Errorf("could not cleanup container: %v", err)
+	if err != nil {
+		if !silent {
+			return fmt.Errorf("could not cleanup container: %v", err)
+		}
+		glog.Errorf("Could not cleanup container: %v", err)
 	}
 	if c.logPath != "" {
 		dir := filepath.Dir(c.logPath)
@@ -123,8 +132,11 @@ func (c *Container) cleanupFiles(silent bool) error {
 			// container has its own log directory
 			glog.V(8).Infof("Removing container log directory %s", dir)
 			err = os.RemoveAll(dir)
-			if err != nil && !silent {
-				return fmt.Errorf("could not remove logs: %v", err)
+			if err != nil {
+				if !silent {
+					return fmt.Errorf("could not remove logs: %v", err)
+				}
+				glog.Errorf("Could not remove logs: %v", err)
 			}
 		}
 	}

@@ -157,19 +157,28 @@ func (p *Pod) cleanupFiles(silent bool) error {
 	for _, ns := range p.namespaces {
 		glog.V(8).Infof("Removing binded namespace %s", ns.Path)
 		err := namespace.Remove(ns)
-		if err != nil && !silent {
-			return fmt.Errorf("could not remove namespace: %v", err)
+		if err != nil {
+			if !silent {
+				return fmt.Errorf("could not remove namespace: %v", err)
+			}
+			glog.Errorf("Could not remove namespace: %v", err)
 		}
 	}
 	glog.V(8).Infof("Removing pod base directory %s", p.baseDir)
 	err := os.RemoveAll(p.baseDir)
-	if err != nil && !silent {
-		return fmt.Errorf("could not cleanup pod: %v", err)
+	if err != nil {
+		if !silent {
+			return fmt.Errorf("could not cleanup pod: %v", err)
+		}
+		glog.Errorf("Could not cleanup pod: %v", err)
 	}
 	glog.V(8).Infof("Removing pod log directory %s", p.GetLogDirectory())
 	err = os.RemoveAll(p.GetLogDirectory())
-	if err != nil && !silent {
-		return fmt.Errorf("could not remove log directory: %v", err)
+	if err != nil {
+		if !silent {
+			return fmt.Errorf("could not remove log directory: %v", err)
+		}
+		glog.Errorf("Could not remove log directory: %v", err)
 	}
 	return nil
 }
