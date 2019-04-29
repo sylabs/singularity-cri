@@ -71,25 +71,36 @@ func main() {
 		return
 	}
 
-	// Initialize user agent strings
+	// initialize user agent strings
 	useragent.InitValue("singularity", "3.1.0")
 	unix.Umask(0)
 
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, unix.SIGINT, unix.SIGTERM, unix.SIGQUIT)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// the next defer calls will be executed in reverse order
+	// each defer is specified separately to prevent weird runtime behavior when
+	// defer func in not yet called but objects are already garbage collected, e.g.
+	//
+	//		waitShutdown := func() {
+	//			cancel()
+	//			criWG.Wait()
+	//			dpWG.Wait()
+	//		}
+	//		defer waitShutdown()
+	// 	caused segmentation fault on ubuntu 14.04 VM in circleCI
+	//
 	criWG := new(sync.WaitGroup)
+	defer criWG.Wait()
+
 	dpWG := new(sync.WaitGroup)
-	waitShutdown := func() {
-		cancel()
-		criWG.Wait()
-		dpWG.Wait()
-	}
+	defer dpWG.Wait()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if err := startCRI(ctx, criWG, config); err != nil {
 		glog.Errorf("Could not start Singularity CRI server: %v", err)
-		waitShutdown()
 		return
 	}
 
@@ -98,7 +109,6 @@ func main() {
 	devicePluginEnabled := err == nil
 	if err != nil && err != errGPUNotSupported {
 		glog.Errorf("Could not start Singularity device plugin: %v", err)
-		waitShutdown()
 		return
 	}
 
@@ -109,7 +119,6 @@ func main() {
 		watcher, err := fs.NewWatcher(k8sDP.DevicePluginPath)
 		if err != nil {
 			glog.Errorf("Could not create kubelet file watcher: %v", err)
-			waitShutdown()
 			return
 		}
 		defer watcher.Close()
@@ -129,14 +138,12 @@ func main() {
 				dpWG = new(sync.WaitGroup)
 				if err := startDevicePlugin(dpCtx, dpWG, config); err != nil {
 					glog.Errorf("Could not restart Singularity device plugin: %v", err)
-					waitShutdown()
 					//nolint:vet
 					return
 				}
 			}
 		case s := <-exitCh:
 			glog.Infof("Received %s signal, shutting down...", s)
-			waitShutdown()
 			return
 		}
 	}
