@@ -91,6 +91,7 @@ func main() {
 	dpWG := new(sync.WaitGroup)
 	waitShutdown := func() {
 		cancel()
+		glog.Infof("criWG = %+v, dpEG = %+v", criWG, dpWG)
 		criWG.Wait()
 		dpWG.Wait()
 	}
