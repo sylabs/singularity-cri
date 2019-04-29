@@ -146,6 +146,7 @@ jobs:
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             sudo bin/sycri.test -test.coverprofile=cover_main.out -test.run Main -v 10 -config .circleci/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
             sed -i 's/\x1b\[[0-9;]*m//g' $HOME/sycri.out
+            touch $HOME/sycri-finished
           background: true
       - run:
           name: Run validation tests
@@ -164,6 +165,10 @@ jobs:
             export SYCRI_PID=`ps -a | grep sycri.test | awk '{print $1}'`
             if [ ! -z $SYCRI_PID ]; then
               sudo kill $SYCRI_PID
+              while [ ! -f $HOME/sycri-finished ]
+              do
+                sleep 1
+              done
             fi
           when: always
       - store_artifacts:
