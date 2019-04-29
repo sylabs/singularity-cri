@@ -161,7 +161,7 @@ jobs:
       - run:
           name: Stop singularity CRI
           command: |
-            export SYCRI_PID=`ps -a | grep server.test | awk '{print $1}'`
+            export SYCRI_PID=`ps -a | grep sycri.test | awk '{print $1}'`
             if [ ! -z $SYCRI_PID ]; then
               sudo kill $SYCRI_PID
             fi
