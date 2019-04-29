@@ -168,6 +168,11 @@ jobs:
             export SYCRI_PID=`ps -a | grep sycri.test | awk '{print $1}'`
             if [ ! -z $SYCRI_PID ]; then
               sudo kill $SYCRI_PID
+              while [ ! -f $HOME/sycri-finished ]
+              do
+                echo 'waiting singaulrity-cri return'
+                sleep 2
+              done
             fi
           when: always
       - store_artifacts:
