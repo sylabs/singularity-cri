@@ -86,10 +86,10 @@ func main() {
 		criWG.Wait()
 		dpWG.Wait()
 	}
-	defer waitShutdown()
 
 	if err := startCRI(ctx, criWG, config); err != nil {
 		glog.Errorf("Could not start Singularity CRI server: %v", err)
+		waitShutdown()
 		return
 	}
 
@@ -98,6 +98,7 @@ func main() {
 	devicePluginEnabled := err == nil
 	if err != nil && err != errGPUNotSupported {
 		glog.Errorf("Could not start Singularity device plugin: %v", err)
+		waitShutdown()
 		return
 	}
 
@@ -108,6 +109,7 @@ func main() {
 		watcher, err := fs.NewWatcher(k8sDP.DevicePluginPath)
 		if err != nil {
 			glog.Errorf("Could not create kubelet file watcher: %v", err)
+			waitShutdown()
 			return
 		}
 		defer watcher.Close()
@@ -127,12 +129,14 @@ func main() {
 				dpWG = new(sync.WaitGroup)
 				if err := startDevicePlugin(dpCtx, dpWG, config); err != nil {
 					glog.Errorf("Could not restart Singularity device plugin: %v", err)
+					waitShutdown()
 					//nolint:vet
 					return
 				}
 			}
 		case s := <-exitCh:
 			glog.Infof("Received %s signal, shutting down...", s)
+			waitShutdown()
 			return
 		}
 	}
