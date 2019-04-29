@@ -167,10 +167,6 @@ jobs:
             export SYCRI_PID=`ps -a | grep sycri.test | awk '{print $1}'`
             if [ ! -z $SYCRI_PID ]; then
               sudo kill $SYCRI_PID
-#              while [ ! -f $HOME/sycri-finished ]
-#              do
-#                sleep 1
-#              done
             fi
           when: always
       - store_artifacts:
