@@ -96,8 +96,7 @@ func main() {
 	//			dpWG.Wait()
 	//		}
 	//		defer waitShutdown()
-	// 	caused segmentation fault on ubuntu 14.04 VM in circleCI
-	//
+	// caused segmentation fault on ubuntu 14.04 VM in circleCI
 	criWG := new(sync.WaitGroup)
 	defer criWG.Wait()
 
