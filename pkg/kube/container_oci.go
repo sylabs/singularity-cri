@@ -75,9 +75,13 @@ func (t *containerTranslator) configureImage() {
 }
 
 func (t *containerTranslator) configureMounts() error {
-	if err := t.g.SetLinuxRootPropagation("slave"); err != nil {
-		return fmt.Errorf("could not set root propagation: %v", err)
-	}
+	const (
+		propagationRprivate = "rprivate"
+		propagationRslave   = "rslave"
+		propagationRshared  = "rshared"
+	)
+	// default propagation set to rprivate for security reasons
+	t.g.SetLinuxRootPropagation(propagationRprivate)
 
 	if t.pod.GetDnsConfig() != nil {
 		t.g.AddMount(specs.Mount{
@@ -128,11 +132,16 @@ func (t *containerTranslator) configureMounts() error {
 		}
 		switch mount.GetPropagation() {
 		case k8s.MountPropagation_PROPAGATION_PRIVATE:
-			volume.Options = append(volume.Options, "rprivate")
+			volume.Options = append(volume.Options, propagationRprivate)
 		case k8s.MountPropagation_PROPAGATION_HOST_TO_CONTAINER:
-			volume.Options = append(volume.Options, "rslave")
+			volume.Options = append(volume.Options, propagationRslave)
+			// we can only escalate propagation
+			if t.g.Config.Linux.RootfsPropagation == propagationRprivate {
+				t.g.SetLinuxRootPropagation(propagationRslave)
+			}
 		case k8s.MountPropagation_PROPAGATION_BIDIRECTIONAL:
-			volume.Options = append(volume.Options, "rshared")
+			volume.Options = append(volume.Options, propagationRshared)
+			t.g.SetLinuxRootPropagation(propagationRshared)
 		}
 		t.g.AddMount(volume)
 	}
