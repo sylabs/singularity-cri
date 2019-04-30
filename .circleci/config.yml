@@ -21,15 +21,15 @@ jobs:
   gometalinter_check:
     <<: *defaults
     steps:
-    - attach_workspace:
-        at: /go
-    - run:
-        name: Install golangci-lint v1.15
-        working_directory: /
-        command: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.15.0
-    - run:
-        name: Check formatting
-        command: make lint
+      - attach_workspace:
+          at: /go
+      - run:
+          name: Install golangci-lint v1.15
+          working_directory: /
+          command: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.15.0
+      - run:
+          name: Check formatting
+          command: make lint
 
   build_source:
     <<: *defaults
@@ -86,6 +86,7 @@ jobs:
 
   validation_test:
     machine: true
+    working_directory: ~/go/src/github.com/sylabs/singularity-cri
     steps:
       - attach_workspace:
           at: ~/go
@@ -133,6 +134,7 @@ jobs:
             cp $GOPATH/src/github.com/sylabs/singularity-cri/.circleci/bridge.conflist /tmp/net.d/00_bridge.conflist
       - run:
           name: Install validation tests suite
+          working_directory: /tmp
           command: |
             export VERSION=v1.13.0
             wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/critest-$VERSION-linux-amd64.tar.gz
@@ -144,10 +146,11 @@ jobs:
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             sudo bin/sycri.test -test.coverprofile=cover_main.out -test.run Main -v 10 -config .circleci/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
             sed -i 's/\x1b\[[0-9;]*m//g' $HOME/sycri.out
-            cp cover_main.out ~
+            touch $HOME/sycri-finished
           background: true
       - run:
           name: Run validation tests
+          working_directory: /tmp
           command: |
             set +e
             set +o pipefail
@@ -160,22 +163,27 @@ jobs:
       - run:
           name: Stop singularity CRI
           command: |
-            export SYCRI_PID=`ps -a | grep server.test | awk '{print $1}'`
+            export SYCRI_PID=`ps -a | grep sycri.test | awk '{print $1}'`
             if [ ! -z $SYCRI_PID ]; then
               sudo kill $SYCRI_PID
+              while [ ! -f $HOME/sycri-finished ]
+              do
+                echo 'waiting singularity-cri return'
+                sleep 2
+              done
             fi
           when: always
       - store_artifacts:
-         path: ~/sycri.out
-         destination: sycri.out
+          path: ~/sycri.out
+          destination: sycri.out
       - store_artifacts:
-         path: ~/validation.out
-         destination: validation.out
+          path: ~/validation.out
+          destination: validation.out
       - store_artifacts:
-         path: /tmp/sycri-trash
-         destination: sycri-trash
+          path: /tmp/sycri-trash
+          destination: sycri-trash
       - codecov/upload:
-        file: cover_main.out
+          file: cover_main.out
 
 
 workflows:

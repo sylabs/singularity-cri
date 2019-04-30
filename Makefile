@@ -66,6 +66,7 @@ test:
 	$(V)GO111MODULE=off GOOS=linux go test -v -coverpkg=./... -coverprofile=cover.out -race ./...
 
 $(SY_CRI_TEST):
+	@echo " GO" $@
 	@if [ $(SECCOMP) -eq "0" ] ; then \
 		_=$(eval BUILD_TAGS = seccomp) ; \
 	else \

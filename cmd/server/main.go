@@ -79,22 +79,32 @@ func main() {
 		return
 	}
 
-	// Initialize user agent strings
+	// initialize user agent strings
 	useragent.InitValue("singularity", "3.1.0")
 	unix.Umask(0)
 
 	exitCh := make(chan os.Signal, 1)
 	signal.Notify(exitCh, unix.SIGINT, unix.SIGTERM, unix.SIGQUIT)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// the next defer calls will be executed in reverse order
+	// each defer is specified separately to prevent weird runtime behavior when
+	// defer func in not yet called but objects are already garbage collected, e.g.
+	//
+	//		waitShutdown := func() {
+	//			cancel()
+	//			criWG.Wait()
+	//			dpWG.Wait()
+	//		}
+	//		defer waitShutdown()
+	// caused segmentation fault on ubuntu 14.04 VM in circleCI
 	criWG := new(sync.WaitGroup)
+	defer criWG.Wait()
+
 	dpWG := new(sync.WaitGroup)
-	waitShutdown := func() {
-		cancel()
-		criWG.Wait()
-		dpWG.Wait()
-	}
-	defer waitShutdown()
+	defer dpWG.Wait()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if err := startCRI(ctx, criWG, config); err != nil {
 		glog.Errorf("Could not start Singularity CRI server: %v", err)
