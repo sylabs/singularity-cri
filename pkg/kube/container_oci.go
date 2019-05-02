@@ -25,6 +25,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/runtime-tools/generate/seccomp"
+	"github.com/sylabs/singularity-cri/pkg/singularity"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -248,10 +249,6 @@ func (t *containerTranslator) configureResources() {
 }
 
 func (t *containerTranslator) configureProcess() error {
-	const (
-		execScript = "/.singularity.d/actions/exec"
-		runScript  = "/.singularity.d/actions/run"
-	)
 
 	cmd := t.cont.GetCommand()
 	args := t.cont.GetArgs()
@@ -282,11 +279,11 @@ func (t *containerTranslator) configureProcess() error {
 			return fmt.Errorf("neither command nor arguments are provided for the container")
 		}
 	} else {
-		// if that's native SIF without any explicit command
+		// if that's native SIF we still require shell in container
 		if len(cmd) == 0 {
-			cmd = []string{runScript}
+			cmd = []string{singularity.RunScript}
 		} else {
-			cmd = append([]string{execScript}, cmd...)
+			cmd = append([]string{singularity.ExecScript}, cmd...)
 		}
 	}
 

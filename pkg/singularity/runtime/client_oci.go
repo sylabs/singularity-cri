@@ -30,10 +30,6 @@ import (
 	"github.com/sylabs/singularity/pkg/ociruntime"
 )
 
-const (
-	execScript = "/.singularity.d/actions/exec"
-)
-
 // ErrNotFound us returned when Singularity OCI engine responds with
 // corresponding error message and exit status 255
 var ErrNotFound = fmt.Errorf("no instance found for provided name")
@@ -140,9 +136,8 @@ func (c *CLIClient) Start(id string) error {
 
 // ExecSync executes a command inside a container synchronously until
 // context is done and returns the result.
-func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*ExecResponse, error) {
-	cmd := append(c.ociBaseCmd, "exec")
-	cmd = append(cmd, id, execScript)
+func (c *CLIClient) ExecSync(ctx context.Context, id string, args, envs []string) (*ExecResponse, error) {
+	cmd := append(c.ociBaseCmd, "exec", id)
 	cmd = append(cmd, args...)
 
 	var stdout bytes.Buffer
@@ -151,6 +146,7 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*E
 	runCmd := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 	runCmd.Stdout = &stdout
 	runCmd.Stderr = &stderr
+	runCmd.Env = envs
 
 	glog.V(4).Infof("Executing %v", cmd)
 	err := runCmd.Run()
@@ -177,9 +173,9 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args ...string) (*E
 // Exec executes passed command inside a container setting io streams to passed ones.
 func (c *CLIClient) Exec(ctx context.Context, id string,
 	stdin io.Reader, stdout, stderr io.WriteCloser,
-	args ...string) error {
+	args, envs []string) error {
 
-	runCmd := c.PrepareExec(ctx, id, args...)
+	runCmd := c.PrepareExec(ctx, id, args, envs)
 	runCmd.Stdout = stdout
 	runCmd.Stderr = stderr
 	runCmd.Stdin = stdin
@@ -194,13 +190,14 @@ func (c *CLIClient) Exec(ctx context.Context, id string,
 
 // PrepareExec simply prepares command to call to execute inside a
 // given container. It makes sure singularity exec script is called.
-func (c *CLIClient) PrepareExec(ctx context.Context, id string, args ...string) *exec.Cmd {
-	cmd := append(c.ociBaseCmd, "exec")
-	cmd = append(cmd, id, execScript)
+func (c *CLIClient) PrepareExec(ctx context.Context, id string, args, envs []string) *exec.Cmd {
+	cmd := append(c.ociBaseCmd, "exec", id)
 	cmd = append(cmd, args...)
 
 	glog.V(4).Infof("Prepared %v", cmd)
-	return exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	cmdCtx := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	cmdCtx.Env = envs
+	return cmdCtx
 }
 
 // Kill asks runtime to send SIGINT to container with passed id.

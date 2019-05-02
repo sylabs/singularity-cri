@@ -26,6 +26,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/image"
 	"github.com/sylabs/singularity-cri/pkg/rand"
+	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 	"github.com/sylabs/singularity/pkg/util/unix"
@@ -56,6 +57,7 @@ type Container struct {
 	runtimeState runtime.State
 	ociState     *ociruntime.State
 	logPath      string
+	execEnvs     []string
 
 	createOnce sync.Once
 	isStopped  bool
@@ -72,6 +74,11 @@ type Container struct {
 // NewContainer constructs Container instance. Container is thread safe to use.
 func NewContainer(config *k8s.ContainerConfig, pod *Pod, info *image.Info, trashDir string) *Container {
 	contID := rand.GenerateID(ContainerIDLen)
+	execEnvs := info.OciConfig.Env
+	// environments from config will override oci image values
+	for _, kv := range config.GetEnvs() {
+		execEnvs = append(execEnvs, fmt.Sprintf("%s=%s", kv.Key, kv.Value))
+	}
 	return &Container{
 		id:              contID,
 		ContainerConfig: config,
@@ -79,6 +86,7 @@ func NewContainer(config *k8s.ContainerConfig, pod *Pod, info *image.Info, trash
 		imgInfo:         info,
 		cli:             runtime.NewCLIClient(),
 		trashDir:        trashDir,
+		execEnvs:        execEnvs,
 	}
 }
 
@@ -347,7 +355,10 @@ func (c *Container) ExecSync(timeout time.Duration, cmd []string) (*k8s.ExecSync
 		defer cancel()
 	}
 
-	resp, err := c.cli.ExecSync(ctx, c.id, cmd...)
+	if c.imgInfo.OciConfig == nil {
+		cmd = append([]string{singularity.ExecScript}, cmd...)
+	}
+	resp, err := c.cli.ExecSync(ctx, c.id, cmd, c.execEnvs)
 	if err != nil {
 		return nil, fmt.Errorf("exec sync returned error: %v", err)
 	}
@@ -363,7 +374,10 @@ func (c *Container) ExecSync(timeout time.Duration, cmd []string) (*k8s.ExecSync
 func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteCloser) error {
 	ctx := context.Background()
 
-	err := c.cli.Exec(ctx, c.id, stdin, stdout, stderr, cmd...)
+	if c.imgInfo.OciConfig == nil {
+		cmd = append([]string{singularity.ExecScript}, cmd...)
+	}
+	err := c.cli.Exec(ctx, c.id, stdin, stdout, stderr, cmd, c.execEnvs)
 	if err != nil {
 		return fmt.Errorf("exec returned error: %v", err)
 	}
@@ -375,7 +389,10 @@ func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteC
 // later to run a command inside an allocated tty.
 func (c *Container) PrepareExec(cmd []string) *exec.Cmd {
 	ctx := context.Background()
-	return c.cli.PrepareExec(ctx, c.id, cmd...)
+	if c.imgInfo.OciConfig == nil {
+		cmd = append([]string{singularity.ExecScript}, cmd...)
+	}
+	return c.cli.PrepareExec(ctx, c.id, cmd, c.execEnvs)
 }
 
 // ReopenLogFile reopens container log file.
