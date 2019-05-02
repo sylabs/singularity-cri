@@ -252,6 +252,11 @@ func (t *containerTranslator) configureProcess() error {
 		execScript = "/.singularity.d/actions/exec"
 		runScript  = "/.singularity.d/actions/run"
 	)
+
+	cmd := t.cont.GetCommand()
+	args := t.cont.GetArgs()
+	cwd := t.cont.GetWorkingDir()
+
 	if t.cont.imgInfo.OciConfig != nil {
 		// add image envs first and allow container config to override them
 		// assuming VARNAME=VARVALUE format
@@ -259,24 +264,38 @@ func (t *containerTranslator) configureProcess() error {
 			parts := strings.Split(env, "=")
 			t.g.AddProcessEnv(parts[0], parts[1])
 		}
+
+		// fill cmd and args if they are not provided
+		// see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#container-v1-core
+		if len(cmd) == 0 {
+			cmd = t.cont.imgInfo.OciConfig.Entrypoint
+		}
+		if len(args) == 0 {
+			args = t.cont.imgInfo.OciConfig.Cmd
+		}
+		// if no working directory is set fallback to image config
+		if cwd == "" {
+			cwd = t.cont.imgInfo.OciConfig.WorkingDir
+		}
+
+		if len(cmd) == 0 && len(args) == 0 {
+			return fmt.Errorf("neither command nor arguments are provided for the container")
+		}
+	} else {
+		// if that's native SIF without any explicit command
+		if len(cmd) == 0 {
+			cmd = []string{runScript}
+		} else {
+			cmd = append([]string{execScript}, cmd...)
+		}
 	}
+
 	for _, env := range t.cont.GetEnvs() {
 		t.g.AddProcessEnv(env.GetKey(), env.GetValue())
 	}
-	cwd := t.cont.GetWorkingDir()
-	if cwd == "" && t.cont.imgInfo.OciConfig != nil {
-		// if no working directory is set fallback to image config
-		cwd = t.cont.imgInfo.OciConfig.WorkingDir
-	}
 	t.g.SetProcessCwd(cwd)
 	t.g.SetProcessTerminal(t.cont.GetTty())
-
-	args := append(t.cont.GetCommand(), t.cont.GetArgs()...)
-	if len(t.cont.GetCommand()) > 0 {
-		t.g.SetProcessArgs(append([]string{execScript}, args...))
-	} else {
-		t.g.SetProcessArgs(append([]string{runScript}, args...))
-	}
+	t.g.SetProcessArgs(append(cmd, args...))
 
 	security := t.cont.GetLinux().GetSecurityContext()
 	t.g.SetProcessNoNewPrivileges(security.GetNoNewPrivs())
