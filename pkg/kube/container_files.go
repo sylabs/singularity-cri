@@ -23,7 +23,6 @@ import (
 
 	"github.com/golang/glog"
 	ocibundle "github.com/sylabs/singularity/pkg/ocibundle/sif"
-	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
 const (
@@ -31,8 +30,6 @@ const (
 	contBundlePath    = "bundle/"
 	contRootfsPath    = "rootfs/"
 	contOCIConfigPath = "config.json"
-
-	fakeShPath = "/usr/local/bin/sycri-bin/fakesh"
 )
 
 // ociConfigPath returns path to container's config.json file.
@@ -81,9 +78,6 @@ func (c *Container) addOCIBundle() error {
 	}
 	if err := d.Create(nil); err != nil {
 		return fmt.Errorf("could not create SIF bundle: %v", err)
-	}
-	if err := c.ensureSh(); err != nil {
-		return err
 	}
 
 	glog.V(8).Infof("Generating OCI config for container %s", c.ID())
@@ -191,21 +185,5 @@ func (c *Container) collectTrash() error {
 		}
 	}
 
-	return nil
-}
-
-func (c *Container) ensureSh() error {
-	_, err := os.Lstat(filepath.Join(c.rootfsPath(), "bin", "sh"))
-	if os.IsNotExist(err) {
-		glog.V(8).Infof("Mounting fake sh into container %s", c.ID())
-		c.Mounts = append(c.Mounts, &k8s.Mount{
-			ContainerPath: "/bin/sh",
-			HostPath:      fakeShPath,
-		})
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("could not check contaiener shell")
-	}
 	return nil
 }

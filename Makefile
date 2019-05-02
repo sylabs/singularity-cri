@@ -4,11 +4,9 @@ V := @
 BIN_DIR := ./bin
 SY_CRI := $(BIN_DIR)/sycri
 SY_CRI_TEST := $(BIN_DIR)/sycri.test
-FAKE_SH := $(BIN_DIR)/fakesh
 
 INSTALL_DIR := /usr/local/bin
 SY_CRI_INSTALL := $(INSTALL_DIR)/sycri
-FAKE_SH_INSTALL := $(INSTALL_DIR)/sycri-bin/fakesh
 
 CRI_CONFIG := ./config/sycri.yaml
 CRI_CONFIG_INSTALL := /usr/local/etc/sycri/sycri.yaml
@@ -27,13 +25,7 @@ $(SY_CRI):
 	fi
 	$(V)GO111MODULE=off GOOS=linux go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
-$(FAKE_SH):
-	@echo " $(ARCH) SHELL"
-	$(V)mkdir -p $(BIN_DIR)
-	$(V)wget -O $(FAKE_SH) https://busybox.net/downloads/binaries/1.21.1/busybox-$(ARCH) 2> /dev/null
-	$(V)chmod +x $(FAKE_SH)
-
-install: $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL) $(CRI_CONFIG_INSTALL)
+install: $(SY_CRI_INSTALL) $(CRI_CONFIG_INSTALL)
 
 $(SY_CRI_INSTALL):
 	@echo " INSTALL" $@
@@ -44,11 +36,6 @@ $(CRI_CONFIG_INSTALL):
 	@echo " INSTALL" $@
 	$(V)install -d $(@D)
 	$(V)install -m 0644 $(CRI_CONFIG) $(CRI_CONFIG_INSTALL)
-
-$(FAKE_SH_INSTALL):
-	@echo " INSTALL" $@
-	$(V)install -d $(@D)
-	$(V)install -m 0755 $(FAKE_SH) $(FAKE_SH_INSTALL)
 
 .PHONY: clean
 clean:
