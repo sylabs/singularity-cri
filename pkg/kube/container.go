@@ -74,7 +74,10 @@ type Container struct {
 // NewContainer constructs Container instance. Container is thread safe to use.
 func NewContainer(config *k8s.ContainerConfig, pod *Pod, info *image.Info, trashDir string) *Container {
 	contID := rand.GenerateID(ContainerIDLen)
-	execEnvs := info.OciConfig.Env
+	var execEnvs []string
+	if info.OciConfig != nil {
+		execEnvs = info.OciConfig.Env
+	}
 	// environments from config will override oci image values
 	for _, kv := range config.GetEnvs() {
 		execEnvs = append(execEnvs, fmt.Sprintf("%s=%s", kv.Key, kv.Value))
