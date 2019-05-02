@@ -124,8 +124,6 @@ jobs:
           name: Install fakesh and test binary
           command: |
             cd $GOPATH/src/github.com/sylabs/singularity-cri
-            make bin/fakesh
-            sudo make /usr/local/bin/sycri-bin/fakesh
             make bin/sycri.test
       - run:
           name: Write CNI config for CRI
@@ -168,7 +166,7 @@ jobs:
               sudo kill $SYCRI_PID
               while [ ! -f $HOME/sycri-finished ]
               do
-                echo 'waiting singularity-cri return'
+                echo 'waiting singaulrity-cri return'
                 sleep 2
               done
             fi
