@@ -249,7 +249,6 @@ func (t *containerTranslator) configureResources() {
 }
 
 func (t *containerTranslator) configureProcess() error {
-
 	cmd := t.cont.GetCommand()
 	args := t.cont.GetArgs()
 	cwd := t.cont.GetWorkingDir()
@@ -267,16 +266,18 @@ func (t *containerTranslator) configureProcess() error {
 		if len(cmd) == 0 {
 			cmd = t.cont.imgInfo.OciConfig.Entrypoint
 		}
-		if len(args) == 0 {
+		// on the other hand, when overriding entrypoint, cmd from images should not be used
+		// see p.4 https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact
+		if len(t.cont.GetCommand()) == 0 && len(args) == 0 {
 			args = t.cont.imgInfo.OciConfig.Cmd
 		}
+		if len(cmd) == 0 && len(args) == 0 {
+			return fmt.Errorf("neither command nor arguments are provided for the container")
+		}
+
 		// if no working directory is set fallback to image config
 		if cwd == "" {
 			cwd = t.cont.imgInfo.OciConfig.WorkingDir
-		}
-
-		if len(cmd) == 0 && len(args) == 0 {
-			return fmt.Errorf("neither command nor arguments are provided for the container")
 		}
 	} else {
 		// if that's native SIF we still require shell in container
