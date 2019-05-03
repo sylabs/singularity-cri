@@ -253,10 +253,13 @@ func (t *containerTranslator) configureProcess() error {
 	args := t.cont.GetArgs()
 	cwd := t.cont.GetWorkingDir()
 
-	if t.cont.imgInfo.OciConfig != nil {
+	if t.cont.imgInfo.Ref.URI() == singularity.DockerDomain && t.cont.imgInfo.OciConfig != nil {
+		// if that is a freshly built SIF from OCI image
+		// use embedded config as much as possible
+
 		// add image envs first and allow container config to override them
-		// assuming VARNAME=VARVALUE format
 		for _, env := range t.cont.imgInfo.OciConfig.Env {
+			// assuming VARNAME=VARVALUE format
 			parts := strings.Split(env, "=")
 			t.g.AddProcessEnv(parts[0], parts[1])
 		}
@@ -280,7 +283,9 @@ func (t *containerTranslator) configureProcess() error {
 			cwd = t.cont.imgInfo.OciConfig.WorkingDir
 		}
 	} else {
-		// if that's native SIF we still require shell in container
+		// if that's native SIF (even if bootstrapped from Docker) – require shell in container
+		// scripts will set all possible environments (both OCI and SIF defined)
+		// working directory is not set intentionally
 		if len(cmd) == 0 {
 			cmd = []string{singularity.RunScript}
 		} else {
