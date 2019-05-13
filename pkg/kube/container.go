@@ -358,7 +358,7 @@ func (c *Container) ExecSync(timeout time.Duration, cmd []string) (*k8s.ExecSync
 		defer cancel()
 	}
 
-	if c.imgInfo.OciConfig == nil {
+	if c.imgInfo.Ref.URI() != singularity.DockerDomain || c.imgInfo.OciConfig == nil {
 		cmd = append([]string{singularity.ExecScript}, cmd...)
 	}
 	resp, err := c.cli.ExecSync(ctx, c.id, cmd, c.execEnvs)
@@ -377,7 +377,7 @@ func (c *Container) ExecSync(timeout time.Duration, cmd []string) (*k8s.ExecSync
 func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteCloser) error {
 	ctx := context.Background()
 
-	if c.imgInfo.OciConfig == nil {
+	if c.imgInfo.Ref.URI() != singularity.DockerDomain || c.imgInfo.OciConfig == nil {
 		cmd = append([]string{singularity.ExecScript}, cmd...)
 	}
 	err := c.cli.Exec(ctx, c.id, stdin, stdout, stderr, cmd, c.execEnvs)
@@ -392,7 +392,7 @@ func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteC
 // later to run a command inside an allocated tty.
 func (c *Container) PrepareExec(cmd []string) *exec.Cmd {
 	ctx := context.Background()
-	if c.imgInfo.OciConfig == nil {
+	if c.imgInfo.Ref.URI() != singularity.DockerDomain || c.imgInfo.OciConfig == nil {
 		cmd = append([]string{singularity.ExecScript}, cmd...)
 	}
 	return c.cli.PrepareExec(ctx, c.id, cmd, c.execEnvs)
