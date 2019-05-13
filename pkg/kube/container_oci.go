@@ -25,6 +25,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/runtime-tools/generate"
 	"github.com/opencontainers/runtime-tools/generate/seccomp"
+	"github.com/sylabs/singularity-cri/pkg/singularity"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
@@ -248,35 +249,56 @@ func (t *containerTranslator) configureResources() {
 }
 
 func (t *containerTranslator) configureProcess() error {
-	const (
-		execScript = "/.singularity.d/actions/exec"
-		runScript  = "/.singularity.d/actions/run"
-	)
-	if t.cont.imgInfo.OciConfig != nil {
+	cmd := t.cont.GetCommand()
+	args := t.cont.GetArgs()
+	cwd := t.cont.GetWorkingDir()
+
+	if t.cont.imgInfo.Ref.URI() == singularity.DockerDomain && t.cont.imgInfo.OciConfig != nil {
+		// if that is a freshly built SIF from OCI image
+		// use embedded config as much as possible
+
 		// add image envs first and allow container config to override them
-		// assuming VARNAME=VARVALUE format
 		for _, env := range t.cont.imgInfo.OciConfig.Env {
+			// assuming VARNAME=VARVALUE format
 			parts := strings.Split(env, "=")
 			t.g.AddProcessEnv(parts[0], parts[1])
 		}
+
+		// fill cmd and args if they are not provided
+		// see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#container-v1-core
+		if len(cmd) == 0 {
+			cmd = t.cont.imgInfo.OciConfig.Entrypoint
+		}
+		// on the other hand, when overriding entrypoint, cmd from images should not be used
+		// see p.4 https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact
+		if len(t.cont.GetCommand()) == 0 && len(args) == 0 {
+			args = t.cont.imgInfo.OciConfig.Cmd
+		}
+		if len(cmd) == 0 && len(args) == 0 {
+			return fmt.Errorf("neither command nor arguments are provided for the container")
+		}
+
+		// if no working directory is set fallback to image config
+		if cwd == "" {
+			cwd = t.cont.imgInfo.OciConfig.WorkingDir
+		}
+	} else {
+		// if that's native SIF (even if bootstrapped from Docker) – require shell in container
+		// scripts will set all possible environments (both OCI and SIF defined)
+		// working directory is not set intentionally
+		if len(cmd) == 0 {
+			cmd = []string{singularity.RunScript}
+		} else {
+			cmd = append([]string{singularity.ExecScript}, cmd...)
+		}
 	}
+
 	for _, env := range t.cont.GetEnvs() {
 		t.g.AddProcessEnv(env.GetKey(), env.GetValue())
 	}
-	cwd := t.cont.GetWorkingDir()
-	if cwd == "" && t.cont.imgInfo.OciConfig != nil {
-		// if no working directory is set fallback to image config
-		cwd = t.cont.imgInfo.OciConfig.WorkingDir
-	}
 	t.g.SetProcessCwd(cwd)
 	t.g.SetProcessTerminal(t.cont.GetTty())
-
-	args := append(t.cont.GetCommand(), t.cont.GetArgs()...)
-	if len(t.cont.GetCommand()) > 0 {
-		t.g.SetProcessArgs(append([]string{execScript}, args...))
-	} else {
-		t.g.SetProcessArgs(append([]string{runScript}, args...))
-	}
+	t.g.SetProcessArgs(append(cmd, args...))
 
 	security := t.cont.GetLinux().GetSecurityContext()
 	t.g.SetProcessNoNewPrivileges(security.GetNoNewPrivs())

@@ -18,15 +18,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/sylabs/singularity-cri/pkg/image"
 	"github.com/sylabs/singularity-cri/pkg/kube"
 )
 
 func TestContainerIndex(t *testing.T) {
 	indx := NewContainerIndex()
 
-	busybox := kube.NewContainer(nil, nil, nil, "")
-	nginx := kube.NewContainer(nil, nil, nil, "")
-	alpine := kube.NewContainer(nil, nil, nil, "")
+	busybox := kube.NewContainer(nil, nil, &image.Info{}, "")
+	nginx := kube.NewContainer(nil, nil, &image.Info{}, "")
+	alpine := kube.NewContainer(nil, nil, &image.Info{}, "")
 
 	t.Run("empty index", func(t *testing.T) {
 		found, err := indx.Find(busybox.ID())

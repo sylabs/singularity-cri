@@ -18,12 +18,6 @@ const (
 	// RuntimeName is the official name of Singularity runtime.
 	RuntimeName = "singularity"
 
-	// StarterName is the name of executable that is responsible for pod and container start.
-	StarterName = "starter"
-
-	// LibraryURL is a default singularity library server address.
-	LibraryURL = "https://library.sylabs.io"
-
 	// LibraryDomain holds the sylabs cloud library primary domain.
 	// For more info refer to https://cloud.sylabs.io/library.
 	LibraryDomain = "cloud.sylabs.io"
@@ -36,4 +30,12 @@ const (
 
 	// KeysServer is a default singularity key management and verification server.
 	KeysServer = "https://keys.sylabs.io"
+
+	// ExecScript is a path to a shell script that should wrap any command to execute
+	// inside a container based on a native SIF image.
+	ExecScript = "/.singularity.d/actions/exec"
+
+	// RunScript is a path to a shell script that should be used as a default container
+	// entrypoint based on a native SIF image.
+	RunScript = "/.singularity.d/actions/run"
 )
