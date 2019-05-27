@@ -21,7 +21,7 @@ github.com/containernetworking/plugins/pkg/utils/hwaddr
 github.com/containers/storage/pkg/stringutils
 # github.com/coreos/go-iptables v0.4.0
 github.com/coreos/go-iptables/iptables
-# github.com/coreos/go-systemd v0.0.0-20181031085051-9002847aa142
+# github.com/coreos/go-systemd v0.0.0-20180511133405-39ca1b05acc7
 github.com/coreos/go-systemd/dbus
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
@@ -39,9 +39,9 @@ github.com/fsnotify/fsnotify
 github.com/ghodss/yaml
 # github.com/go-log/log v0.1.0
 github.com/go-log/log
-# github.com/godbus/dbus v0.0.0-20181025153459-66d97aec3384
+# github.com/godbus/dbus v4.1.0+incompatible
 github.com/godbus/dbus
-# github.com/gogo/protobuf v1.1.1
+# github.com/gogo/protobuf v1.2.0
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
@@ -111,13 +111,13 @@ github.com/stretchr/testify/require
 github.com/stretchr/testify/assert
 # github.com/sylabs/json-resp v0.5.0
 github.com/sylabs/json-resp
-# github.com/sylabs/scs-key-client v0.2.0
+# github.com/sylabs/scs-key-client v0.3.0-0.20190509220229-bce3b050c4ec
 github.com/sylabs/scs-key-client/client
 # github.com/sylabs/scs-library-client v0.1.0
 github.com/sylabs/scs-library-client/client
-# github.com/sylabs/sif v1.0.2
+# github.com/sylabs/sif v1.0.3
 github.com/sylabs/sif/pkg/sif
-# github.com/sylabs/singularity v3.1.1-0.20190325150222-0a7be9c7a338+incompatible
+# github.com/sylabs/singularity v0.0.0-20190527133303-3b81f6571f4e
 github.com/sylabs/singularity/pkg/util/user-agent
 github.com/sylabs/singularity/pkg/util/fs/proc
 github.com/sylabs/singularity/pkg/image
@@ -134,6 +134,7 @@ github.com/sylabs/singularity/pkg/sypgp
 github.com/sylabs/singularity/pkg/ocibundle
 github.com/sylabs/singularity/pkg/ocibundle/tools
 github.com/sylabs/singularity/internal/pkg/util/env
+github.com/sylabs/singularity/pkg/syfs
 github.com/sylabs/singularity/pkg/util/loop
 github.com/sylabs/singularity/pkg/util/fs/lock
 # github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
@@ -151,7 +152,7 @@ github.com/xeipuuv/gojsonpointer
 github.com/xeipuuv/gojsonreference
 # github.com/xeipuuv/gojsonschema v0.0.0-20180816142147-da425ebb7609
 github.com/xeipuuv/gojsonschema
-# golang.org/x/crypto v0.0.0-20180904163835-0709b304e793 => github.com/sylabs/golang-x-crypto v0.0.0-20181006204705-4bce89e8e9a9
+# golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2 => github.com/sylabs/golang-x-crypto v0.0.0-20181006204705-4bce89e8e9a9
 golang.org/x/crypto/openpgp
 golang.org/x/crypto/openpgp/clearsign
 golang.org/x/crypto/openpgp/armor
@@ -161,9 +162,9 @@ golang.org/x/crypto/openpgp/errors
 golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/cast5
 golang.org/x/crypto/openpgp/elgamal
-# golang.org/x/net v0.0.0-20181114220301-adae6a3d119a
-golang.org/x/net/context
+# golang.org/x/net v0.0.0-20190311183353-d8887717615a
 golang.org/x/net/trace
+golang.org/x/net/context
 golang.org/x/net/internal/timeseries
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
@@ -178,11 +179,11 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 golang.org/x/text/transform
-# golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
+# golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 golang.org/x/time/rate
 # google.golang.org/genproto v0.0.0-20181109154231-b5d43981345b
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.16.0
+# google.golang.org/grpc v1.20.0
 google.golang.org/grpc
 google.golang.org/grpc/codes
 google.golang.org/grpc/status
@@ -195,9 +196,12 @@ google.golang.org/grpc/encoding/proto
 google.golang.org/grpc/grpclog
 google.golang.org/grpc/internal
 google.golang.org/grpc/internal/backoff
+google.golang.org/grpc/internal/balancerload
+google.golang.org/grpc/internal/binarylog
 google.golang.org/grpc/internal/channelz
 google.golang.org/grpc/internal/envconfig
 google.golang.org/grpc/internal/grpcrand
+google.golang.org/grpc/internal/grpcsync
 google.golang.org/grpc/internal/transport
 google.golang.org/grpc/keepalive
 google.golang.org/grpc/metadata
@@ -209,9 +213,12 @@ google.golang.org/grpc/resolver/passthrough
 google.golang.org/grpc/stats
 google.golang.org/grpc/tap
 google.golang.org/grpc/balancer/base
+google.golang.org/grpc/credentials/internal
+google.golang.org/grpc/binarylog/grpc_binarylog_v1
+google.golang.org/grpc/internal/syscall
 # gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
-# gopkg.in/yaml.v2 v2.2.1
+# gopkg.in/yaml.v2 v2.2.2
 gopkg.in/yaml.v2
 # k8s.io/api v0.0.0-20181121071145-b7bd5f2d334c
 k8s.io/api/core/v1

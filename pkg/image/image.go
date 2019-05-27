@@ -257,7 +257,7 @@ func (i *Info) Verify() error {
 	}
 	defer fimg.UnloadContainer()
 
-	err = signing.Verify(i.Path, singularity.KeysServer, 0, false, "", true)
+	_, err = signing.Verify(i.Path, singularity.KeysServer, 0, false, "", false, true)
 
 	noSignatures := err != nil && strings.Contains(err.Error(), "no signatures found")
 	if noSignatures {
