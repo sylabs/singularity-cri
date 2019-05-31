@@ -55,6 +55,12 @@ func (t *podTranslator) translate() (*specs.Spec, error) {
 		Source:      "proc",
 		Type:        "proc",
 	})
+	t.g.AddMount(specs.Mount{
+		Destination: "/dev",
+		Type:        "tmpfs",
+		Source:      "tmpfs",
+		Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+	})
 	t.g.SetProcessCwd("/")
 	t.g.SetProcessArgs([]string{"true"})
 
