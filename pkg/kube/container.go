@@ -158,7 +158,7 @@ func (c *Container) ExitDescription() string {
 // in case of unknown container state.
 func (c *Container) StateReason() string {
 	const (
-		reasonCompleted = "Competed"
+		reasonCompleted = "Completed"
 		reasonError     = "Error"
 	)
 
