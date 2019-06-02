@@ -8,11 +8,14 @@ data:
       "serverUrl": "http://localhost:8080"
     }
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: darkflow
 spec:
+  selector:
+    matchLabels:
+      name: darkflow
   template:
     metadata:
       labels:
@@ -41,11 +44,14 @@ spec:
             type: DirectoryOrCreate
             path: /var/run/darkflow/input
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: darkflow-front
 spec:
+  selector:
+    matchLabels:
+      name: darkflow-front
   template:
     metadata:
       labels:
@@ -72,11 +78,14 @@ spec:
             type: DirectoryOrCreate
             path: /var/run/darkflow/input
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: darkflow-web
 spec:
+  selector:
+    matchLabels:
+      name: darkflow-web
   template:
     metadata:
       labels:
@@ -131,8 +140,8 @@ metadata:
   labels:
     name: darkflow-web
 spec:
+  type: NodePort
   ports:
     - port: 80
   selector:
     name: darkflow-web
-  type: NodePort
