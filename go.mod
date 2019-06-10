@@ -1,6 +1,6 @@
 module github.com/sylabs/singularity-cri
 
-go 1.12
+go 1.11
 
 require (
 	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20190227022151-81c885550fa1

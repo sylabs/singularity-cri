@@ -121,7 +121,7 @@ jobs:
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
       - run:
-          name: Install fakesh and test binary
+          name: Make test binary
           command: |
             cd $GOPATH/src/github.com/sylabs/singularity-cri
             make bin/sycri.test
