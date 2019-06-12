@@ -14,7 +14,7 @@ CRI_CONFIG_INSTALL := /usr/local/etc/sycri/sycri.yaml
 SECCOMP := "$(shell printf "\#include <seccomp.h>\nint main() { seccomp_syscall_resolve_name(\"read\"); }" | gcc -x c -o /dev/null - -lseccomp >/dev/null 2>&1; echo $$?)"
 ARCH := `arch`
 
-all: $(SY_CRI) $(FAKE_SH)
+all: $(SY_CRI)
 
 $(SY_CRI):
 	@echo " GO" $@
@@ -46,7 +46,7 @@ clean:
 .PHONY: uninstall
 uninstall:
 	@echo " UNINSTALL"
-	$(V)rm -rf $(SY_CRI_INSTALL) $(FAKE_SH_INSTALL) $(CRI_CONFIG_INSTALL)
+	$(V)rm -rf $(SY_CRI_INSTALL) $(CRI_CONFIG_INSTALL)
 
 .PHONY: test
 test:
