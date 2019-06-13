@@ -18,15 +18,15 @@ jobs:
           paths:
             - src/github.com/sylabs/singularity-cri
 
-  gometalinter_check:
+  linter_check:
     <<: *defaults
     steps:
       - attach_workspace:
           at: /go
       - run:
-          name: Install golangci-lint v1.15
+          name: Install golangci-lint v1.17.1
           working_directory: /
-          command: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.15.0
+          command: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.17.1
       - run:
           name: Check formatting
           command: make lint
@@ -189,7 +189,7 @@ workflows:
   build_and_test:
     jobs:
       - get_source
-      - gometalinter_check:
+      - linter_check:
           requires:
             - get_source
       - unit_test:
