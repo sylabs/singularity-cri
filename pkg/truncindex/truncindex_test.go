@@ -110,7 +110,7 @@ func assertIndexIterate(t *testing.T) {
 	})
 }
 
-func assertIndexIterateDoNotPanic(t *testing.T) {
+func assertIndexIterateDoNotPanic(_ *testing.T) {
 	ids := []string{
 		"19b36c2c326ccc11e726eee6ee78a0baf166ef96",
 		"28b36c2c326ccc11e726eee6ee78a0baf166ef96",

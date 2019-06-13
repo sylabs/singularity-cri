@@ -374,7 +374,7 @@ func (c *Container) ExecSync(timeout time.Duration, cmd []string) (*k8s.ExecSync
 }
 
 // Exec executes a command inside a container with attaching passed io streams to it.
-func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.WriteCloser) error {
+func (c *Container) Exec(cmd []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	ctx := context.Background()
 
 	if c.imgInfo.Ref.URI() != singularity.DockerDomain || c.imgInfo.OciConfig == nil {

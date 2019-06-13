@@ -75,8 +75,8 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 				case size := <-resize:
 					glog.V(8).Infof("Got resize event for %s: %+v", containerID, size)
 					s := &pty.Winsize{
-						Cols: uint16(size.Width),
-						Rows: uint16(size.Height),
+						Cols: size.Width,
+						Rows: size.Height,
 					}
 					if err := pty.Setsize(master, s); err != nil {
 						glog.Errorf("Could not resize terminal: %v", err)

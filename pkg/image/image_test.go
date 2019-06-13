@@ -539,11 +539,10 @@ func pullImage(t *testing.T, source *Reference) (*Info, func()) {
 
 func TestInfo_Verify(t *testing.T) {
 	tt := []struct {
-		name         string
-		imgRef       *Reference
-		image        *Info
-		expectConfig *specs.ImageConfig
-		expectError  error
+		name        string
+		imgRef      *Reference
+		image       *Info
+		expectError error
 	}{
 		{
 			name: "docker image",

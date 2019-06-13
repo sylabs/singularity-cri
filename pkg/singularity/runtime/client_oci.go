@@ -172,7 +172,7 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args, envs []string
 
 // Exec executes passed command inside a container setting io streams to passed ones.
 func (c *CLIClient) Exec(ctx context.Context, id string,
-	stdin io.Reader, stdout, stderr io.WriteCloser,
+	stdin io.Reader, stdout, stderr io.Writer,
 	args, envs []string) error {
 
 	runCmd := c.PrepareExec(ctx, id, args, envs)
