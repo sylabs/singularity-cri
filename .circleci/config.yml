@@ -4,7 +4,7 @@ orbs:
   codecov: codecov/codecov@1.0.4
 
 defaults: &defaults
-  working_directory: /go/src/github.com/sylabs/singularity-cri
+  working_directory: ~/singularity-cri
   docker:
     - image: golang:1.12-stretch
 
@@ -14,15 +14,15 @@ jobs:
     steps:
       - checkout
       - persist_to_workspace:
-          root: /go
+          root: ~/
           paths:
-            - src/github.com/sylabs/singularity-cri
+            - singularity-cri
 
   build_source:
     <<: *defaults
     steps:
       - attach_workspace:
-          at: /go
+          at: ~/
       - run:
           name: Install libseccomp
           command: |
@@ -33,11 +33,11 @@ jobs:
           command: make
 
   unit_test:
-    working_directory: ~/go/src/github.com/sylabs/singularity-cri
     machine: true
+    working_directory: ~/singularity-cri
     steps:
       - attach_workspace:
-          at: ~/go
+          at: ~/
       - run:
           name: Setup environment
           command: |
@@ -59,9 +59,10 @@ jobs:
             sudo apt-get install -y build-essential libssl-dev uuid-dev squashfs-tools libseccomp-dev libgpgme11-dev
       - run:
           name: Install singularity
+          working_directory: ~
           command: |
-            git clone https://github.com/sylabs/singularity.git $GOPATH/src/github.com/sylabs/singularity
-            cd $GOPATH/src/github.com/sylabs/singularity
+            git clone https://github.com/sylabs/singularity.git
+            cd singularity
             ./mconfig -p /usr/local
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
@@ -73,10 +74,10 @@ jobs:
 
   validation_test:
     machine: true
-    working_directory: ~/go/src/github.com/sylabs/singularity-cri
+    working_directory: ~/singularity-cri
     steps:
       - attach_workspace:
-          at: ~/go
+          at: ~/
       - run:
           name: Setup environment
           command: |
@@ -101,22 +102,21 @@ jobs:
             sudo apt-get install -y apparmor-profiles apparmor-utils socat
       - run:
           name: Install singularity
+          working_directory: ~
           command: |
-            git clone https://github.com/sylabs/singularity.git $GOPATH/src/github.com/sylabs/singularity
-            cd $GOPATH/src/github.com/sylabs/singularity
+            git clone https://github.com/sylabs/singularity.git
+            cd singularity
             ./mconfig -p /usr/local
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
       - run:
-          name: Install fakesh and test binary
-          command: |
-            cd $GOPATH/src/github.com/sylabs/singularity-cri
-            make bin/sycri.test
+          name: Make test binary
+          command: make bin/sycri.test
       - run:
           name: Write CNI config for CRI
           command: |
             mkdir /tmp/net.d
-            cp $GOPATH/src/github.com/sylabs/singularity-cri/.circleci/bridge.conflist /tmp/net.d/00_bridge.conflist
+            cp .circleci/bridge.conflist /tmp/net.d/00_bridge.conflist
       - run:
           name: Install validation tests suite
           working_directory: /tmp
@@ -128,7 +128,6 @@ jobs:
       - run:
           name: Launch singularity CRI
           command: |
-            cd $GOPATH/src/github.com/sylabs/singularity-cri
             sudo bin/sycri.test -test.coverprofile=cover_main.out -test.run Main -v 10 -config .circleci/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
             sed -i 's/\x1b\[[0-9;]*m//g' $HOME/sycri.out
             touch $HOME/sycri-finished
