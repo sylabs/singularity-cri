@@ -66,3 +66,6 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
 
+service:
+  prepare:
+    - export GO111MODULE=on
