@@ -23,7 +23,7 @@ $(SY_CRI):
 	else \
 		echo " WARNING: seccomp is not found, ignoring" ; \
 	fi
-	$(V)GO111MODULE=off GOOS=linux go build -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
+	$(V)GOOS=linux go build -mod vendor -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
 
 install: $(SY_CRI_INSTALL) $(CRI_CONFIG_INSTALL)
 
@@ -40,7 +40,7 @@ $(CRI_CONFIG_INSTALL):
 .PHONY: clean
 clean:
 	@echo " CLEAN"
-	$(V)GO111MODULE=off go clean
+	$(V)go clean -mod vendor
 	$(V)rm -rf $(BIN_DIR)
 
 .PHONY: uninstall
@@ -50,7 +50,7 @@ uninstall:
 
 .PHONY: test
 test:
-	$(V)GO111MODULE=off GOOS=linux go test -v -coverpkg=./... -coverprofile=cover.out -race ./...
+	$(V)GOOS=linux go test -mod vendor -v -coverpkg=./... -coverprofile=cover.out -race ./...
 
 $(SY_CRI_TEST):
 	@echo " GO" $@
@@ -59,7 +59,7 @@ $(SY_CRI_TEST):
 	else \
 		echo " WARNING: seccomp is not found, ignoring" ; \
 	fi
-	$(V)GO111MODULE=off GOOS=linux go test -c -o $(SY_CRI_TEST) -tags "selinux $(BUILD_TAGS) testrunmain" \
+	$(V)GOOS=linux go test -mod vendor -c -o $(SY_CRI_TEST) -tags "selinux $(BUILD_TAGS) testrunmain" \
 	-coverpkg=./... ./cmd/server
 
 .PHONY: lint
@@ -76,5 +76,5 @@ lint:
 	--deadline=3m ./...
 
 dep:
-	$(V)GO111MODULE=on go mod vendor
-	$(V)GO111MODULE=on go mod tidy
+	$(V)go mod tidy
+	$(V)go mod vendor

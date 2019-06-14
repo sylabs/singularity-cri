@@ -1,6 +1,6 @@
 module github.com/sylabs/singularity-cri
 
-go 1.12
+go 1.11
 
 require (
 	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20190227022151-81c885550fa1
@@ -35,6 +35,7 @@ require (
 	github.com/tchap/go-patricia v2.2.6+incompatible
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
 	github.com/xeipuuv/gojsonschema v0.0.0-20180816142147-da425ebb7609 // indirect
+	golang.org/x/crypto v0.0.0 // indirect
 	golang.org/x/sys v0.0.0-20190321052220-f7bb7a8bee54
 	google.golang.org/genproto v0.0.0-20181109154231-b5d43981345b // indirect
 	google.golang.org/grpc v1.20.0
