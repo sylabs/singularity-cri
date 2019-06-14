@@ -58,8 +58,12 @@ github.com/golang/protobuf/ptypes/timestamp
 github.com/google/gofuzz
 # github.com/hashicorp/errwrap v1.0.0
 github.com/hashicorp/errwrap
+# github.com/hashicorp/go-cleanhttp v0.5.1
+github.com/hashicorp/go-cleanhttp
 # github.com/hashicorp/go-multierror v1.0.0
 github.com/hashicorp/go-multierror
+# github.com/hashicorp/go-retryablehttp v0.5.3
+github.com/hashicorp/go-retryablehttp
 # github.com/json-iterator/go v1.1.5
 github.com/json-iterator/go
 # github.com/konsorten/go-windows-terminal-sequences v1.0.1
@@ -113,11 +117,11 @@ github.com/stretchr/testify/assert
 github.com/sylabs/json-resp
 # github.com/sylabs/scs-key-client v0.3.0-0.20190509220229-bce3b050c4ec
 github.com/sylabs/scs-key-client/client
-# github.com/sylabs/scs-library-client v0.1.0
+# github.com/sylabs/scs-library-client v0.2.2
 github.com/sylabs/scs-library-client/client
-# github.com/sylabs/sif v1.0.3
+# github.com/sylabs/sif v1.0.4
 github.com/sylabs/sif/pkg/sif
-# github.com/sylabs/singularity v0.0.0-20190527133303-3b81f6571f4e
+# github.com/sylabs/singularity v0.0.0-20190614104034-4c8a840508bd
 github.com/sylabs/singularity/pkg/util/user-agent
 github.com/sylabs/singularity/pkg/util/fs/proc
 github.com/sylabs/singularity/pkg/image
@@ -171,6 +175,8 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/http/httpguts
 golang.org/x/net/idna
 golang.org/x/net/websocket
+# golang.org/x/sync v0.0.0-20190423024810-112230192c58
+golang.org/x/sync/errgroup
 # golang.org/x/sys v0.0.0-20190321052220-f7bb7a8bee54
 golang.org/x/sys/unix
 golang.org/x/sys/windows
