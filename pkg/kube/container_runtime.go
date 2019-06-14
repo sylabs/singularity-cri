@@ -109,7 +109,7 @@ func (c *Container) terminate(timeout int64) error {
 			return fmt.Errorf("unexpected container state: %v", c.runtimeState)
 		}
 	case <-time.After(time.Second * time.Duration(timeout)):
-		glog.V(4).Infof("Termination timeout for container %s exceeded", c.ID())
+		glog.V(4).Infof("Termination timeout for container %s exceeded", c.id)
 		return c.kill()
 	}
 
@@ -129,7 +129,7 @@ func (c *Container) kill() error {
 		return nil
 	}
 
-	glog.V(4).Infof("Forcibly stopping container %s", c.ID())
+	glog.V(4).Infof("Forcibly stopping container %s", c.id)
 	err := c.cli.Kill(c.id, true)
 	if err != nil {
 		return fmt.Errorf("could not kill container: %v", err)

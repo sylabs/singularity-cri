@@ -144,7 +144,7 @@ func (p *Pod) Stop() error {
 	for _, c := range p.containers {
 		err := c.Stop(0)
 		if err != nil {
-			return fmt.Errorf("could not stop container %s: %v", c.ID(), err)
+			return fmt.Errorf("could not stop container %s: %v", c.id, err)
 		}
 	}
 
@@ -170,7 +170,7 @@ func (p *Pod) Remove() error {
 	for _, c := range p.containers {
 		err := c.Remove()
 		if err != nil {
-			return fmt.Errorf("could not remove container %s: %v", c.ID(), err)
+			return fmt.Errorf("could not remove container %s: %v", c.id, err)
 		}
 	}
 
@@ -217,7 +217,7 @@ func (p *Pod) MatchesFilter(filter *k8s.PodSandboxFilter) bool {
 func (p *Pod) Containers() []string {
 	var containers []string
 	for _, c := range p.containers {
-		containers = append(containers, c.ID())
+		containers = append(containers, c.id)
 	}
 	return containers
 }
@@ -226,7 +226,7 @@ func (p *Pod) addContainer(cont *Container) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, c := range p.containers {
-		if c.ID() == cont.ID() {
+		if c.id == cont.id {
 			return
 		}
 	}
@@ -237,7 +237,7 @@ func (p *Pod) removeContainer(cont *Container) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for i, c := range p.containers {
-		if c.ID() == cont.ID() {
+		if c.id == cont.id {
 			p.containers = append(p.containers[:i], p.containers[i+1:]...)
 			return
 		}

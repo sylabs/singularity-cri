@@ -127,9 +127,9 @@ func (p *Pod) terminate(force bool) error {
 	}
 
 	if force {
-		glog.V(4).Infof("Forcibly stopping pod %s", p.ID())
+		glog.V(4).Infof("Forcibly stopping pod %s", p.id)
 	} else {
-		glog.V(4).Infof("Terminating pod %s", p.ID())
+		glog.V(4).Infof("Terminating pod %s", p.id)
 	}
 	err := p.cli.Kill(p.id, force)
 	if err != nil {

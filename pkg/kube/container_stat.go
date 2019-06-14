@@ -107,7 +107,7 @@ func (c *Container) UpdateResources(upd *k8s.LinuxContainerResources) error {
 			Mems:   upd.CpusetMems,
 		},
 	}
-	err := c.cli.UpdateContainerResources(c.ID(), req)
+	err := c.cli.UpdateContainerResources(c.id, req)
 	if err != nil {
 		return fmt.Errorf("could not update resources: %v", err)
 	}
