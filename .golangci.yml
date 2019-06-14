@@ -3,6 +3,7 @@ run:
 
   build-tags:
     - selinux
+    - seccomp
 
 linters:
   enable-all: true
@@ -62,3 +63,8 @@ issues:
 
   max-issues-per-linter: 0
   max-same-issues: 0
+
+service:
+  prepare:
+    - apt-get update
+    - apt-get install -y libseccomp-dev
