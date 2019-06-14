@@ -67,7 +67,7 @@ func (p *Pod) validateConfig() error {
 
 	cgroupsPath := p.GetLinux().GetCgroupParent()
 	if cgroupsPath == "" {
-		cgroupsPath = filepath.Join(defaultCgroup, p.ID())
+		cgroupsPath = filepath.Join(defaultCgroup, p.id)
 		glog.Infof("Setting pod cgroup parent to default value %q", cgroupsPath)
 		if p.GetLinux() == nil {
 			p.Linux = new(k8s.LinuxPodSandboxConfig)

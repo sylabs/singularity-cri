@@ -80,7 +80,7 @@ func (c *Container) addOCIBundle() error {
 		return fmt.Errorf("could not create SIF bundle: %v", err)
 	}
 
-	glog.V(8).Infof("Generating OCI config for container %s", c.ID())
+	glog.V(8).Infof("Generating OCI config for container %s", c.id)
 	ociSpec, err := translateContainer(c, c.pod)
 	if err != nil {
 		return fmt.Errorf("could not generate oci spec for container: %v", err)
@@ -141,7 +141,7 @@ func (c *Container) collectTrash() error {
 	if c.trashDir == "" {
 		return nil
 	}
-	contTrashDir := filepath.Join(c.trashDir, c.PodID(), c.ID())
+	contTrashDir := filepath.Join(c.trashDir, c.PodID(), c.id)
 	err := os.MkdirAll(contTrashDir, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create trash directory: %v", err)

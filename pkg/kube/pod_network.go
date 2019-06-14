@@ -17,6 +17,7 @@ package kube
 import (
 	"fmt"
 
+	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sylabs/singularity-cri/pkg/network"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
@@ -25,12 +26,17 @@ import (
 // NetworkStatus returns POD ip address.
 func (p *Pod) NetworkStatus() *k8s.PodSandboxNetworkStatus {
 	if p.networkConfig != nil && p.networkConfig.Setup != nil && p.namespacePath(specs.NetworkNamespace) != "" {
-		if netIP, err := p.networkConfig.Setup.GetNetworkIP("", "4"); err == nil {
+		netIP, err := p.networkConfig.Setup.GetNetworkIP("", "4")
+		if err == nil {
 			return &k8s.PodSandboxNetworkStatus{Ip: netIP.String()}
 		}
-		if netIP, err := p.networkConfig.Setup.GetNetworkIP("", "6"); err == nil {
+		glog.Warningf("Could not get IPv4 for pod %s: %v", p.id, err)
+
+		netIP, err = p.networkConfig.Setup.GetNetworkIP("", "6")
+		if err == nil {
 			return &k8s.PodSandboxNetworkStatus{Ip: netIP.String()}
 		}
+		glog.Warningf("Could not get IPv6 for pod %s: %v", p.id, err)
 	}
 	return nil
 }
@@ -43,7 +49,7 @@ func (p *Pod) SetUpNetwork(manager *network.Manager) error {
 		return nil
 	}
 	p.networkConfig = &network.PodConfig{
-		ID:           p.ID(),
+		ID:           p.id,
 		Namespace:    p.GetMetadata().Namespace,
 		Name:         p.GetMetadata().Name,
 		NsPath:       nsPath,

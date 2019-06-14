@@ -100,7 +100,7 @@ func (c *Container) ID() string {
 
 // PodID returns ID of a pod container is executed in.
 func (c *Container) PodID() string {
-	return c.pod.ID()
+	return c.pod.id
 }
 
 // State returns current container state understood by k8s.
@@ -228,7 +228,7 @@ func (c *Container) Create(baseDir string) error {
 	var err error
 	defer func() {
 		if err != nil {
-			c.imgInfo.Return(c.ID())
+			c.imgInfo.Return(c.id)
 			if err := c.kill(); err != nil {
 				glog.Errorf("Could not kill container after failed run: %v", err)
 			}
@@ -256,7 +256,7 @@ func (c *Container) Create(baseDir string) error {
 			err = fmt.Errorf("could not create log directory: %v", err)
 			return
 		}
-		c.imgInfo.Borrow(c.ID())
+		c.imgInfo.Borrow(c.id)
 		err = c.spawnOCIContainer()
 		if err != nil {
 			err = fmt.Errorf("could not spawn container: %v", err)
@@ -343,7 +343,7 @@ func (c *Container) Remove() error {
 	if err := c.cleanupFiles(false); err != nil {
 		glog.Errorf("Container cleanup failed: %v", err)
 	}
-	c.imgInfo.Return(c.ID())
+	c.imgInfo.Return(c.id)
 	c.pod.removeContainer(c)
 	c.isRemoved = true
 	return nil
@@ -438,7 +438,7 @@ func (c *Container) MatchesFilter(filter *k8s.ContainerFilter) bool {
 		return false
 	}
 
-	if filter.PodSandboxId != "" && filter.PodSandboxId != c.pod.ID() {
+	if filter.PodSandboxId != "" && filter.PodSandboxId != c.pod.id {
 		return false
 	}
 
