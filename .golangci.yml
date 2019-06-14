@@ -3,7 +3,6 @@ run:
 
   build-tags:
     - selinux
-    - seccomp
 
 linters:
   enable-all: true
