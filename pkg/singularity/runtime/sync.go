@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/golang/glog"
@@ -83,7 +84,7 @@ func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 	return syncChan, nil
 }
 
-func readState(conn net.Conn) (State, error) {
+func readState(conn io.ReadCloser) (State, error) {
 	type statusInfo struct {
 		Status string `json:"status"`
 	}

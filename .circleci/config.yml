@@ -18,19 +18,6 @@ jobs:
           paths:
             - singularity-cri
 
-  gometalinter_check:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/
-      - run:
-          name: Install golangci-lint v1.15
-          working_directory: /
-          command: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.15.0
-      - run:
-          name: Check formatting
-          command: make lint
-
   build_source:
     <<: *defaults
     steps:
@@ -188,9 +175,6 @@ workflows:
   build_and_test:
     jobs:
       - get_source
-      - gometalinter_check:
-          requires:
-            - get_source
       - unit_test:
           requires:
             - get_source
