@@ -5,6 +5,8 @@ run:
     - selinux
     - seccomp
 
+  modules-download-mode: vendor
+
 linters:
   enable-all: true
   disable:

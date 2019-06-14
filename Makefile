@@ -64,7 +64,7 @@ $(SY_CRI_TEST):
 
 .PHONY: lint
 lint:
-	$(V)golangci-lint run
+	$(V)golangci-lint run --config .golangci.local.yml
 
 dep:
 	$(V)go mod tidy
