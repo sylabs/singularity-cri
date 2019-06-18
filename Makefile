@@ -23,7 +23,9 @@ $(SY_CRI):
 	else \
 		echo " WARNING: seccomp is not found, ignoring" ; \
 	fi
-	$(V)GOOS=linux go build -mod vendor -tags "selinux $(BUILD_TAGS)" -o $(SY_CRI) ./cmd/server
+	$(V)GOOS=linux go build -mod vendor -tags "selinux $(BUILD_TAGS)" \
+		-ldflags "-X main.version=`git describe  --dirty --always 2>/dev/null || echo "unknown"`" \
+		-o $(SY_CRI) ./cmd/server
 
 install: $(SY_CRI_INSTALL) $(CRI_CONFIG_INSTALL)
 
