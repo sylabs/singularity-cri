@@ -40,9 +40,16 @@ import (
 
 var errGPUNotSupported = fmt.Errorf("GPU device plugin is not supported on this host")
 
-func logGRPC(debug bool) grpc.UnaryServerInterceptor {
+func logAndRecover(debug bool) grpc.UnaryServerInterceptor {
 	return grpc.UnaryServerInterceptor(func(ctx context.Context, req interface{},
-		info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, e error) {
+		defer func() {
+			if err := recover(); err != nil {
+				glog.Errorf("Caught panic in %s: %v", info.FullMethod, err)
+				e = fmt.Errorf("panic: %v", err)
+			}
+		}()
+
 		resp, err := handler(ctx, req)
 		if debug || err != nil {
 			jsonReq, _ := json.Marshal(req)
@@ -176,7 +183,7 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 	if err != nil {
 		return fmt.Errorf("could not start CRI listener: %v ", err)
 	}
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC(config.Debug)))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logAndRecover(config.Debug)))
 	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
 	k8s.RegisterImageServiceServer(grpcServer, syImage)
 
@@ -222,7 +229,7 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		cleanup()
 		return fmt.Errorf("could not start device plugin listener: %v ", err)
 	}
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logGRPC(config.Debug)))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logAndRecover(config.Debug)))
 	k8sDP.RegisterDevicePluginServer(grpcServer, devicePlugin)
 
 	register := make(chan error)
