@@ -38,33 +38,12 @@ import (
 	k8sDP "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
-var errGPUNotSupported = fmt.Errorf("GPU device plugin is not supported on this host")
+var (
+	errGPUNotSupported = fmt.Errorf("GPU device plugin is not supported on this host")
 
-func logAndRecover(debug bool) grpc.UnaryServerInterceptor {
-	return grpc.UnaryServerInterceptor(func(ctx context.Context, req interface{},
-		info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, e error) {
-		defer func() {
-			if err := recover(); err != nil {
-				glog.Errorf("Caught panic in %s: %v", info.FullMethod, err)
-				e = fmt.Errorf("panic: %v", err)
-			}
-		}()
-
-		resp, err := handler(ctx, req)
-		if debug || err != nil {
-			jsonReq, _ := json.Marshal(req)
-			jsonResp, _ := json.Marshal(resp)
-			logFunc := glog.Infof
-			if err != nil {
-				logFunc = glog.Errorf
-			}
-			logFunc("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
-		}
-		return resp, err
-	})
-}
-
-var configPath string
+	configPath string
+	version    = "unknown"
+)
 
 func init() {
 	// We want this in init so that this flag can be set even when running test binary
@@ -75,8 +54,12 @@ func init() {
 }
 
 func main() {
-	flag.Parse()
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		fmt.Println(version)
+		return
+	}
 
+	flag.Parse()
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
@@ -256,4 +239,28 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		cleanup()
 	}()
 	return <-register
+}
+
+func logAndRecover(debug bool) grpc.UnaryServerInterceptor {
+	return grpc.UnaryServerInterceptor(func(ctx context.Context, req interface{},
+		info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, e error) {
+		defer func() {
+			if err := recover(); err != nil {
+				glog.Errorf("Caught panic in %s: %v", info.FullMethod, err)
+				e = fmt.Errorf("panic: %v", err)
+			}
+		}()
+
+		resp, err := handler(ctx, req)
+		if debug || err != nil {
+			jsonReq, _ := json.Marshal(req)
+			jsonResp, _ := json.Marshal(resp)
+			logFunc := glog.Infof
+			if err != nil {
+				logFunc = glog.Errorf
+			}
+			logFunc("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
+		}
+		return resp, err
+	})
 }
