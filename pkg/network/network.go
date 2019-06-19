@@ -158,11 +158,18 @@ func (m *Manager) SetUpPod(podConfig *PodConfig) error {
 	}
 	if podConfig.PortMappings != nil {
 		for _, pm := range podConfig.PortMappings {
-			hostport := pm.HostPort
-			if hostport == 0 {
-				hostport = pm.ContainerPort
+			hostPort := pm.HostPort
+			if hostPort == 0 {
+				hostPort = pm.ContainerPort
 			}
-			args += fmt.Sprintf(";portmap=%d:%d/%s", hostport, pm.ContainerPort, strings.ToLower(pm.Protocol.String()))
+			err := podConfig.Setup.SetCapability(m.defaultNetwork.Name, "portMappings", snetwork.PortMapEntry{
+				HostPort:      int(hostPort),
+				ContainerPort: int(pm.ContainerPort),
+				Protocol:      strings.ToLower(pm.Protocol.String()),
+			})
+			if err != nil {
+				glog.Warningf("Skipping port mapping due to error: %v", err)
+			}
 		}
 	}
 	glog.V(4).Infof("Network for pod %s args: %s", podConfig.ID, args)
