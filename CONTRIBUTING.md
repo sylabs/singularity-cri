@@ -29,21 +29,24 @@ all your interactions with the project members and users.
 1. Essential bug fix PRs should be sent to both master and release branches.
 2. Small bug fix and feature enhancement PRs should be sent to master only.
 3. Follow the existing code style precedent, especially for C. For Golang, you
-   will mostly conform to the style and form enforced by the "goimports" and
-   "golint" tools for proper formatting.
+   will mostly conform to the style and form enforced by linters of the project.
 4. Ensure any install or build dependencies are removed before doing a build
    to test your PR locally.
 5. For any new functionality, please write appropriate go tests that will run
    as part of the Continuous Integration (Circle CI) system.
 6. The project's default copyright and header have been included in any new
    source files.
-7. Make sure you have run a local `make lint && make test` and all tests succeed
-   before submitting the PR.
+7. Make sure you have run the following commands without errors locally before submitting the PR.
+```bash
+make dep && \
+make lint && \
+make test
+```
 8. Is the code human understandable? This can be accomplished via a clear code
    style as well as documentation and/or comments.
 9. The pull request will be reviewed by others, and finally merged when all
    requirements are met.
-10. Documentation must be provided if necessary (next section)
+10. Documentation must be provided if necessary (next section).
 
 ### Documentation
 1. If you are changing any of the following:
