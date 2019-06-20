@@ -1,4 +1,4 @@
-# Singularity CRI
+# Singularity-CRI
 
 [![CircleCI](https://circleci.com/gh/sylabs/singularity-cri.svg?style=svg&circle-token=276de7aa1d82749ecf8ed6513c72399041885dec)](https://circleci.com/gh/sylabs/singularity-cri)
 [![Code Coverage](https://codecov.io/gh/sylabs/singularity-cri/branch/master/graph/badge.svg)](https://codecov.io/gh/sylabs/singularity-cri)
@@ -6,7 +6,7 @@
 
 This repository contains Singularity implementation of
 [Kubernetes CRI](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-node/container-runtime-interface.md).
-Singularity CRI consists of two separate services: runtime and image, each of which implements 
+Singularity-CRI consists of two separate services: runtime and image, each of which implements 
 K8s RuntimeService and ImageService respectively.
 
 The Singularity-CRI is currently under development and passes 71/74
