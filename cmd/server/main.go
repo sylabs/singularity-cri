@@ -97,7 +97,7 @@ func main() {
 	defer cancel()
 
 	if err := startCRI(ctx, criWG, config); err != nil {
-		glog.Errorf("Could not start Singularity CRI server: %v", err)
+		glog.Errorf("Could not start Singularity-CRI server: %v", err)
 		return
 	}
 
@@ -178,10 +178,10 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 		go grpcServer.Serve(lis)
 		defer grpcServer.Stop()
 
-		glog.Infof("Singularity CRI server started on %v", lis.Addr())
+		glog.Infof("Singularity-CRI server started on %v", lis.Addr())
 		<-ctx.Done()
 
-		glog.Info("Singularity CRI service exiting...")
+		glog.Info("Singularity-CRI service exiting...")
 		if err := syRuntime.Shutdown(); err != nil {
 			glog.Errorf("Error during singularity runtime service shutdown: %v", err)
 		}

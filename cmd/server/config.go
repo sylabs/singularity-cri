@@ -23,7 +23,7 @@ import (
 )
 
 // Config hold all possible parameters that are used to
-// tune Singularity CRI default behaviour.
+// tune Singularity-CRI default behaviour.
 type Config struct {
 	// ListenSocket is a unix socket to serve CRI requests on.
 	ListenSocket string `yaml:"listenSocket"`
