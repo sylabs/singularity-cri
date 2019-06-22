@@ -17,6 +17,7 @@ package runtime
 import (
 	"context"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -35,8 +36,8 @@ func TestSingularityRuntimeService_Version(t *testing.T) {
 	require.Equal(t, &v1alpha2.VersionResponse{
 		Version:           "0.1.0",
 		RuntimeName:       "singularity",
-		RuntimeVersion:    string(expectedVersion),
-		RuntimeApiVersion: string(expectedVersion),
+		RuntimeVersion:    strings.TrimSpace(string(expectedVersion)),
+		RuntimeApiVersion: strings.TrimSpace(string(expectedVersion)),
 	}, actualVersion, "runtime version mismatch")
 
 }
