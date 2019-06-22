@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -183,11 +184,12 @@ func (s *SingularityRuntime) Version(context.Context, *k8s.VersionRequest) (*k8s
 		return nil, status.Errorf(codes.Internal, "could not get Singularity version: %v", err)
 	}
 
+	version := strings.TrimSpace(string(syVersion))
 	return &k8s.VersionResponse{
 		Version:           kubeAPIVersion, // todo or use req.Version?
 		RuntimeName:       singularity.RuntimeName,
-		RuntimeVersion:    string(syVersion),
-		RuntimeApiVersion: string(syVersion),
+		RuntimeVersion:    version,
+		RuntimeApiVersion: version,
 	}, nil
 }
 
