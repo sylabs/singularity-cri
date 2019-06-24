@@ -184,3 +184,4 @@ workflows:
       - validation_test:
           requires:
             - build_source
+            - unit_test
