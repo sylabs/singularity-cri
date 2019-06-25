@@ -12,7 +12,10 @@ CRI_CONFIG := ./config/sycri.yaml
 CRI_CONFIG_INSTALL := /usr/local/etc/sycri/sycri.yaml
 
 SECCOMP := "$(shell printf "\#include <seccomp.h>\nint main() { seccomp_syscall_resolve_name(\"read\"); }" | gcc -x c -o /dev/null - -lseccomp >/dev/null 2>&1; echo $$?)"
-ARCH := `arch`
+
+GITHUB_USER := sylabs
+GITHUB_REPO := singularity-cri
+GITHUB_TAG := `git describe`
 
 all: $(SY_CRI)
 
@@ -72,3 +75,12 @@ lint:
 dep:
 	$(V)go mod tidy
 	$(V)go mod vendor
+
+.PHONY: release
+release:
+	$(V)gothub upload \
+        --security-token $(GITHUB_TOKEN) \
+        --tag $(GITHUB_TAG) \
+        --name "Singularity-CRI" \
+        --file $(SY_CRI) \
+        --replace
