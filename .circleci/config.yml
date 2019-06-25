@@ -173,18 +173,18 @@ jobs:
       - codecov/upload:
           file: cover_main.out
 
-release:
-  <<: *defaults
-  steps:
-    - attach_workspace:
-        at: ~/
-    - run:
-        working_directory: ~
-        name: Download release app
-        command: go get github.com/itchio/gothub
-    - run:
-        name: Release binaries
-        command: make release
+  release:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: ~/
+      - run:
+          working_directory: ~
+          name: Download release app
+          command: go get github.com/itchio/gothub
+      - run:
+          name: Release binaries
+          command: make release
 
 workflows:
   version: 2
