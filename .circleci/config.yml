@@ -190,17 +190,29 @@ workflows:
   version: 2
   build_and_test:
     jobs:
-      - get_source
+      - get_source:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
       - unit_test:
           requires:
             - get_source
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
       - build_source:
           requires:
             - get_source
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
       - validation_test:
           requires:
             - build_source
             - unit_test
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
       - release:
           context: github-release
           filters:
