@@ -184,7 +184,7 @@ jobs:
           command: go get github.com/itchio/gothub
       - run:
           name: Release binaries
-          command: make release
+          command: GITHUB_TAG=$CIRCLE_TAG make release
 
 workflows:
   version: 2
