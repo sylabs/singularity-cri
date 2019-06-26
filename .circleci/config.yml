@@ -179,6 +179,9 @@ jobs:
       - attach_workspace:
           at: ~/
       - run:
+          name: Install release app
+          command: make gothub-install
+      - run:
           name: Release binaries
           command: GITHUB_TAG=$CIRCLE_TAG make release
 

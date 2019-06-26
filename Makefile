@@ -69,12 +69,16 @@ GOBIN := $(shell go env GOPATH)/bin
 LINTER := $(GOBIN)/golangci-lint
 LINTER_VERSION := v1.17.1
 
-$(LINTER):
+.PHONY: linter-install
+linter-install:
 	@echo " INSTALL" $(LINTER) $(LINTER_VERSION)
 	$(V)curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(GOBIN) $(LINTER_VERSION)
 
 .PHONY: lint
-lint: $(LINTER)
+lint:
+	$(V) [ ! -x $(LINTER) ] && \
+	 echo 'Linter is not installed, run `make linter-install`' && \
+	 exit 1 || true
 	@echo " RUNNING LINTER"
 	$(V)$(LINTER) run --config .golangci.local.yml
 
@@ -88,14 +92,18 @@ GITHUB_REPO := singularity-cri
 GOTHUB := $(GOBIN)/gothub
 ARTIFACT := $(SY_CRI)
 
-$(GOTHUB):
+# since singularity-cri uses modules we need to disable it to
+# simply install gothub without making it a dependency
+.PHONY: gothub-install
+gothub-install:
 	@echo " INSTALL" $(GOTHUB)
-	# since singularity-cri uses modules we need to disable it to
-	# simply install gothub without making it a dependency
 	$(V)GO111MODULE=off go get github.com/itchio/gothub
 
 .PHONY: release
-release: $(GOTHUB)
+release:
+	$(V) [ ! -x $(GOTHUB) ] && \
+	 echo 'Gothub is not installed, run `make gothub-install`' && \
+	 exit 1 || true
 	$(V)echo " UPLOAD" $(ARTIFACT) "TO" $(GITHUB_TAG)
 	$(V)$(GOTHUB) upload \
         --security-token $(GITHUB_TOKEN) \
