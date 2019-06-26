@@ -64,9 +64,23 @@ $(SY_CRI_TEST):
 	$(V)GOOS=linux go test -mod vendor -c -o $(SY_CRI_TEST) -tags "selinux $(BUILD_TAGS) testrunmain" \
 	-coverpkg=./... ./cmd/server
 
+
+GOBIN := $(shell go env GOPATH)/bin
+LINTER := $(GOBIN)/golangci-lint
+LINTER_VERSION := v1.17.1
+
+.PHONY: linter-install
+linter-install:
+	@echo " INSTALL" $(LINTER) $(LINTER_VERSION)
+	$(V)curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(GOBIN) $(LINTER_VERSION)
+
 .PHONY: lint
 lint:
-	$(V)golangci-lint run --config .golangci.local.yml
+	$(V) [ ! -x $(LINTER) ] && \
+	 echo 'Linter is not installed, run `make linter-install`' && \
+	 exit 1 || true
+	@echo " RUNNING LINTER"
+	$(V)$(LINTER) run --config .golangci.local.yml
 
 dep:
 	$(V)go mod tidy
@@ -75,11 +89,23 @@ dep:
 
 GITHUB_USER := sylabs
 GITHUB_REPO := singularity-cri
+GOTHUB := $(GOBIN)/gothub
+ARTIFACT := $(SY_CRI)
+
+# since singularity-cri uses modules we need to disable it to
+# simply install gothub without making it a dependency
+.PHONY: gothub-install
+gothub-install:
+	@echo " INSTALL" $(GOTHUB)
+	$(V)GO111MODULE=off go get github.com/itchio/gothub
 
 .PHONY: release
 release:
-	$(V)echo "Uploading artifacts to $(GITHUB_TAG) release"
-	$(V)gothub upload \
+	$(V) [ ! -x $(GOTHUB) ] && \
+	 echo 'Gothub is not installed, run `make gothub-install`' && \
+	 exit 1 || true
+	$(V)echo " UPLOAD" $(ARTIFACT) "TO" $(GITHUB_TAG)
+	$(V)$(GOTHUB) upload \
         --security-token $(GITHUB_TOKEN) \
         --user $(GITHUB_USER) \
         --repo $(GITHUB_REPO) \
