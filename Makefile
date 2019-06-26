@@ -85,11 +85,19 @@ dep:
 
 GITHUB_USER := sylabs
 GITHUB_REPO := singularity-cri
+GOTHUB := $(GOBIN)/gothub
+ARTIFACT := $(SY_CRI)
+
+$(GOTHUB):
+	@echo " INSTALL" $(GOTHUB)
+	# since singularity-cri uses modules we need to disable it to
+	# simply install gothub without making it a dependency
+	$(V)GO111MODULE=off go get github.com/itchio/gothub
 
 .PHONY: release
-release:
-	$(V)echo "Uploading artifacts to $(GITHUB_TAG) release"
-	$(V)gothub upload \
+release: $(GOTHUB)
+	$(V)echo " UPLOAD" $(ARTIFACT) "TO" $(GITHUB_TAG)
+	$(V)$(GOTHUB) upload \
         --security-token $(GITHUB_TOKEN) \
         --user $(GITHUB_USER) \
         --repo $(GITHUB_REPO) \
