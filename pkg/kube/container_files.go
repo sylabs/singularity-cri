@@ -52,6 +52,9 @@ func (c *Container) bundlePath() string {
 	return filepath.Join(c.baseDir, contBundlePath)
 }
 
+// addLogDirectory creates a dedicated directory for container logs under pod's
+// log directory. If pod log directory is not specified, no container logs will be collected
+// even if container log path is not empty.
 func (c *Container) addLogDirectory() error {
 	logDir := c.pod.GetLogDirectory()
 	logPath := c.GetLogPath()
@@ -120,20 +123,9 @@ func (c *Container) cleanupFiles(silent bool) error {
 		}
 		glog.Errorf("Could not cleanup container: %v", err)
 	}
-	if c.logPath != "" {
-		dir := filepath.Dir(c.logPath)
-		if dir != c.pod.GetLogDirectory() {
-			// container has its own log directory
-			glog.V(8).Infof("Removing container log directory %s", dir)
-			err = os.RemoveAll(dir)
-			if err != nil {
-				if !silent {
-					return fmt.Errorf("could not remove logs: %v", err)
-				}
-				glog.Errorf("Could not remove logs: %v", err)
-			}
-		}
-	}
+	// do not clean any container logs as
+	// they will be removed during pod cleanup
+	// see https://github.com/sylabs/singularity-cri/issues/314
 	return nil
 }
 
