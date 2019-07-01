@@ -173,51 +173,18 @@ jobs:
       - codecov/upload:
           file: cover_main.out
 
-  release:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/
-      - run:
-          name: Install release app
-          command: make gothub-install
-      - run:
-          name: Release binaries
-          command: GITHUB_TAG=$CIRCLE_TAG make release
-
 workflows:
   version: 2
   build_and_test:
     jobs:
-      - get_source:
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
+      - get_source
       - unit_test:
           requires:
             - get_source
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
       - build_source:
           requires:
             - get_source
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
       - validation_test:
           requires:
             - build_source
             - unit_test
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
-      - release:
-          context: github-release
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
-          requires:
-            - validation_test

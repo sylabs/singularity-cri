@@ -85,31 +85,3 @@ lint:
 dep:
 	$(V)go mod tidy
 	$(V)go mod vendor
-
-
-GITHUB_USER := sylabs
-GITHUB_REPO := singularity-cri
-GOTHUB := $(GOBIN)/gothub
-ARTIFACT := $(SY_CRI)
-
-# since singularity-cri uses modules we need to disable it to
-# simply install gothub without making it a dependency
-.PHONY: gothub-install
-gothub-install:
-	@echo " INSTALL" $(GOTHUB)
-	$(V)GO111MODULE=off go get github.com/itchio/gothub
-
-.PHONY: release
-release:
-	$(V) [ ! -x $(GOTHUB) ] && \
-	 echo 'Gothub is not installed, run `make gothub-install`' && \
-	 exit 1 || true
-	$(V)echo " UPLOAD" $(ARTIFACT) "TO" $(GITHUB_TAG)
-	$(V)$(GOTHUB) upload \
-        --security-token $(GITHUB_TOKEN) \
-        --user $(GITHUB_USER) \
-        --repo $(GITHUB_REPO) \
-        --tag $(GITHUB_TAG) \
-        --name "Singularity-CRI" \
-        --file $(SY_CRI) \
-        --replace
