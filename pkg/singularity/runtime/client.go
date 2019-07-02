@@ -21,9 +21,18 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/golang/glog"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
+)
+
+const (
+	// LogLevelEnv name for env on which client relies while selecting log level.
+	LogLevelEnv = "SINGULARITY_LOG_LEVEL"
+
+	// LogLevelDebug singularity client will be launched with -d flag
+	LogLevelDebug = "debug"
 )
 
 type (
@@ -39,9 +48,21 @@ type (
 	}
 )
 
+var (
+	once   = &sync.Once{}
+	client *CLIClient
+)
+
 // NewCLIClient returns new CLIClient ready to use.
 func NewCLIClient() *CLIClient {
-	return &CLIClient{ociBaseCmd: []string{singularity.RuntimeName, "-q", "oci"}}
+	once.Do(func() {
+		logFlag := "-q"
+		if os.Getenv(LogLevelEnv) == LogLevelDebug {
+			logFlag = "-d"
+		}
+		client = &CLIClient{ociBaseCmd: []string{singularity.RuntimeName, logFlag, "oci"}}
+	})
+	return client
 }
 
 // BuildConfig returns configuration which was used to build
