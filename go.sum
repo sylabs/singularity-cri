@@ -200,6 +200,8 @@ github.com/sylabs/scs-key-client v0.3.0-0.20190509220229-bce3b050c4ec h1:dX97dpv
 github.com/sylabs/scs-key-client v0.3.0-0.20190509220229-bce3b050c4ec/go.mod h1:nMF8PplFD5ZmDz//GHjaip7+MlQ0z4Qe0RCzaT5Xjes=
 github.com/sylabs/scs-library-client v0.2.2 h1:pHDvSduBI7F7w86N99GDULLHaryJhaCU5LBC2log0iA=
 github.com/sylabs/scs-library-client v0.2.2/go.mod h1:89vH+0RQemCEcOnaUUQwnsRVQQmupVh8VQlBbW0ZHss=
+github.com/sylabs/scs-library-client v0.3.0 h1:ArwsgPTNWOjTufOLimdjtzeq2EIgLSacQe4Ty46TtzQ=
+github.com/sylabs/scs-library-client v0.3.0/go.mod h1:89vH+0RQemCEcOnaUUQwnsRVQQmupVh8VQlBbW0ZHss=
 github.com/sylabs/sif v1.0.4 h1:/jkycAIWe0Ro5+QrT23/TCeWSmHHcnMGaPHX6xovqMU=
 github.com/sylabs/sif v1.0.4/go.mod h1:YSrurscNfLqBihRfK4gWYv22UThLcwK76nXg3fLP43o=
 github.com/sylabs/singularity v0.0.0-20190614104034-4c8a840508bd h1:JelVFr7PDHzBAXY5u6t+8mE/x6qUpVS/+Wru7WOAcb8=
