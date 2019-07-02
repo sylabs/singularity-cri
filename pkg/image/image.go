@@ -31,7 +31,6 @@ import (
 	"github.com/golang/glog"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	library "github.com/sylabs/scs-library-client/client"
-	"github.com/sylabs/sif/pkg/sif"
 	"github.com/sylabs/singularity-cri/pkg/rand"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
 	"github.com/sylabs/singularity-cri/pkg/slice"
@@ -251,14 +250,8 @@ func (i *Info) Verify() error {
 	if i.Ref.URI() == singularity.DockerDomain {
 		return nil
 	}
-	fimg, err := sif.LoadContainer(i.Path, true)
-	if err != nil {
-		return fmt.Errorf("failed to load SIF image: %v", err)
-	}
-	defer fimg.UnloadContainer()
 
-	_, err = signing.Verify(i.Path, singularity.KeysServer, 0, false, "", false, true)
-
+	_, err := signing.Verify(i.Path, singularity.KeysServer, 0, false, "", false, true)
 	noSignatures := err != nil && strings.Contains(err.Error(), "no signatures found")
 	if noSignatures {
 		glog.V(4).Infof("Image %s is not signed", i.Ref)
