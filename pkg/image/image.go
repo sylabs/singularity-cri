@@ -209,12 +209,12 @@ func LibraryInfo(ctx context.Context, ref *Reference, auth *k8s.AuthConfig) (*In
 	if err != nil {
 		return nil, fmt.Errorf("could not create library client: %v", err)
 	}
-	img, found, err := client.GetImage(ctx, pullURL)
+	img, err := client.GetImage(ctx, pullURL)
+	if err == library.ErrNotFound {
+		return nil, ErrNotFound
+	}
 	if err != nil {
 		return nil, fmt.Errorf("could not get library image info: %v", err)
-	}
-	if !found {
-		return nil, ErrNotFound
 	}
 
 	// library API uses sha256 hash func and returns image hash in form sha256.<hash>

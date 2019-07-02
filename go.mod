@@ -28,7 +28,7 @@ require (
 	github.com/opencontainers/selinux v1.0.0-rc1
 	github.com/sirupsen/logrus v1.2.0 // indirect
 	github.com/stretchr/testify v1.2.2
-	github.com/sylabs/scs-library-client v0.2.2
+	github.com/sylabs/scs-library-client v0.3.0
 	github.com/sylabs/sif v1.0.4
 	github.com/sylabs/singularity v0.0.0-20190614104034-4c8a840508bd
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
