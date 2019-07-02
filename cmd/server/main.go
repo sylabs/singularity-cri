@@ -22,6 +22,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 
 	"github.com/golang/glog"
@@ -30,6 +31,7 @@ import (
 	"github.com/sylabs/singularity-cri/pkg/server/device"
 	"github.com/sylabs/singularity-cri/pkg/server/image"
 	"github.com/sylabs/singularity-cri/pkg/server/runtime"
+	sRuntime "github.com/sylabs/singularity-cri/pkg/singularity/runtime"
 	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
@@ -62,6 +64,8 @@ func main() {
 	flag.Parse()
 	logs.InitLogs()
 	defer logs.FlushLogs()
+
+	setSingularityLogLevel()
 
 	config, err := parseConfig(configPath)
 	if err != nil {
@@ -262,5 +266,22 @@ func logAndRecover(debug bool) grpc.UnaryServerInterceptor {
 			logFunc("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
 		}
 		return resp, err
+	}
+}
+
+func setSingularityLogLevel() {
+	f := flag.Lookup("v")
+	if f == nil {
+		return
+	}
+	level, err := strconv.Atoi(f.Value.String())
+	if err != nil {
+		glog.Errorf("Could not parse verbose level %s", err)
+	}
+
+	if level == 12 {
+		if err := os.Setenv(sRuntime.LogLevelEnv, sRuntime.LogLevelDebug); err != nil {
+			glog.Errorf("Could not set env log level %s", err)
+		}
 	}
 }
