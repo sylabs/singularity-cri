@@ -279,7 +279,7 @@ func setSingularityLogLevel() {
 		glog.Errorf("Could not parse verbose level %s", err)
 	}
 
-	if level == 10 {
+	if level == 12 {
 		if err := os.Setenv(sRuntime.LogLevelEnv, sRuntime.LogLevelDebug); err != nil {
 			glog.Errorf("Could not set env log level %s", err)
 		}
