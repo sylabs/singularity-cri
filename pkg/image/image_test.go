@@ -584,7 +584,7 @@ func TestInfo_Verify(t *testing.T) {
 					uri: singularity.LibraryDomain,
 				},
 			},
-			expectError: fmt.Errorf("failed to load SIF image: opening(RDONLY) container file: open /foo/bar: no such file or directory"),
+			expectError: fmt.Errorf("SIF verification failed: failed to load SIF image: opening(RDONLY) container file: open /foo/bar: no such file or directory"),
 		},
 	}
 
