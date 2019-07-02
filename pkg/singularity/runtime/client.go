@@ -31,7 +31,7 @@ const (
 	// LogLevelEnv name for env on which client relies while selecting log level.
 	LogLevelEnv = "SINGULARITY_LOG_LEVEL"
 
-	// LogLevelDebug singularity client will be launched with -d flag
+	// LogLevelDebug singularity client will be launched with -d flag.
 	LogLevelDebug = "debug"
 )
 
