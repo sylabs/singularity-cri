@@ -242,7 +242,7 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 }
 
 func logAndRecover(debug bool) grpc.UnaryServerInterceptor {
-	return grpc.UnaryServerInterceptor(func(ctx context.Context, req interface{},
+	return func(ctx context.Context, req interface{},
 		info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, e error) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -262,5 +262,5 @@ func logAndRecover(debug bool) grpc.UnaryServerInterceptor {
 			logFunc("%s\n\tRequest: %s\n\tResponse: %s\n\tError: %v", info.FullMethod, jsonReq, jsonResp, err)
 		}
 		return resp, err
-	})
+	}
 }
