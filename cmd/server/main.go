@@ -281,7 +281,7 @@ func setSingularityLogLevel() {
 		return
 	}
 
-	if level >= 5 {
+	if level >= 6 {
 		err := os.Setenv(sRuntime.LogLevelEnv, sRuntime.LogLevelDebug)
 		if err != nil {
 			glog.Errorf("Could not set env log level %s", err)
