@@ -132,7 +132,7 @@ jobs:
       - run:
           name: Launch singularity CRI
           command: |
-            sudo bin/sycri.test -test.coverprofile=cover_main.out -test.run Main -v 10 -config .circleci/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
+            sudo bin/sycri.test -test.coverprofile=cover_main.out -test.run Main -v 5 -config .circleci/sycri-test.yaml 2>&1 | tee $HOME/sycri.out
             sed -i 's/\x1b\[[0-9;]*m//g' $HOME/sycri.out
             touch $HOME/sycri-finished
           background: true
