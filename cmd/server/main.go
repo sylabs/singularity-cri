@@ -274,13 +274,16 @@ func setSingularityLogLevel() {
 	if f == nil {
 		return
 	}
+
 	level, err := strconv.Atoi(f.Value.String())
 	if err != nil {
 		glog.Errorf("Could not parse verbose level %s", err)
+		return
 	}
 
-	if level == 12 {
-		if err := os.Setenv(sRuntime.LogLevelEnv, sRuntime.LogLevelDebug); err != nil {
+	if level >= 5 {
+		err := os.Setenv(sRuntime.LogLevelEnv, sRuntime.LogLevelDebug)
+		if err != nil {
 			glog.Errorf("Could not set env log level %s", err)
 		}
 	}
