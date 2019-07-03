@@ -77,7 +77,7 @@ func (t *podTranslator) translate() (*specs.Spec, error) {
 	}
 
 	security := t.pod.GetLinux().GetSecurityContext()
-	if err := setupSELinux(t, security.GetSelinuxOptions()); err != nil {
+	if err := setupSELinux(&t.g, security.GetSelinuxOptions()); err != nil {
 		return nil, err
 	}
 	if err := setupSeccomp(&t.g, security.GetSeccompProfilePath()); err != nil {
@@ -97,7 +97,7 @@ func (t *podTranslator) translate() (*specs.Spec, error) {
 	return t.g.Config, nil
 }
 
-func setupSELinux(t *podTranslator, options *k8s.SELinuxOption) error {
+func setupSELinux(g *generate.Generator, options *k8s.SELinuxOption) error {
 	if options == nil {
 		return nil
 	}
@@ -119,10 +119,10 @@ func setupSELinux(t *podTranslator, options *k8s.SELinuxOption) error {
 	if err != nil {
 		return fmt.Errorf("could not init selinux labels: %v", err)
 	}
-	glog.V(3).Infof("Setting mount label to %q for pod %s", mountLabel, t.pod.id)
-	t.g.SetLinuxMountLabel(mountLabel)
-	glog.V(3).Infof("Setting process's SELinux label to %q for pod %s", processLabel, t.pod.id)
-	t.g.SetProcessSelinuxLabel(processLabel)
+	glog.V(3).Infof("Setting mount label to %q", mountLabel)
+	g.SetLinuxMountLabel(mountLabel)
+	glog.V(3).Infof("Setting process's SELinux label to %q", processLabel)
+	g.SetProcessSelinuxLabel(processLabel)
 	return nil
 }
 
