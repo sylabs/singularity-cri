@@ -66,14 +66,14 @@ func (s *streamingRuntime) Exec(containerID string, cmd []string,
 
 		done := make(chan struct{})
 		go func() {
-			glog.V(4).Infof("Resize start for %s", containerID)
+			glog.V(5).Infof("Resize start for %s", containerID)
 			for {
 				select {
 				case <-done:
-					glog.V(8).Infof("Resize end for %s", containerID)
+					glog.V(5).Infof("Resize end for %s", containerID)
 					return
 				case size := <-resize:
-					glog.V(8).Infof("Got resize event for %s: %+v", containerID, size)
+					glog.V(5).Infof("Got resize event for %s: %+v", containerID, size)
 					s := &pty.Winsize{
 						Cols: size.Width,
 						Rows: size.Height,
@@ -139,14 +139,14 @@ func (s *streamingRuntime) Attach(containerID string,
 			return
 		}
 
-		glog.V(4).Infof("Resize start for %s", containerID)
+		glog.V(5).Infof("Resize start for %s", containerID)
 		for {
 			select {
 			case <-done:
-				glog.V(8).Infof("Resize end for %s", containerID)
+				glog.V(5).Infof("Resize end for %s", containerID)
 				return
 			case size := <-resize:
-				glog.V(8).Infof("Got resize event for %s: %+v", containerID, size)
+				glog.V(5).Infof("Got resize event for %s: %+v", containerID, size)
 				ctrlSock, err := unix.Dial(socket)
 				if err != nil {
 					glog.Errorf("Could not connect to control socket: %v", err)
@@ -196,7 +196,7 @@ func (s *streamingRuntime) Attach(containerID string,
 		return nil
 	}
 	if c.GetStdinOnce() {
-		glog.Infof("Closing stdin for container %s", c.ID())
+		glog.V(2).Infof("Closing stdin for container %s", c.ID())
 		err := c.CloseStdin()
 		if err != nil {
 			glog.Errorf("Could not close container stdin: %v", err)
@@ -231,7 +231,7 @@ func (s *streamingRuntime) PortForward(podSandboxID string, port int32, stream i
 
 	args := []string{"-t", fmt.Sprintf("%d", p.Pid()), "-n", socatPath, "-", fmt.Sprintf("TCP4:localhost:%d", port)}
 	commandString := fmt.Sprintf("%s %s", nsenterPath, strings.Join(args, " "))
-	glog.V(4).Infof("Executing port forwarding command: %s", commandString)
+	glog.V(5).Infof("Executing port forwarding command: %s", commandString)
 
 	var stderr bytes.Buffer
 	cmd := exec.Command(nsenterPath, args...)

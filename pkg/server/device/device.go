@@ -94,7 +94,7 @@ func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
 		return nil, fmt.Errorf("could not get build config: %v", err)
 	}
 
-	glog.Infof("Loading NVML")
+	glog.V(1).Infof("Loading NVML")
 	if err = nvml.Init(); err != nil {
 		glog.Errorf("Could not initialize NVML library: %v", err)
 		return nil, ErrUnableToLoad
@@ -116,7 +116,7 @@ func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
 		glog.Errorf("Could not get driver version: %v", err)
 		return nil, ErrUnableToLoad
 	}
-	glog.Infof("Found graphic driver of version %v", v)
+	glog.V(1).Infof("Found graphic driver of version %v", v)
 
 	devices, err := getDevices()
 	if err != nil {
@@ -145,10 +145,9 @@ func NewSingularityDevicePlugin() (*SingularityDevicePlugin, error) {
 
 // Shutdown shuts down device plugin and any GPU monitoring activity.
 func (dp *SingularityDevicePlugin) Shutdown() error {
-	glog.Infof("Cancelling GPU monitoring")
+	glog.V(3).Infof("Cancelling GPU monitoring")
 	close(dp.done)
-	glog.Infof("Shutdown of NVML returned: %v", nvml.Shutdown())
-	return nil
+	return nvml.Shutdown()
 }
 
 // GetDevicePluginOptions returns options to be communicated with Device Manager.
@@ -160,7 +159,7 @@ func (*SingularityDevicePlugin) GetDevicePluginOptions(context.Context, *k8sDP.E
 // or a Device disappears, ListAndWatch returns the new list.
 func (dp *SingularityDevicePlugin) ListAndWatch(_ *k8sDP.Empty, srv k8sDP.DevicePlugin_ListAndWatchServer) error {
 	devList := dp.listK8sDevices()
-	glog.Infof("Sending initial device list: %v", devList)
+	glog.V(3).Infof("Sending initial device list: %v", devList)
 	err := srv.Send(&k8sDP.ListAndWatchResponse{Devices: devList})
 	if err != nil {
 		return status.Errorf(codes.Unknown, "could not send initial devices state: %v", err)
