@@ -61,7 +61,7 @@ func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 		for {
 			select {
 			case <-ctx.Done():
-				glog.V(8).Infof("Context is done")
+				glog.V(5).Infof("Context is done")
 				return
 			case conn := <-nextConn(ln):
 				if conn == nil {

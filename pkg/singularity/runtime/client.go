@@ -84,7 +84,7 @@ func run(cmd []string) error {
 	runCmd := exec.Command(cmd[0], cmd[1:]...)
 	runCmd.Stderr = os.Stderr
 
-	glog.V(4).Infof("Executing %v", cmd)
+	glog.V(5).Infof("Executing %v", cmd)
 	err := runCmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not execute: %v", err)

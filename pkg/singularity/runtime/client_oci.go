@@ -114,13 +114,13 @@ func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.W
 		stdinRead = pr
 	}
 
-	glog.V(4).Infof("Executing %v", cmd)
+	glog.V(5).Infof("Executing %v", cmd)
 	err := createCmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf("could not execute create container command: %v", err)
 	}
 	if stdinRead != nil {
-		glog.V(10).Infof("Closing read end of stdin pipe")
+		glog.V(5).Infof("Closing read end of stdin pipe")
 		if err := stdinRead.Close(); err != nil {
 			glog.Errorf("Could not close read end of stdin pipe: %v", err)
 		}
@@ -148,7 +148,7 @@ func (c *CLIClient) ExecSync(ctx context.Context, id string, args, envs []string
 	runCmd.Stderr = &stderr
 	runCmd.Env = envs
 
-	glog.V(4).Infof("Executing %v", cmd)
+	glog.V(5).Infof("Executing %v", cmd)
 	err := runCmd.Run()
 	var exitCode int32
 	exitErr, ok := err.(*exec.ExitError)
@@ -194,7 +194,7 @@ func (c *CLIClient) PrepareExec(ctx context.Context, id string, args, envs []str
 	cmd := append(c.ociBaseCmd, "exec", id)
 	cmd = append(cmd, args...)
 
-	glog.V(4).Infof("Prepared %v", cmd)
+	glog.V(5).Infof("Prepared %v", cmd)
 	cmdCtx := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
 	cmdCtx.Env = envs
 	return cmdCtx
@@ -230,7 +230,7 @@ func (c *CLIClient) UpdateContainerResources(id string, req *specs.LinuxResource
 	updCmd.Stderr = os.Stderr
 	updCmd.Stdin = buf
 
-	glog.V(4).Infof("Executing %v", cmd)
+	glog.V(5).Infof("Executing %v", cmd)
 	err = updCmd.Run()
 	if err != nil {
 		return fmt.Errorf("could not execute: %v", err)
