@@ -100,11 +100,11 @@ func (i *Info) UsedBy() []string {
 // Pull pulls image referenced by ref and saves it to the passed location.
 func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthConfig) (img *Info, err error) {
 	pullPath := filepath.Join(location, "."+rand.GenerateID(64))
-	glog.V(8).Infof("Pulling to temporary file %s", pullPath)
+	glog.V(5).Infof("Pulling %s to temporary file %s", ref, pullPath)
 	defer func() {
 		if err != nil {
-			if err := os.Remove(pullPath); err != nil {
-				glog.Errorf("Could not remove temporary image file: %v", err)
+			if err := os.Remove(pullPath); err != nil && !os.IsNotExist(err) {
+				glog.Errorf("Could not remove %s: %v", pullPath, err)
 			}
 		}
 	}()
@@ -171,7 +171,7 @@ func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthCo
 	}
 
 	path := filepath.Join(location, checksum)
-	glog.V(8).Infof("Renaming %s to %s", pullPath, path)
+	glog.V(5).Infof("Renaming %s to %s", pullPath, path)
 	err = os.Rename(pullPath, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not save pulled image: %v", err)
@@ -179,7 +179,7 @@ func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthCo
 
 	ociConfig, err := fetchOCIConfig(path)
 	if err != nil {
-		glog.Errorf("Could not fetch image's OCI config: %v", err)
+		glog.Errorf("Could not fetch OCI config for image %s: %v", ref, err)
 	}
 
 	return &Info{
@@ -254,7 +254,7 @@ func (i *Info) Verify() error {
 	_, err := signing.Verify(i.Path, singularity.KeysServer, 0, false, "", false, true)
 	noSignatures := err != nil && strings.Contains(err.Error(), "no signatures found")
 	if noSignatures {
-		glog.V(4).Infof("Image %s is not signed", i.Ref)
+		glog.V(2).Infof("Image %s is not signed", i.Ref)
 	}
 	if err != nil && !noSignatures {
 		return fmt.Errorf("SIF verification failed: %v", err)
