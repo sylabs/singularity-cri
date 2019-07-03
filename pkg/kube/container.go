@@ -280,7 +280,7 @@ func (c *Container) Start() error {
 	if c.State() != k8s.ContainerState_CONTAINER_CREATED {
 		return ErrContainerNotCreated
 	}
-	glog.V(10).Infof("Starting container %s", c.id)
+	glog.V(3).Infof("Starting container %s", c.id)
 	if err := c.cli.Start(c.id); err != nil {
 		return fmt.Errorf("could not start container: %v", err)
 	}

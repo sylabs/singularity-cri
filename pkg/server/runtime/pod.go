@@ -48,7 +48,7 @@ func (s *SingularityRuntime) RunPodSandbox(_ context.Context, req *k8s.RunPodSan
 	}
 
 	// bring up network interface if requested
-	glog.V(4).Infof("Bringing up network for pod %s", pod.ID())
+	glog.V(3).Infof("Bringing up network for pod %s", pod.ID())
 	if err := pod.SetUpNetwork(s.networkManager); err != nil {
 		cleanupOnFailure()
 		return nil, status.Errorf(codes.Internal, "could not set up pod network interface: %v", err)
@@ -84,9 +84,9 @@ func (s *SingularityRuntime) StopPodSandbox(_ context.Context, req *k8s.StopPodS
 	}
 
 	// tear down network interface
-	glog.V(4).Infof("Tearing down network for pod %s", pod.ID())
+	glog.V(3).Infof("Tearing down network for pod %s", pod.ID())
 	if err := pod.TearDownNetwork(s.networkManager); err != nil {
-		glog.Warningf("Could not tear down network interface: %v", err)
+		glog.Errorf("Could not tear down network interface: %v", err)
 	}
 
 	return &k8s.StopPodSandboxResponse{}, nil

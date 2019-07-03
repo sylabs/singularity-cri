@@ -64,7 +64,7 @@ func (c *Container) addLogDirectory() error {
 
 	logPath = filepath.Join(logDir, logPath)
 	logDir = filepath.Dir(logPath)
-	glog.V(8).Infof("Creating log directory %s", logDir)
+	glog.V(5).Infof("Creating log directory %s", logDir)
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", logDir, err)
@@ -74,7 +74,7 @@ func (c *Container) addLogDirectory() error {
 }
 
 func (c *Container) addOCIBundle() error {
-	glog.V(8).Infof("Creating SIF bundle at %s", c.bundlePath())
+	glog.V(5).Infof("Creating SIF bundle at %s", c.bundlePath())
 	d, err := ocibundle.FromSif(c.imgInfo.Path, c.bundlePath(), true)
 	if err != nil {
 		return fmt.Errorf("could not create SIF bundle driver: %v", err)
@@ -83,7 +83,7 @@ func (c *Container) addOCIBundle() error {
 		return fmt.Errorf("could not create SIF bundle: %v", err)
 	}
 
-	glog.V(8).Infof("Generating OCI config for container %s", c.id)
+	glog.V(5).Infof("Generating OCI config for container %s", c.id)
 	ociSpec, err := translateContainer(c, c.pod)
 	if err != nil {
 		return fmt.Errorf("could not generate oci spec for container: %v", err)
@@ -101,7 +101,7 @@ func (c *Container) addOCIBundle() error {
 }
 
 func (c *Container) cleanupFiles(silent bool) error {
-	glog.V(8).Infof("Removing bundle at %s", c.bundlePath())
+	glog.V(5).Infof("Removing bundle at %s", c.bundlePath())
 	d, err := ocibundle.FromSif("", c.bundlePath(), true)
 	if err != nil {
 		if !silent {
@@ -115,7 +115,7 @@ func (c *Container) cleanupFiles(silent bool) error {
 		}
 		glog.Errorf("Could not delete SIF bundle: %v", err)
 	}
-	glog.V(8).Infof("Removing container base directory %s", c.baseDir)
+	glog.V(5).Infof("Removing container base directory %s", c.baseDir)
 	err = os.RemoveAll(c.baseDir)
 	if err != nil {
 		if !silent {

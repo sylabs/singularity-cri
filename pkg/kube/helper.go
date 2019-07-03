@@ -29,7 +29,7 @@ func writeResolvConf(path string, config *k8s.DNSConfig) error {
 		return nil
 	}
 
-	glog.V(8).Infof("Creating resolv.conf file %s", path)
+	glog.V(5).Infof("Creating resolv.conf file %s", path)
 	resolv, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("could not create %s: %v", podResolvConfPath, err)

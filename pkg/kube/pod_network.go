@@ -25,19 +25,20 @@ import (
 
 // NetworkStatus returns POD ip address.
 func (p *Pod) NetworkStatus() *k8s.PodSandboxNetworkStatus {
-	if p.networkConfig != nil && p.networkConfig.Setup != nil && p.namespacePath(specs.NetworkNamespace) != "" {
-		netIP, err := p.networkConfig.Setup.GetNetworkIP("", "4")
-		if err == nil {
-			return &k8s.PodSandboxNetworkStatus{Ip: netIP.String()}
-		}
-		glog.Warningf("Could not get IPv4 for pod %s: %v", p.id, err)
-
-		netIP, err = p.networkConfig.Setup.GetNetworkIP("", "6")
-		if err == nil {
-			return &k8s.PodSandboxNetworkStatus{Ip: netIP.String()}
-		}
-		glog.Warningf("Could not get IPv6 for pod %s: %v", p.id, err)
+	if p.networkConfig == nil || p.networkConfig.Setup == nil || p.namespacePath(specs.NetworkNamespace) == "" {
+		return nil
 	}
+	netIP, err := p.networkConfig.Setup.GetNetworkIP("", "4")
+	if err == nil {
+		return &k8s.PodSandboxNetworkStatus{Ip: netIP.String()}
+	}
+	glog.Warningf("Could not get IPv4 for pod %s: %v", p.id, err)
+
+	netIP, err = p.networkConfig.Setup.GetNetworkIP("", "6")
+	if err == nil {
+		return &k8s.PodSandboxNetworkStatus{Ip: netIP.String()}
+	}
+	glog.Warningf("Could not get IPv6 for pod %s: %v", p.id, err)
 	return nil
 }
 

@@ -88,7 +88,7 @@ func (m *Manager) checkInit() error {
 		}
 	}
 	if !ipRanges && m.podCIDR != "" {
-		glog.Infof("Resetting pod CIDR, network plugin doesn't support it")
+		glog.V(1).Infof("Resetting pod CIDR, network plugin doesn't support it")
 		m.podCIDR = ""
 	}
 	return nil
@@ -109,7 +109,7 @@ func (m *Manager) setDefaultNetwork() error {
 		return fmt.Errorf("no CNI network configuration found in %s", m.cniPath.Conf)
 	}
 	m.defaultNetwork = netConfList[0]
-	glog.Infof("Network configuration found: %s", m.defaultNetwork.Name)
+	glog.V(1).Infof("Network configuration found: %s", m.defaultNetwork.Name)
 	return nil
 }
 
@@ -172,7 +172,7 @@ func (m *Manager) SetUpPod(podConfig *PodConfig) error {
 			}
 		}
 	}
-	glog.V(4).Infof("Network for pod %s args: %s", podConfig.ID, args)
+	glog.V(3).Infof("Network for pod %s args: %s", podConfig.ID, args)
 	if err := podConfig.Setup.SetArgs([]string{args}); err != nil {
 		return err
 	}

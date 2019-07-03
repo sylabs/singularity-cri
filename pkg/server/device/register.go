@@ -61,9 +61,9 @@ func RegisterInKubelet(socket string) error {
 	for attempt := 1; attempt < 5; attempt++ {
 		err := register(socket)
 		if err != nil {
-			glog.Errorf("Registration failed: %v", err)
+			glog.Errorf("Device plugin registration failed: %v", err)
 			timeout := time.Second * time.Duration(attempt*2)
-			glog.Errorf("Retrying in %f seconds", timeout.Seconds())
+			glog.V(1).Infof("Retrying device plugin registration in %f seconds", timeout.Seconds())
 			time.Sleep(timeout)
 			continue
 		}

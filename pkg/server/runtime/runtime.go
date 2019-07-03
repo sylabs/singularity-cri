@@ -97,14 +97,14 @@ func WithStreaming(url string) Option {
 		streamingServer, err := streaming.NewServer(streamingConfig, streamingRuntime)
 		if err != nil {
 			glog.Errorf("Could not create streaming server: %v", err)
-			glog.Infof("Streaming endpoints are disabled")
+			glog.Warning("Streaming endpoints are disabled")
 			return
 		}
 
 		go func() {
 			err := streamingServer.Start(true)
 			if err != nil && err != http.ErrServerClosed {
-				glog.Infof("Streaming server error: %v", err)
+				glog.Errorf("Streaming server error: %v", err)
 			}
 		}()
 
@@ -322,7 +322,7 @@ func (s *SingularityRuntime) ListContainerStats(ctx context.Context, req *k8s.Li
 		if cont.MatchesFilter(filter) {
 			stat, err := cont.Stat()
 			if err != nil {
-				glog.Warningf("Skipping container %s due to %v", cont.ID(), err)
+				glog.Errorf("Skipping container %s due to %v", cont.ID(), err)
 				return
 			}
 			containers = append(containers, containerStats(cont, stat))
