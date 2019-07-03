@@ -46,14 +46,15 @@ func (c *Container) validateConfig() error {
 			aaProfile = "" // do not specify anything in that case
 		}
 		aaProfile = strings.TrimPrefix(aaProfile, appArmorLocalhostPrefix)
-		glog.Infof("Setting AppArmor profile to %q", aaProfile)
+		glog.V(2).Infof("Setting AppArmor profile to %q for container %s", aaProfile, c.id)
 		security.ApparmorProfile = aaProfile
 	}
 	if security != nil {
 		scProfile, err := prepareSeccompPath(security.GetSeccompProfilePath())
 		if err != nil {
-			return fmt.Errorf("invalid Seccomp profile path: %v", err)
+			return fmt.Errorf("invalid seccomp profile path: %v", err)
 		}
+		glog.V(2).Infof("Setting seccomp profile to %q for container %s", scProfile, c.id)
 		security.SeccompProfilePath = scProfile
 	}
 	caps := security.GetCapabilities()
@@ -77,14 +78,13 @@ func prepareSeccompPath(scProfile string) (string, error) {
 		return "", fmt.Errorf("custom profiles without %q prefix are not allowed", seccompLocalhostPrefix)
 	}
 	scProfile = strings.TrimPrefix(scProfile, seccompLocalhostPrefix)
-	glog.Infof("Setting Seccomp profile to %q", scProfile)
 	return scProfile, nil
 }
 
 func prepareCapabilities(caps []string, excluded []string) []string {
 	normalized, unknown := capabilities.Normalize(caps)
 	if len(unknown) != 0 {
-		glog.Warningf("Skipping unknown capabilities: %v", unknown)
+		glog.Infof("Skipping unknown capabilities: %v", unknown)
 	}
 	// remove excluded capabilities if any from normalized set
 	for i := len(normalized) - 1; i >= 0; i-- {

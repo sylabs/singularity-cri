@@ -36,7 +36,7 @@ func (c *Container) spawnOCIContainer() error {
 		return fmt.Errorf("could not listen for state changes: %v", err)
 	}
 
-	glog.V(10).Infof("Creating container %s", c.id)
+	glog.V(3).Infof("Creating container %s", c.id)
 	c.stdin, err = c.cli.Create(c.id, c.bundlePath(), c.GetStdin(),
 		"--sync-socket", c.socketPath(), "--log-path", c.logPath)
 	if err != nil {
@@ -109,7 +109,7 @@ func (c *Container) terminate(timeout int64) error {
 			return fmt.Errorf("unexpected container state: %v", c.runtimeState)
 		}
 	case <-time.After(time.Second * time.Duration(timeout)):
-		glog.V(4).Infof("Termination timeout for container %s exceeded", c.id)
+		glog.V(3).Infof("Termination timeout for container %s exceeded", c.id)
 		return c.kill()
 	}
 
@@ -129,7 +129,7 @@ func (c *Container) kill() error {
 		return nil
 	}
 
-	glog.V(4).Infof("Forcibly stopping container %s", c.id)
+	glog.V(3).Infof("Forcibly stopping container %s", c.id)
 	err := c.cli.Kill(c.id, true)
 	if err != nil {
 		return fmt.Errorf("could not kill container: %v", err)

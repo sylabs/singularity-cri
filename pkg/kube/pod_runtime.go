@@ -46,7 +46,7 @@ func (p *Pod) spawnOCIPod() error {
 		return fmt.Errorf("could not listen for state changes: %v", err)
 	}
 
-	glog.V(10).Infof("Creating pod %s", p.id)
+	glog.V(3).Infof("Creating pod %s", p.id)
 	_, err = p.cli.Create(p.id, p.bundlePath(), false, "--empty-process", "--sync-socket", p.socketPath())
 	if err != nil {
 		return fmt.Errorf("could not create pod: %v", err)
@@ -59,7 +59,7 @@ func (p *Pod) spawnOCIPod() error {
 		return err
 	}
 
-	glog.V(10).Infof("Starting pod %s", p.id)
+	glog.V(3).Infof("Starting pod %s", p.id)
 	if err := p.cli.Start(p.id); err != nil {
 		return fmt.Errorf("could not start pod: %v", err)
 	}
@@ -127,9 +127,9 @@ func (p *Pod) terminate(force bool) error {
 	}
 
 	if force {
-		glog.V(4).Infof("Forcibly stopping pod %s", p.id)
+		glog.V(3).Infof("Forcibly stopping pod %s", p.id)
 	} else {
-		glog.V(4).Infof("Terminating pod %s", p.id)
+		glog.V(3).Infof("Terminating pod %s", p.id)
 	}
 	err := p.cli.Kill(p.id, force)
 	if err != nil {

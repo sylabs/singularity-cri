@@ -61,14 +61,14 @@ func (p *Pod) validateConfig() error {
 		if err != nil {
 			return fmt.Errorf("could not get default hostname: %v", err)
 		}
-		glog.Infof("Setting pod hostname to default value %q", hostname)
+		glog.V(2).Infof("Setting pod's %s hostname to default value %q", p.id, hostname)
 		p.Hostname = hostname
 	}
 
 	cgroupsPath := p.GetLinux().GetCgroupParent()
 	if cgroupsPath == "" {
 		cgroupsPath = filepath.Join(defaultCgroup, p.id)
-		glog.Infof("Setting pod cgroup parent to default value %q", cgroupsPath)
+		glog.V(2).Infof("Setting pod's %s cgroup parent to default value %q", p.id, cgroupsPath)
 		if p.GetLinux() == nil {
 			p.Linux = new(k8s.LinuxPodSandboxConfig)
 		}
