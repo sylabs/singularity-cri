@@ -35,7 +35,7 @@ The following assumes you are installing Singularity-CRI from source outside GOP
 ```bash
 git clone https://github.com/sylabs/singularity-cri.git && \
 cd singularity-cri && \
-git checkout tags/v1.0.0-beta.2 -b v1.0.0-beta.2 && \
+git checkout tags/v1.0.0-beta.3 -b v1.0.0-beta.3 && \
 make && \
 sudo make install
 ```
