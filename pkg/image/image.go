@@ -140,6 +140,8 @@ func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthCo
 		buildCmd := exec.CommandContext(ctx, singularity.RuntimeName, "build", "-F", pullPath, remote)
 		buildCmd.Env = []string{
 			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
+			// assume auth.Auth is not needed b/c k8s decodes it into username and password,
+			// see https://github.com/kubernetes/kubernetes/blob/master/pkg/credentialprovider/config.go#L284
 			fmt.Sprintf("%s=%s", singularity.EnvDockerUsername, auth.GetUsername()),
 			fmt.Sprintf("%s=%s", singularity.EnvDockerPassword, auth.GetPassword()),
 		}

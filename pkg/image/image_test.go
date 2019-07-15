@@ -38,7 +38,7 @@ func TestPullImage(t *testing.T) {
 		ref         *Reference
 		auth        *k8s.AuthConfig
 		expectImage *Info
-		expectError error
+		expectError string
 	}{
 		{
 			name: "unknown registry",
@@ -47,10 +47,28 @@ func TestPullImage(t *testing.T) {
 				tags: []string{"foo.io/cri-tools/test-image-latest"},
 			},
 			expectImage: nil,
-			expectError: fmt.Errorf("could not pull image: unknown image registry: foo.io"),
+			expectError: "could not pull image: unknown image registry: foo.io",
 		},
 		{
 			name: "docker image",
+			ref: &Reference{
+				uri:  singularity.DockerDomain,
+				tags: []string{"busybox:1.31"},
+			},
+			expectImage: &Info{
+				Size: 782336,
+				Ref: &Reference{
+					uri:  singularity.DockerDomain,
+					tags: []string{"busybox:1.31"},
+				},
+				OciConfig: &specs.ImageConfig{
+					Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+					Cmd: []string{"sh"},
+				},
+			},
+		},
+		{
+			name: "custom server address",
 			ref: &Reference{
 				uri:  singularity.DockerDomain,
 				tags: []string{"cri-tools/test-image-latest"},
@@ -69,7 +87,6 @@ func TestPullImage(t *testing.T) {
 					Cmd: []string{"sh"},
 				},
 			},
-			expectError: nil,
 		},
 		{
 			name: "library image",
@@ -87,7 +104,14 @@ func TestPullImage(t *testing.T) {
 					digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
 				},
 			},
-			expectError: nil,
+		},
+		{
+			name: "private docker image without creds",
+			ref: &Reference{
+				uri:  singularity.DockerDomain,
+				tags: []string{"sashayakovtseva/slurm:job-companion"},
+			},
+			expectError: "requested access to the resource is denied",
 		},
 		{
 			name: "private docker image",
@@ -118,11 +142,16 @@ func TestPullImage(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			image, err := Pull(context.Background(), os.TempDir(), tc.ref, tc.auth)
-			require.Equal(t, tc.expectError, err, "could not pull image")
+			if err == nil {
+				require.Empty(t, tc.expectError, "expected error, but got nil")
+			} else {
+				require.NotEmpty(t, tc.expectError, "unexpected error: %v", err)
+				require.Contains(t, err.Error(), tc.expectError, "unexpected pull error")
+			}
 			if image != nil {
 				require.NoError(t, image.Remove(), "could not remove image")
 			}
-			if tc.ref.uri == singularity.DockerDomain {
+			if image != nil && tc.ref.uri == singularity.DockerDomain {
 				image.ID = ""
 				image.Sha256 = ""
 				image.Path = ""
