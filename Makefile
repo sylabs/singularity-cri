@@ -52,7 +52,7 @@ uninstall:
 
 .PHONY: test
 test:
-	$(V)GOOS=linux go test -mod vendor -v -coverpkg=./... -coverprofile=cover.out -race ./...
+	$(V)GOOS=linux go test -mod vendor -v -coverprofile=cover.out -race ./...
 
 $(SY_CRI_TEST):
 	@echo " GO" $@
