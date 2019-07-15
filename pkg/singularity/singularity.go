@@ -38,4 +38,12 @@ const (
 	// RunScript is a path to a shell script that should be used as a default container
 	// entrypoint based on a native SIF image.
 	RunScript = "/.singularity.d/actions/run"
+
+	// EnvDockerUsername should be used to set Docker username for
+	// build engine when building from a private registry.
+	EnvDockerUsername = "SINGULARITY_DOCKER_USERNAME"
+
+	// EnvDockerPassword should be used to set Docker password for
+	// build engine when building from a private registry.
+	EnvDockerPassword = "SINGULARITY_DOCKER_PASSWORD"
 )

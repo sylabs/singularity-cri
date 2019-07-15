@@ -36,6 +36,7 @@ func TestPullImage(t *testing.T) {
 	tt := []struct {
 		name        string
 		ref         *Reference
+		auth        *k8s.AuthConfig
 		expectImage *Info
 		expectError error
 	}{
@@ -52,13 +53,16 @@ func TestPullImage(t *testing.T) {
 			name: "docker image",
 			ref: &Reference{
 				uri:  singularity.DockerDomain,
-				tags: []string{"gcr.io/cri-tools/test-image-latest"},
+				tags: []string{"cri-tools/test-image-latest"},
+			},
+			auth: &k8s.AuthConfig{
+				ServerAddress: "gcr.io",
 			},
 			expectImage: &Info{
 				Size: 745472,
 				Ref: &Reference{
 					uri:  singularity.DockerDomain,
-					tags: []string{"gcr.io/cri-tools/test-image-latest"},
+					tags: []string{"cri-tools/test-image-latest"},
 				},
 				OciConfig: &specs.ImageConfig{
 					Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
@@ -85,11 +89,35 @@ func TestPullImage(t *testing.T) {
 			},
 			expectError: nil,
 		},
+		{
+			name: "private docker image",
+			ref: &Reference{
+				uri:  singularity.DockerDomain,
+				tags: []string{"sashayakovtseva/slurm:job-companion"},
+			},
+			auth: &k8s.AuthConfig{
+				Username: "sashayakovtseva",
+				Password: os.Getenv("PRIVATE_PASSWORD"),
+			},
+			expectImage: &Info{
+				Size: 3911680,
+				Ref: &Reference{
+					uri:  singularity.DockerDomain,
+					tags: []string{"sashayakovtseva/slurm:job-companion"},
+				},
+				OciConfig: &specs.ImageConfig{
+					User:       "appuser",
+					Env:        []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+					Entrypoint: []string{"./main"},
+					WorkingDir: "/app",
+				},
+			},
+		},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			image, err := Pull(context.Background(), os.TempDir(), tc.ref, nil)
+			image, err := Pull(context.Background(), os.TempDir(), tc.ref, tc.auth)
 			require.Equal(t, tc.expectError, err, "could not pull image")
 			if image != nil {
 				require.NoError(t, image.Remove(), "could not remove image")
