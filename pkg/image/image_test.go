@@ -26,15 +26,16 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
 	"github.com/sylabs/singularity-cri/pkg/singularity"
-	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
 func TestPullImage(t *testing.T) {
-	useragent.InitValue("singularity", "3.0.0")
+	awsEndpoint := os.Getenv("AWS_ECR_ENDPOINT")
+	awsPassword := os.Getenv("AWS_SECRET_ACCESS_KEY")
 
 	tt := []struct {
 		name        string
+		skip        bool
 		ref         *Reference
 		auth        *k8s.AuthConfig
 		expectImage *Info
@@ -68,7 +69,7 @@ func TestPullImage(t *testing.T) {
 			},
 		},
 		{
-			name: "custom server address",
+			name: "custom docker server address",
 			ref: &Reference{
 				uri:  singularity.DockerDomain,
 				tags: []string{"cri-tools/test-image-latest"},
@@ -89,19 +90,44 @@ func TestPullImage(t *testing.T) {
 			},
 		},
 		{
-			name: "library image",
+			name: "library by digest",
 			ref: &Reference{
-				uri:     singularity.LibraryDomain,
-				digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
+				uri: singularity.LibraryDomain,
+				digests: []string{
+					"cloud.sylabs.io/sylabs/tests/busybox:sha256.8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+				},
 			},
 			expectImage: &Info{
-				ID:     "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
-				Sha256: "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
-				Size:   5521408,
-				Path:   filepath.Join(os.TempDir(), "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"),
+				ID:     "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+				Sha256: "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+				Size:   672699,
+				Path:   filepath.Join(os.TempDir(), "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba"),
 				Ref: &Reference{
-					uri:     singularity.LibraryDomain,
-					digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
+					uri: singularity.LibraryDomain,
+					digests: []string{
+						"cloud.sylabs.io/sylabs/tests/busybox:sha256.8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+					},
+				},
+			},
+		},
+		{
+			name: "library by tag",
+			ref: &Reference{
+				uri: singularity.LibraryDomain,
+				tags: []string{
+					"cloud.sylabs.io/sylabs/tests/busybox:1.0.0",
+				},
+			},
+			expectImage: &Info{
+				ID:     "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+				Sha256: "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+				Size:   672699,
+				Path:   filepath.Join(os.TempDir(), "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba"),
+				Ref: &Reference{
+					uri: singularity.LibraryDomain,
+					tags: []string{
+						"cloud.sylabs.io/sylabs/tests/busybox:1.0.0",
+					},
 				},
 			},
 		},
@@ -109,31 +135,36 @@ func TestPullImage(t *testing.T) {
 			name: "private docker image without creds",
 			ref: &Reference{
 				uri:  singularity.DockerDomain,
-				tags: []string{"sashayakovtseva/slurm:job-companion"},
+				tags: []string{"sylabs/test:latest"},
 			},
-			expectError: "requested access to the resource is denied",
+			auth: &k8s.AuthConfig{
+				ServerAddress: awsEndpoint,
+			},
+			skip:        awsEndpoint == "",
+			expectError: "unauthorized: authentication required",
 		},
 		{
 			name: "private docker image",
 			ref: &Reference{
 				uri:  singularity.DockerDomain,
-				tags: []string{"sashayakovtseva/slurm:job-companion"},
+				tags: []string{"sylabs/test:latest"},
 			},
 			auth: &k8s.AuthConfig{
-				Username: "sashayakovtseva",
-				Password: os.Getenv("PRIVATE_PASSWORD"),
+				ServerAddress: awsEndpoint,
+				Username:      "AWS",
+				Password:      awsPassword,
 			},
+
+			skip: awsEndpoint == "" && awsPassword == "",
 			expectImage: &Info{
-				Size: 3911680,
+				Size: 2723840,
 				Ref: &Reference{
 					uri:  singularity.DockerDomain,
-					tags: []string{"sashayakovtseva/slurm:job-companion"},
+					tags: []string{"sylabs/test:latest"},
 				},
 				OciConfig: &specs.ImageConfig{
-					User:       "appuser",
-					Env:        []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
-					Entrypoint: []string{"./main"},
-					WorkingDir: "/app",
+					Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+					Cmd: []string{"/bin/sh"},
 				},
 			},
 		},
@@ -141,11 +172,15 @@ func TestPullImage(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
 			image, err := Pull(context.Background(), os.TempDir(), tc.ref, tc.auth)
-			if err == nil {
-				require.Empty(t, tc.expectError, "expected error, but got nil")
+			if tc.expectError == "" {
+				require.NoError(t, err, "unexpected error")
 			} else {
-				require.NotEmpty(t, tc.expectError, "unexpected error: %v", err)
+				require.Error(t, err, "expected error, but got nil")
 				require.Contains(t, err.Error(), tc.expectError, "unexpected pull error")
 			}
 			if image != nil {
@@ -162,8 +197,6 @@ func TestPullImage(t *testing.T) {
 }
 
 func TestLibraryInfo(t *testing.T) {
-	useragent.InitValue("singularity", "3.0.0")
-
 	tt := []struct {
 		name        string
 		ref         *Reference
@@ -176,7 +209,6 @@ func TestLibraryInfo(t *testing.T) {
 				uri:  "foo.io",
 				tags: []string{"foo.io/cri-tools/test-image-latest"},
 			},
-			expectImage: nil,
 			expectError: ErrNotLibrary,
 		},
 		{
@@ -185,33 +217,54 @@ func TestLibraryInfo(t *testing.T) {
 				uri:  singularity.DockerDomain,
 				tags: []string{"gcr.io/cri-tools/test-image-latest"},
 			},
-			expectImage: nil,
 			expectError: ErrNotLibrary,
 		},
 		{
-			name: "library image",
+			name: "library by digest",
 			ref: &Reference{
-				uri:     singularity.LibraryDomain,
-				digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
-			},
-			expectImage: &Info{
-				ID:     "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
-				Sha256: "d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0",
-				Size:   5521408,
-				Ref: &Reference{
-					uri:     singularity.LibraryDomain,
-					digests: []string{"cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.d50278eebfe4ca5655cc28503983f7c947914a34fbbb805481657d39e98f33f0"},
+				uri: singularity.LibraryDomain,
+				digests: []string{
+					"cloud.sylabs.io/sylabs/tests/busybox:sha256.8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
 				},
 			},
-			expectError: nil,
+			expectImage: &Info{
+				ID:     "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+				Sha256: "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+				Size:   672699,
+				Ref: &Reference{
+					uri: singularity.LibraryDomain,
+					digests: []string{
+						"cloud.sylabs.io/sylabs/tests/busybox:sha256.8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+					},
+				},
+			},
+		},
+		{
+			name: "library by tag",
+			ref: &Reference{
+				uri: singularity.LibraryDomain,
+				tags: []string{
+					"cloud.sylabs.io/sylabs/tests/busybox:1.0.0",
+				},
+			},
+			expectImage: &Info{
+				ID:     "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+				Sha256: "8b5478b0f2962eba3982be245986eb0ea54f5164d90a65c078af5b83147009ba",
+				Size:   672699,
+				Ref: &Reference{
+					uri: singularity.LibraryDomain,
+					tags: []string{
+						"cloud.sylabs.io/sylabs/tests/busybox:1.0.0",
+					},
+				},
+			},
 		},
 		{
 			name: "library not found",
 			ref: &Reference{
 				uri:     singularity.LibraryDomain,
-				digests: []string{"cloud.sylabs.io/sashayakovtseva/foo/bar:latest"},
+				digests: []string{"cloud.sylabs.io/sylabs/tests/not-found"},
 			},
-			expectImage: nil,
 			expectError: ErrNotFound,
 		},
 	}
@@ -225,9 +278,78 @@ func TestLibraryInfo(t *testing.T) {
 	}
 }
 
-func TestInfo_BorrowReturn(t *testing.T) {
-	useragent.InitValue("singularity", "3.0.0")
+func TestInfo_Verify(t *testing.T) {
+	tt := []struct {
+		name        string
+		imgRef      *Reference
+		image       *Info
+		expectError string
+	}{
+		{
+			name: "docker image",
+			imgRef: &Reference{
+				uri:  singularity.DockerDomain,
+				tags: []string{"gcr.io/cri-tools/test-image-latest"},
+			},
+			expectError: "",
+		},
+		{
+			name: "signed SIF",
+			imgRef: &Reference{
+				uri:  singularity.LibraryDomain,
+				tags: []string{"sylabs/tests/verify_success:1.0.1"},
+			},
+			expectError: "",
+		},
+		{
+			name: "non-signed SIF",
+			imgRef: &Reference{
+				uri:  singularity.LibraryDomain,
+				tags: []string{"sylabs/tests/unsigned:1.0.0"},
+			},
+			expectError: "",
+		},
+		{
+			name: "broken signature SIF",
+			imgRef: &Reference{
+				uri:  singularity.LibraryDomain,
+				tags: []string{"sylabs/tests/verify_corrupted:1.0.1"},
+			},
+			expectError: "SIF verification failed: hashes differ, data may be corrupted",
+		},
+		{
+			name: "broken image info",
+			image: &Info{
+				Path: "/foo/bar",
+				Ref: &Reference{
+					uri: singularity.LibraryDomain,
+				},
+			},
+			expectError: "open /foo/bar: no such file or directory",
+		},
+	}
 
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			img := tc.image
+			if img == nil {
+				var cleanup func()
+				img, cleanup = pullImage(t, tc.imgRef)
+				defer cleanup()
+			}
+
+			err := img.Verify()
+			if tc.expectError == "" {
+				require.NoError(t, err, "unexpected error")
+			} else {
+				require.Error(t, err, "expected error, but got nil")
+				require.Contains(t, err.Error(), tc.expectError, "unexpected verify error")
+			}
+		})
+	}
+}
+
+func TestInfo_BorrowReturn(t *testing.T) {
 	tt := []struct {
 		name         string
 		borrow       []string
@@ -276,8 +398,6 @@ func TestInfo_BorrowReturn(t *testing.T) {
 }
 
 func TestInfo_Remove(t *testing.T) {
-	useragent.InitValue("singularity", "3.0.0")
-
 	f, err := ioutil.TempFile("", "")
 	require.NoError(t, err, "could not create temp image file")
 	require.NoError(t, f.Close())
@@ -591,73 +711,5 @@ func pullImage(t *testing.T, source *Reference) (*Info, func()) {
 	require.NoError(t, err, "could not pull SIF")
 	return image, func() {
 		require.NoError(t, image.Remove(), "could not remove SIF")
-	}
-}
-
-func TestInfo_Verify(t *testing.T) {
-	tt := []struct {
-		name        string
-		imgRef      *Reference
-		image       *Info
-		expectError error
-	}{
-		{
-			name: "docker image",
-			imgRef: &Reference{
-				uri:  singularity.DockerDomain,
-				tags: []string{"gcr.io/cri-tools/test-image-latest"},
-			},
-			expectError: nil,
-		},
-		{
-			name: "signed SIF",
-			imgRef: &Reference{
-				uri:  singularity.LibraryDomain,
-				tags: []string{"sashayakovtseva/test/test-info:signed"},
-			},
-			expectError: nil,
-		},
-		{
-			name: "non-signed SIF",
-			imgRef: &Reference{
-				uri:  singularity.LibraryDomain,
-				tags: []string{"sashayakovtseva/test/test-info:latest"},
-			},
-			expectError: nil,
-		},
-		{
-			name: "broken signature SIF",
-			imgRef: &Reference{
-				uri:  singularity.LibraryDomain,
-				tags: []string{"sashayakovtseva/test/test-info:broken-sig"},
-			},
-			expectError: fmt.Errorf("SIF verification failed: could not fetch public key from server: no matching keys found for fingerprint"),
-		},
-		{
-			name: "broken image info",
-			image: &Info{
-				Path: "/foo/bar",
-				Ref: &Reference{
-					uri: singularity.LibraryDomain,
-				},
-			},
-			expectError: fmt.Errorf("SIF verification failed: failed to load SIF container file: opening(RDONLY) container file: open /foo/bar: no such file or directory"),
-		},
-	}
-
-	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.image != nil {
-				err := tc.image.Verify()
-				require.Equal(t, tc.expectError, err)
-				return
-			}
-
-			img, cleanup := pullImage(t, tc.imgRef)
-			defer cleanup()
-
-			err := img.Verify()
-			require.Equal(t, tc.expectError, err)
-		})
 	}
 }
