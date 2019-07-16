@@ -31,7 +31,7 @@ import (
 
 func TestPullImage(t *testing.T) {
 	awsEndpoint := os.Getenv("AWS_ECR_ENDPOINT")
-	awsPassword := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	awsPassword := os.Getenv("AWS_ECR_ENDPOINT_PASSWORD")
 
 	tt := []struct {
 		name        string
