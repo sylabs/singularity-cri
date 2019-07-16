@@ -72,7 +72,7 @@ jobs:
             sudo make -C ./builddir install
       - run:
           name: Run tests
-          command: make test
+          command: AWS_ECR_ENDPOINT=$AWS_ECR_ENDPOINT make test
       - codecov/upload:
           file: cover.out
 
