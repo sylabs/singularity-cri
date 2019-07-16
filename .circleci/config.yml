@@ -181,6 +181,7 @@ workflows:
       - unit_test:
           requires:
             - get_source
+          context: aws-development
       - build_source:
           requires:
             - get_source
