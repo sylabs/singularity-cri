@@ -132,9 +132,19 @@ func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthCo
 			return nil, fmt.Errorf("could not pull library image: %v", err)
 		}
 	case singularity.DockerDomain:
-		remote := fmt.Sprintf("%s://%s", singularity.DockerProtocol, pullURL)
 		var errMsg bytes.Buffer
+		if auth.GetServerAddress() != "" {
+			pullURL = fmt.Sprintf("%s/%s", auth.GetServerAddress(), pullURL)
+		}
+		remote := fmt.Sprintf("%s://%s", singularity.DockerProtocol, pullURL)
 		buildCmd := exec.CommandContext(ctx, singularity.RuntimeName, "build", "-F", pullPath, remote)
+		buildCmd.Env = []string{
+			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
+			// assume auth.Auth is not needed b/c k8s decodes it into username and password,
+			// see https://github.com/kubernetes/kubernetes/blob/master/pkg/credentialprovider/config.go#L284
+			fmt.Sprintf("%s=%s", singularity.EnvDockerUsername, auth.GetUsername()),
+			fmt.Sprintf("%s=%s", singularity.EnvDockerPassword, auth.GetPassword()),
+		}
 		buildCmd.Stderr = &errMsg
 		buildCmd.Stdout = ioutil.Discard
 		err = buildCmd.Run()

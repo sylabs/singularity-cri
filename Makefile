@@ -82,6 +82,7 @@ lint:
 	@echo " RUNNING LINTER"
 	$(V)$(LINTER) run --config .golangci.local.yml
 
+.PHONY: dep
 dep:
 	$(V)go mod tidy
 	$(V)go mod vendor

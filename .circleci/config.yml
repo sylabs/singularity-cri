@@ -71,8 +71,14 @@ jobs:
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
       - run:
+          name: Install aws cli
+          command: |
+            pip install awscli --upgrade --user
+      - run:
           name: Run tests
-          command: make test
+          command: |
+            PASSWORD="$(aws ecr get-login --no-include-email --region us-east-1 | awk '{printf $6}')"
+            AWS_ECR_ENDPOINT_PASSWORD=$PASSWORD make test
       - codecov/upload:
           file: cover.out
 
@@ -181,6 +187,7 @@ workflows:
       - unit_test:
           requires:
             - get_source
+          context: aws-development
       - build_source:
           requires:
             - get_source
