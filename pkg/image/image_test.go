@@ -30,8 +30,9 @@ import (
 )
 
 func TestPullImage(t *testing.T) {
-	awsEndpoint := os.Getenv("AWS_ECR_ENDPOINT")
-	awsPassword := os.Getenv("AWS_ECR_ENDPOINT_PASSWORD")
+	privateServer := os.Getenv("PRIVATE_SERVER")
+	privateUsername := os.Getenv("PRIVATE_USERNAME")
+	privatePassword := os.Getenv("PRIVATE_PASSWORD")
 
 	tt := []struct {
 		name        string
@@ -138,9 +139,9 @@ func TestPullImage(t *testing.T) {
 				tags: []string{"sylabs/test:latest"},
 			},
 			auth: &k8s.AuthConfig{
-				ServerAddress: awsEndpoint,
+				ServerAddress: privateServer,
 			},
-			skip:        awsEndpoint == "",
+			skip:        privateServer == "",
 			expectError: "unauthorized: authentication required",
 		},
 		{
@@ -150,12 +151,12 @@ func TestPullImage(t *testing.T) {
 				tags: []string{"sylabs/test:latest"},
 			},
 			auth: &k8s.AuthConfig{
-				ServerAddress: awsEndpoint,
-				Username:      "AWS",
-				Password:      awsPassword,
+				ServerAddress: privateServer,
+				Username:      privateUsername,
+				Password:      privatePassword,
 			},
 
-			skip: awsEndpoint == "" && awsPassword == "",
+			skip: privateServer == "" && privatePassword == "",
 			expectImage: &Info{
 				Size: 2723840,
 				Ref: &Reference{
