@@ -257,6 +257,10 @@ func logAndRecover(debug bool) grpc.UnaryServerInterceptor {
 
 		resp, err := handler(ctx, req)
 		if debug || err != nil {
+			r, ok := req.(*k8s.PullImageRequest)
+			if ok && r.Auth != nil {
+				r.Auth.Reset()
+			}
 			jsonReq, _ := json.Marshal(req)
 			jsonResp, _ := json.Marshal(resp)
 			logFunc := glog.Infof
