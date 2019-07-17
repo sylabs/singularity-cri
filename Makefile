@@ -11,7 +11,7 @@ SY_CRI_INSTALL := $(INSTALL_DIR)/sycri
 CRI_CONFIG := ./config/sycri.yaml
 CRI_CONFIG_INSTALL := /usr/local/etc/sycri/sycri.yaml
 
-SECCOMP := "$(shell printf "\#include <seccomp.h>\nint main() { seccomp_syscall_resolve_name(\"read\"); }" | gcc -x c -o /dev/null - -lseccomp >/dev/null 2>&1; echo $$?)"
+SECCOMP = "$(shell printf "\#include <seccomp.h>\nint main() { seccomp_syscall_resolve_name(\"read\"); }" | gcc -x c -o /dev/null - -lseccomp >/dev/null 2>&1; echo $$?)"
 
 all: $(SY_CRI)
 
@@ -65,8 +65,8 @@ $(SY_CRI_TEST):
 	-coverpkg=./... ./cmd/server
 
 
-GOBIN := $(shell go env GOPATH)/bin
-LINTER := $(GOBIN)/golangci-lint
+GOBIN = $(shell go env GOPATH)/bin
+LINTER = $(GOBIN)/golangci-lint
 LINTER_VERSION := v1.17.1
 
 .PHONY: linter-install
