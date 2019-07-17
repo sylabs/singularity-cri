@@ -77,8 +77,11 @@ jobs:
       - run:
           name: Run tests
           command: |
-            PASSWORD="$(aws ecr get-login --no-include-email --region us-east-1 | awk '{printf $6}')"
-            AWS_ECR_ENDPOINT_PASSWORD=$PASSWORD make test
+            if [ -z "${CIRCLE_PR_NUMBER}" ]
+            then
+              PRIVATE_PASSWORD="$(aws ecr get-login --no-include-email --region us-east-1 | awk '{printf $6}')"
+            fi
+            PRIVATE_USERNAME=AWS PRIVATE_SERVER=$AWS_ECR_ENDPOINT make test
       - codecov/upload:
           file: cover.out
 
