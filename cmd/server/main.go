@@ -22,6 +22,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -46,6 +47,8 @@ var (
 	configPath string
 	version    = "unknown"
 )
+
+const defaultSocketPerms = 0600
 
 func init() {
 	// We want this in init so that this flag can be set even when running test binary
@@ -170,6 +173,11 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 	if err != nil {
 		return fmt.Errorf("could not start CRI listener: %v ", err)
 	}
+	err = os.Chmod(config.ListenSocket, defaultSocketPerms)
+	if err != nil {
+		lis.Close()
+		return fmt.Errorf("could not change %s permissions: %v", config.ListenSocket, err)
+	}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logAndRecover(config.Debug)))
 	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
 	k8s.RegisterImageServiceServer(grpcServer, syImage)
@@ -194,7 +202,7 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 }
 
 func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) error {
-	const devicePluginSocket = "singularity.sock"
+	const devicePluginSocket = k8sDP.DevicePluginPath + "singularity.sock"
 
 	devicePlugin, err := device.NewSingularityDevicePlugin()
 	if err == device.ErrUnableToLoad || err == device.ErrNoGPUs {
@@ -211,11 +219,18 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		}
 	}
 
-	lis, err := net.Listen("unix", k8sDP.DevicePluginPath+devicePluginSocket)
+	lis, err := net.Listen("unix", devicePluginSocket)
 	if err != nil {
 		cleanup()
 		return fmt.Errorf("could not start device plugin listener: %v ", err)
 	}
+	err = os.Chmod(devicePluginSocket, defaultSocketPerms)
+	if err != nil {
+		lis.Close()
+		cleanup()
+		return fmt.Errorf("could not change %s permissions: %v", devicePluginSocket, err)
+	}
+
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logAndRecover(config.Debug)))
 	k8sDP.RegisterDevicePluginServer(grpcServer, devicePlugin)
 
@@ -228,7 +243,7 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		go grpcServer.Serve(lis)
 		defer grpcServer.Stop()
 
-		err := device.RegisterInKubelet(devicePluginSocket)
+		err := device.RegisterInKubelet(filepath.Base(devicePluginSocket))
 		if err != nil {
 			cleanup()
 			register <- fmt.Errorf("could not register Singularity device plugin: %v", err)
