@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -33,6 +32,7 @@ import (
 	"github.com/sylabs/singularity-cri/pkg/server/image"
 	"github.com/sylabs/singularity-cri/pkg/server/runtime"
 	sRuntime "github.com/sylabs/singularity-cri/pkg/singularity/runtime"
+	syunix "github.com/sylabs/singularity/pkg/util/unix"
 	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
@@ -169,14 +169,9 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 		return fmt.Errorf("could not create Singularity runtime service: %v", err)
 	}
 
-	lis, err := net.Listen("unix", config.ListenSocket)
+	lis, err := syunix.CreateSocket(config.ListenSocket)
 	if err != nil {
 		return fmt.Errorf("could not start CRI listener: %v ", err)
-	}
-	err = os.Chmod(config.ListenSocket, defaultSocketPerms)
-	if err != nil {
-		lis.Close()
-		return fmt.Errorf("could not change %s permissions: %v", config.ListenSocket, err)
 	}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logAndRecover(config.Debug)))
 	k8s.RegisterRuntimeServiceServer(grpcServer, syRuntime)
@@ -219,16 +214,10 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		}
 	}
 
-	lis, err := net.Listen("unix", devicePluginSocket)
+	lis, err := syunix.CreateSocket(devicePluginSocket)
 	if err != nil {
 		cleanup()
 		return fmt.Errorf("could not start device plugin listener: %v ", err)
-	}
-	err = os.Chmod(devicePluginSocket, defaultSocketPerms)
-	if err != nil {
-		lis.Close()
-		cleanup()
-		return fmt.Errorf("could not change %s permissions: %v", devicePluginSocket, err)
 	}
 
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logAndRecover(config.Debug)))
