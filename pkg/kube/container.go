@@ -210,13 +210,16 @@ func (c *Container) Stdin() io.Writer {
 	return c.stdin
 }
 
+func (c *Container) StdinClosed() bool {
+	return c.isStdinClosed
+}
+
 // CloseStdin closes write end of container's stdin.
 func (c *Container) CloseStdin() error {
-	if c.isStdinClosed || c.stdin == nil {
-		return nil
-	}
-	if err := c.stdin.Close(); err != nil {
-		return fmt.Errorf("could not close stdin: %v", err)
+	if c.stdin != nil && !c.isStdinClosed {
+		if err := c.stdin.Close(); err != nil {
+			return fmt.Errorf("could not close stdin: %v", err)
+		}
 	}
 	c.isStdinClosed = true
 	return nil

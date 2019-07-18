@@ -131,71 +131,87 @@ func (s *streamingRuntime) Attach(containerID string,
 	}
 	defer attachSock.Close()
 
-	done := make(chan struct{})
-	go func() {
-		socket := c.ControlSocket()
-		if socket == "" {
-			glog.Errorf("Container didn't provide control socket: %v", err)
-			return
-		}
-
-		glog.V(5).Infof("Resize start for %s", containerID)
-		for {
-			select {
-			case <-done:
-				glog.V(5).Infof("Resize end for %s", containerID)
+	if tty {
+		// start TTY controls handling only if TTY has been allocated
+		done := make(chan struct{})
+		defer close(done)
+		go func() {
+			socket := c.ControlSocket()
+			if socket == "" {
+				glog.Errorf("Container didn't provide control socket: %v", err)
 				return
-			case size := <-resize:
-				glog.V(5).Infof("Got resize event for %s: %+v", containerID, size)
-				ctrlSock, err := unix.Dial(socket)
-				if err != nil {
-					glog.Errorf("Could not connect to control socket: %v", err)
-					continue
-				}
-				ctrl := ociruntime.Control{
-					ConsoleSize: &specs.Box{
-						Height: uint(size.Height),
-						Width:  uint(size.Width),
-					},
-				}
-				err = json.NewEncoder(ctrlSock).Encode(&ctrl)
-				if err != nil {
-					glog.Errorf("Could not send resize event to control socket: %v", err)
-				}
-				ctrlSock.Close()
 			}
-		}
-	}()
+
+			glog.V(5).Infof("Resize start for %s", containerID)
+			for {
+				select {
+				case <-done:
+					glog.V(5).Infof("Resize end for %s", containerID)
+					return
+				case size := <-resize:
+					glog.V(5).Infof("Got resize event for %s: %+v", containerID, size)
+					ctrlSock, err := unix.Dial(socket)
+					if err != nil {
+						glog.Errorf("Could not connect to control socket: %v", err)
+						continue
+					}
+					ctrl := ociruntime.Control{
+						ConsoleSize: &specs.Box{
+							Height: uint(size.Height),
+							Width:  uint(size.Width),
+						},
+					}
+					err = json.NewEncoder(ctrlSock).Encode(&ctrl)
+					if err != nil {
+						glog.Errorf("Could not send resize event to control socket: %v", err)
+					}
+					ctrlSock.Close()
+				}
+			}
+		}()
+	}
 
 	errors := make(chan error, 2)
 	if stdout != nil || stderr != nil {
 		go func() {
+			// there is no way to distinguish stdout and stderr
+			// as both of them are written to attach socket by the runtime
 			out := stdout
 			if out == nil {
 				out = stderr
 			}
 
 			_, err := io.Copy(out, attachSock)
-			glog.Errorf("Could not copy stdout/stderr: %v", err)
-			errors <- err
-		}()
-	}
-	if c.GetStdin() && c.Stdin() != nil && stdin != nil {
-		go func() {
-			// copy until ctrl-d hits
-			_, err := utils.CopyDetachable(c.Stdin(), stdin, []byte{4})
-			glog.Errorf("Could not copy stdin: %v", err)
-			errors <- err
+			// do not report attach socket close as error
+			if err != nil && err != io.EOF {
+				errors <- err
+			}
+			errors <- nil
 		}()
 	}
 
-	err = <-errors
-	close(done)
-	glog.V(4).Infof("Attach for %s returned %v...", containerID, err)
-	if (err == utils.DetachError{}) {
-		return nil
+	if stdin != nil && c.GetStdin() && !c.StdinClosed() {
+		contStdin := io.Writer(attachSock)
+		if !tty {
+			contStdin = c.Stdin()
+		}
+
+		if contStdin != nil {
+			go func() {
+				// copy until ctrl-d hits
+				_, err := utils.CopyDetachable(contStdin, stdin, []byte{4})
+				// do not treat detach as an error
+				if _, ok := err.(utils.DetachError); ok {
+					errors <- nil
+				}
+				errors <- err
+			}()
+		}
 	}
-	if c.GetStdinOnce() {
+
+	err = <-errors
+	glog.V(4).Infof("Attach for %s returned %v...", containerID, err)
+	if c.GetStdinOnce() && !c.StdinClosed() {
 		glog.V(2).Infof("Closing stdin for container %s", c.ID())
 		err := c.CloseStdin()
 		if err != nil {
