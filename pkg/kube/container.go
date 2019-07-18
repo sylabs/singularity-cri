@@ -210,6 +210,8 @@ func (c *Container) Stdin() io.Writer {
 	return c.stdin
 }
 
+// StdinClosed returns true when allocated stdin (if any) has
+// been already closed (possibly due to stdinOnce flag).
 func (c *Container) StdinClosed() bool {
 	return c.isStdinClosed
 }
