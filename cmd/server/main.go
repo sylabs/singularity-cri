@@ -48,8 +48,6 @@ var (
 	version    = "unknown"
 )
 
-const defaultSocketPerms = 0600
-
 func init() {
 	// We want this in init so that this flag can be set even when running test binary
 	// compiled from TestRunMain. Otherwise we won't be able to pass this flag to the
