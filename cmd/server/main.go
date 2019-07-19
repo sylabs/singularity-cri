@@ -19,9 +19,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -32,6 +32,7 @@ import (
 	"github.com/sylabs/singularity-cri/pkg/server/image"
 	"github.com/sylabs/singularity-cri/pkg/server/runtime"
 	sRuntime "github.com/sylabs/singularity-cri/pkg/singularity/runtime"
+	syunix "github.com/sylabs/singularity/pkg/util/unix"
 	useragent "github.com/sylabs/singularity/pkg/util/user-agent"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
@@ -166,7 +167,7 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 		return fmt.Errorf("could not create Singularity runtime service: %v", err)
 	}
 
-	lis, err := net.Listen("unix", config.ListenSocket)
+	lis, err := syunix.CreateSocket(config.ListenSocket)
 	if err != nil {
 		return fmt.Errorf("could not start CRI listener: %v ", err)
 	}
@@ -194,7 +195,7 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 }
 
 func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) error {
-	const devicePluginSocket = "singularity.sock"
+	const devicePluginSocket = k8sDP.DevicePluginPath + "singularity.sock"
 
 	devicePlugin, err := device.NewSingularityDevicePlugin()
 	if err == device.ErrUnableToLoad || err == device.ErrNoGPUs {
@@ -211,11 +212,12 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		}
 	}
 
-	lis, err := net.Listen("unix", k8sDP.DevicePluginPath+devicePluginSocket)
+	lis, err := syunix.CreateSocket(devicePluginSocket)
 	if err != nil {
 		cleanup()
 		return fmt.Errorf("could not start device plugin listener: %v ", err)
 	}
+
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(logAndRecover(config.Debug)))
 	k8sDP.RegisterDevicePluginServer(grpcServer, devicePlugin)
 
@@ -228,7 +230,7 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		go grpcServer.Serve(lis)
 		defer grpcServer.Stop()
 
-		err := device.RegisterInKubelet(devicePluginSocket)
+		err := device.RegisterInKubelet(filepath.Base(devicePluginSocket))
 		if err != nil {
 			cleanup()
 			register <- fmt.Errorf("could not register Singularity device plugin: %v", err)

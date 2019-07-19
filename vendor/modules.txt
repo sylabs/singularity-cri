@@ -122,6 +122,7 @@ github.com/sylabs/scs-library-client/client
 # github.com/sylabs/sif v1.0.4
 github.com/sylabs/sif/pkg/sif
 # github.com/sylabs/singularity v0.0.0-20190702154420-7b092d2d1cfe
+github.com/sylabs/singularity/pkg/util/unix
 github.com/sylabs/singularity/pkg/util/user-agent
 github.com/sylabs/singularity/pkg/util/fs/proc
 github.com/sylabs/singularity/pkg/image
@@ -129,7 +130,6 @@ github.com/sylabs/singularity/pkg/signing
 github.com/sylabs/singularity/pkg/ocibundle/sif
 github.com/sylabs/singularity/pkg/ociruntime
 github.com/sylabs/singularity/pkg/util/capabilities
-github.com/sylabs/singularity/pkg/util/unix
 github.com/sylabs/singularity/pkg/network
 github.com/sylabs/singularity/pkg/util/nvidia
 github.com/sylabs/singularity/internal/pkg/sylog
