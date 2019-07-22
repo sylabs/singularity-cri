@@ -120,7 +120,7 @@ func (c *CLIClient) Create(id, bundle string, stdin, tty bool, flags ...string) 
 		defer cancel()
 		go func() {
 			glog.V(5).Info("Starting stream copying from master to stderr")
-			_, err := io.Copy(os.Stderr, syio.NewReader(ctx, master))
+			_, err := io.Copy(os.Stderr, syio.NewContextReader(ctx, master))
 			glog.V(5).Infof("Stream copying returned: %v", err)
 		}()
 		stdinWrite = master
