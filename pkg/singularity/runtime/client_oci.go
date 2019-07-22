@@ -25,8 +25,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/creack/pty"
 	"github.com/golang/glog"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	syio "github.com/sylabs/singularity-cri/pkg/io"
 	"github.com/sylabs/singularity/pkg/ociruntime"
 )
 
@@ -93,10 +95,12 @@ func (c *CLIClient) Delete(id string) error {
 
 // Create asks runtime to create a container with passed parameters. When stdin is false
 // no stdin stream is allocated and all reads from stdin in the container will always result in EOF.
-// When stdin is true Create returns write end of the stdin pipe.
-func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.WriteCloser, error) {
+// When no tty is allocated by the runtime, Create returns master end of the allocated tty
+// (need to allocate it to separate stderr) that can be used to propagate any input into container,
+// if stdin was requested. Master end should be closed as soon as container is
+// not running any more. For pod master end can be closed immediately.
+func (c *CLIClient) Create(id, bundle string, stdin, tty bool, flags ...string) (io.WriteCloser, error) {
 	var stdinWrite io.WriteCloser
-	var stdinRead io.Closer
 
 	cmd := append(c.ociBaseCmd, "create")
 	cmd = append(cmd, flags...)
@@ -104,14 +108,26 @@ func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.W
 
 	createCmd := exec.Command(cmd[0], cmd[1:]...)
 	createCmd.Stderr = os.Stderr
-	if stdin {
-		pr, pw, err := os.Pipe()
+	if !tty {
+		master, slave, err := pty.Open()
 		if err != nil {
-			return nil, fmt.Errorf("could not create pipe: %v", err)
+			return nil, fmt.Errorf("could not allcate pty: %v", err)
 		}
-		createCmd.Stdin = pr
-		stdinWrite = pw
-		stdinRead = pr
+		createCmd.Stderr = slave
+		defer slave.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() {
+			glog.V(5).Info("Starting stream copying from master to stderr")
+			_, err := io.Copy(os.Stderr, syio.NewReader(ctx, master))
+			glog.V(5).Infof("Stream copying returned: %v", err)
+		}()
+		stdinWrite = master
+
+		if stdin {
+			createCmd.Stdin = slave
+		}
 	}
 
 	glog.V(5).Infof("Executing %v", cmd)
@@ -119,12 +135,7 @@ func (c *CLIClient) Create(id, bundle string, stdin bool, flags ...string) (io.W
 	if err != nil {
 		return nil, fmt.Errorf("could not execute create container command: %v", err)
 	}
-	if stdinRead != nil {
-		glog.V(5).Infof("Closing read end of stdin pipe")
-		if err := stdinRead.Close(); err != nil {
-			glog.Errorf("Could not close read end of stdin pipe: %v", err)
-		}
-	}
+
 	return stdinWrite, nil
 }
 

@@ -47,10 +47,11 @@ func (p *Pod) spawnOCIPod() error {
 	}
 
 	glog.V(3).Infof("Creating pod %s", p.id)
-	_, err = p.cli.Create(p.id, p.bundlePath(), false, "--empty-process", "--sync-socket", p.socketPath())
+	pty, err := p.cli.Create(p.id, p.bundlePath(), false, false, "--empty-process", "--sync-socket", p.socketPath())
 	if err != nil {
 		return fmt.Errorf("could not create pod: %v", err)
 	}
+	defer pty.Close()
 
 	if err := p.expectState(runtime.StateCreating); err != nil {
 		return err

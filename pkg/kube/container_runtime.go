@@ -37,9 +37,9 @@ func (c *Container) spawnOCIContainer() error {
 	}
 
 	glog.V(3).Infof("Creating container %s", c.id)
-	// Allocate stdin only if no TTY was requested.
+	// Allocate PTY only if no TTY was explicitly requested by a user.
 	// TTY is a special case handled on runtime side via attach socket.
-	c.stdin, err = c.cli.Create(c.id, c.bundlePath(), c.GetStdin() && !c.GetTty(),
+	c.stdin, err = c.cli.Create(c.id, c.bundlePath(), c.GetStdin(), c.GetTty(),
 		"--sync-socket", c.socketPath(), "--log-path", c.logPath)
 	if err != nil {
 		return fmt.Errorf("could not create container: %v", err)
