@@ -261,7 +261,7 @@ func (i *Info) Verify() error {
 		return nil
 	}
 
-	_, err := signing.Verify(i.Path, singularity.KeysServer, 0, false, "", false, true)
+	_, _, err := signing.Verify(i.Path, singularity.KeysServer, 0, false, "", false, true)
 	noSignatures := err != nil && strings.Contains(err.Error(), "no signatures found")
 	if noSignatures {
 		glog.V(2).Infof("Image %s is not signed", i.Ref)

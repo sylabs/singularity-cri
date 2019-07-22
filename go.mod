@@ -5,10 +5,10 @@ go 1.11
 require (
 	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20190227022151-81c885550fa1
 	github.com/containerd/cgroups v0.0.0-20181219155423-39b18af02c41
-	github.com/containernetworking/cni v0.6.0
-	github.com/containernetworking/plugins v0.7.4 // indirect
+	github.com/containernetworking/cni v0.7.1
 	github.com/containers/storage v0.0.0-20181207174215-bf48aa83089d // indirect
 	github.com/coreos/go-iptables v0.4.0 // indirect
+	github.com/creack/pty v1.1.7
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a // indirect
 	github.com/emicklei/go-restful v2.8.0+incompatible // indirect
@@ -29,7 +29,7 @@ require (
 	github.com/sirupsen/logrus v1.2.0 // indirect
 	github.com/stretchr/testify v1.2.2
 	github.com/sylabs/scs-library-client v0.3.0
-	github.com/sylabs/singularity v0.0.0-20190702154420-7b092d2d1cfe
+	github.com/sylabs/singularity v0.0.0-20190721223548-90e847a3fc6a
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	github.com/tchap/go-patricia v2.2.6+incompatible
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
