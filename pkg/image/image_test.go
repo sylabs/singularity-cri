@@ -316,7 +316,7 @@ func TestInfo_Verify(t *testing.T) {
 				uri:  singularity.LibraryDomain,
 				tags: []string{"sylabs/tests/verify_corrupted:1.0.1"},
 			},
-			expectError: "SIF verification failed: hashes differ, data may be corrupted",
+			expectError: "verification failed",
 		},
 		{
 			name: "broken image info",
