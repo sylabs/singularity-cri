@@ -150,8 +150,13 @@ func TestNormalizedImageRef(t *testing.T) {
 			expect: "cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
 		},
 		{
-			name:   "local SIF",
+			name:   "local SIF without tag",
 			ref:    "local.file/home/sasha/my.sif",
+			expect: "local.file/home/sasha/my.sif",
+		},
+		{
+			name:   "local SIF with tag",
+			ref:    "local.file/home/sasha/my.sif:latest",
 			expect: "local.file/home/sasha/my.sif",
 		},
 	}
