@@ -80,6 +80,16 @@ func NewSingularityRegistry(storePath string, index *index.ImageIndex) (*Singula
 	return &registry, nil
 }
 
+func (s *SingularityRegistry) Shutdown() error {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	if err := s.infoFile.Close(); err != nil {
+		return fmt.Errorf("could not close infoFile: %v", err)
+	}
+	return nil
+}
+
 // PullImage pulls an image with authentication config.
 func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageRequest) (*k8s.PullImageResponse, error) {
 	ref, err := image.ParseRef(req.Image.Image)
