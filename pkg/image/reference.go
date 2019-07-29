@@ -96,15 +96,15 @@ func ParseRef(imgRef string) (*Reference, error) {
 	switch uri {
 	case singularity.LibraryDomain:
 		if strings.Contains(imgRef, "sha256.") {
-			ref.digests = append(ref.digests, imgRef)
+			ref.digests = []string{imgRef}
 		} else {
-			ref.tags = append(ref.tags, imgRef)
+			ref.tags = []string{imgRef}
 		}
 	case singularity.DockerDomain:
 		if strings.IndexByte(imgRef, '@') != -1 {
-			ref.digests = append(ref.digests, imgRef)
+			ref.digests = []string{imgRef}
 		} else {
-			ref.tags = append(ref.tags, imgRef)
+			ref.tags = []string{imgRef}
 		}
 	}
 
@@ -113,6 +113,9 @@ func ParseRef(imgRef string) (*Reference, error) {
 
 // URI returns uri from which image was originally pulled.
 func (r *Reference) URI() string {
+	if r == nil {
+		return ""
+	}
 	return r.uri
 }
 

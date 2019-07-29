@@ -99,7 +99,7 @@ func (i *Info) UsedBy() []string {
 
 // Pull pulls image referenced by ref and saves it to the passed location.
 func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthConfig) (*Info, error) {
-	if ref.uri == singularity.LocalFileDomain {
+	if ref.URI() == singularity.LocalFileDomain {
 		info, err := sifInfo(strings.TrimPrefix(ref.tags[0], singularity.LocalFileDomain))
 		if err != nil {
 			return nil, fmt.Errorf("could not fetch local SIF info: %v", err)
@@ -180,7 +180,7 @@ func LibraryInfo(ctx context.Context, ref *Reference, auth *k8s.AuthConfig) (*In
 // no one relies on image file and if this check fails it returns ErrIsUsed error.
 // Local SIF images that were not pulled by CRI are never actually removed.
 func (i *Info) Remove() error {
-	if i.Ref.uri == singularity.LocalFileDomain {
+	if i.Ref.URI() == singularity.LocalFileDomain {
 		return nil
 	}
 
@@ -239,7 +239,7 @@ func (i *Info) Matches(filter *k8s.ImageFilter) bool {
 
 func pullImage(ctx context.Context, ref *Reference, auth *k8s.AuthConfig, pullPath string) error {
 	pullURL := strings.TrimPrefix(ref.String(), ref.URI()+"/")
-	switch ref.uri {
+	switch ref.URI() {
 	case singularity.LibraryDomain:
 		config := &library.Config{
 			BaseURL:   auth.GetServerAddress(),

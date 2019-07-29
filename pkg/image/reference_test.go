@@ -88,6 +88,15 @@ func TestParseImageRef(t *testing.T) {
 			},
 			expectError: nil,
 		},
+		{
+			name: "local SIF",
+			ref:  "local.file/home/sasha/my.sif",
+			expect: &Reference{
+				uri:  singularity.LocalFileDomain,
+				tags: []string{"local.file/home/sasha/my.sif"},
+			},
+			expectError: nil,
+		},
 	}
 
 	for _, tc := range tt {
@@ -139,6 +148,11 @@ func TestNormalizedImageRef(t *testing.T) {
 			name:   "library image with digest",
 			ref:    "cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
 			expect: "cloud.sylabs.io/sashayakovtseva/test/image-server:sha256.9327532a05078d7efd5a0ef9ace1ee5cd278653d8df53590e2fb7a4a34cb0bb8",
+		},
+		{
+			name:   "local SIF",
+			ref:    "local.file/home/sasha/my.sif",
+			expect: "local.file/home/sasha/my.sif",
 		},
 	}
 
