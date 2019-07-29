@@ -76,6 +76,13 @@ func (r *Reference) UnmarshalJSON(data []byte) error {
 
 // ParseRef constructs image reference based on imgRef.
 func ParseRef(imgRef string) (*Reference, error) {
+	if strings.HasPrefix(imgRef, singularity.LocalFileDomain) {
+		return &Reference{
+			uri:  singularity.LocalFileDomain,
+			tags: []string{imgRef},
+		}, nil
+	}
+
 	imgRef = NormalizedImageRef(imgRef)
 	uri := singularity.DockerDomain
 	if strings.HasPrefix(imgRef, singularity.LibraryDomain) {
@@ -104,7 +111,7 @@ func ParseRef(imgRef string) (*Reference, error) {
 	return &ref, nil
 }
 
-// URI returns uri from which image was originally pulled
+// URI returns uri from which image was originally pulled.
 func (r *Reference) URI() string {
 	return r.uri
 }
@@ -155,6 +162,10 @@ func (r *Reference) RemoveTag(tag string) {
 // does not have any tag or digest already. It also trims
 // default docker domain prefix if present.
 func NormalizedImageRef(imgRef string) string {
+	if strings.HasPrefix(imgRef, singularity.LocalFileDomain) {
+		return imgRef
+	}
+
 	imgRef = strings.TrimPrefix(imgRef, singularity.DockerDomain+"/")
 	i := strings.LastIndexByte(imgRef, ':')
 	if i == -1 {

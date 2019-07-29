@@ -232,6 +232,7 @@ func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImage
 }
 
 // ImageFsInfo returns information of the filesystem that is used to store images.
+// Note that local SIF images that were not pulled by CRI are not counted in this stat.
 func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoRequest) (*k8s.ImageFsInfoResponse, error) {
 	fsInfo, err := fs.Usage(s.storage)
 	if err != nil {
@@ -299,11 +300,11 @@ func (s *SingularityRegistry) dumpInfo() error {
 	}
 	enc := json.NewEncoder(s.infoFile)
 	encodeToFile := func(info *image.Info) {
-		err = enc.Encode(info)
+		if info.Ref.URI() == singularity.LocalFileDomain {
+			return
+		}
+		_ = enc.Encode(info)
 	}
 	s.images.Iterate(encodeToFile)
-	if err != nil {
-		return fmt.Errorf("could not encode image  %v", err)
-	}
 	return nil
 }
