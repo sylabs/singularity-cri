@@ -80,6 +80,8 @@ func NewSingularityRegistry(storePath string, index *index.ImageIndex) (*Singula
 	return &registry, nil
 }
 
+// Shutdown should be called whenever SingularityRegistry is no longer
+// used to make sure allocated resources are freed.
 func (s *SingularityRegistry) Shutdown() error {
 	s.m.Lock()
 	defer s.m.Unlock()
