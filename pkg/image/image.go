@@ -98,108 +98,46 @@ func (i *Info) UsedBy() []string {
 }
 
 // Pull pulls image referenced by ref and saves it to the passed location.
-func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthConfig) (img *Info, err error) {
+func Pull(ctx context.Context, location string, ref *Reference, auth *k8s.AuthConfig) (*Info, error) {
+	if ref.URI() == singularity.LocalFileDomain {
+		info, err := sifInfo(strings.TrimPrefix(ref.tags[0], singularity.LocalFileDomain))
+		if err != nil {
+			return nil, fmt.Errorf("could not fetch local SIF info: %v", err)
+		}
+		info.Ref = ref
+		return info, nil
+	}
+
 	pullPath := filepath.Join(location, "."+rand.GenerateID(64))
 	glog.V(5).Infof("Pulling %s to temporary file %s", ref, pullPath)
-	defer func() {
-		if err != nil {
-			if err := os.Remove(pullPath); err != nil && !os.IsNotExist(err) {
-				glog.Errorf("Could not remove %s: %v", pullPath, err)
-			}
+	cleanup := func() {
+		if err := os.Remove(pullPath); err != nil && !os.IsNotExist(err) {
+			glog.Errorf("Could not remove %s: %v", pullPath, err)
 		}
-	}()
-
-	pullURL := strings.TrimPrefix(ref.String(), ref.URI()+"/")
-	switch ref.URI() {
-	case singularity.LibraryDomain:
-		config := &library.Config{
-			BaseURL:   auth.GetServerAddress(),
-			AuthToken: auth.GetRegistryToken(),
-		}
-		client, err := library.NewClient(config)
-		if err != nil {
-			return nil, fmt.Errorf("could not create library client: %v", err)
-		}
-		w, err := os.Create(pullPath)
-		if err != nil {
-			return nil, fmt.Errorf("could not create file to pull image: %v", err)
-		}
-		parts := strings.Split(pullURL, ":")
-		// don't check index out of range since we add :latest by default when parsing ref
-		err = client.DownloadImage(ctx, w, parts[0], parts[1], nil)
-		_ = w.Close()
-		if err != nil {
-			return nil, fmt.Errorf("could not pull library image: %v", err)
-		}
-	case singularity.DockerDomain:
-		var errMsg bytes.Buffer
-		if auth.GetServerAddress() != "" {
-			pullURL = fmt.Sprintf("%s/%s", auth.GetServerAddress(), pullURL)
-		}
-		remote := fmt.Sprintf("%s://%s", singularity.DockerProtocol, pullURL)
-		buildCmd := exec.CommandContext(ctx, singularity.RuntimeName, "build", "-F", pullPath, remote)
-		buildCmd.Env = []string{
-			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
-			// assume auth.Auth is not needed b/c k8s decodes it into username and password,
-			// see https://github.com/kubernetes/kubernetes/blob/master/pkg/credentialprovider/config.go#L284
-			fmt.Sprintf("%s=%s", singularity.EnvDockerUsername, auth.GetUsername()),
-			fmt.Sprintf("%s=%s", singularity.EnvDockerPassword, auth.GetPassword()),
-		}
-		buildCmd.Stderr = &errMsg
-		buildCmd.Stdout = ioutil.Discard
-		err = buildCmd.Run()
-		if err != nil {
-			err = fmt.Errorf("could not build image: %s", &errMsg)
-		}
-	default:
-		err = fmt.Errorf("unknown image registry: %s", ref.URI())
 	}
+
+	err := pullImage(ctx, ref, auth, pullPath)
 	if err != nil {
+		cleanup()
 		return nil, fmt.Errorf("could not pull image: %v", err)
 	}
-
-	pulled, err := os.Open(pullPath)
+	info, err := sifInfo(pullPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not open pulled image: %v", err)
+		cleanup()
+		return nil, fmt.Errorf("could not fetch SIF info: %v", err)
 	}
 
-	fi, err := pulled.Stat()
-	if err != nil {
-		return nil, fmt.Errorf("could not fetch file info: %v", err)
-	}
-
-	h := sha256.New()
-	_, err = io.Copy(h, pulled)
-	if err != nil {
-		return nil, fmt.Errorf("could not get pulled image digest: %v", err)
-	}
-	checksum := fmt.Sprintf("%x", h.Sum(nil))
-
-	err = pulled.Close()
-	if err != nil {
-		return nil, fmt.Errorf("could not close pulled image: %v", err)
-	}
-
-	path := filepath.Join(location, checksum)
+	path := filepath.Join(location, info.Sha256)
 	glog.V(5).Infof("Renaming %s to %s", pullPath, path)
 	err = os.Rename(pullPath, path)
 	if err != nil {
+		cleanup()
 		return nil, fmt.Errorf("could not save pulled image: %v", err)
 	}
 
-	ociConfig, err := fetchOCIConfig(path)
-	if err != nil {
-		glog.Errorf("Could not fetch OCI config for image %s: %v", ref, err)
-	}
-
-	return &Info{
-		ID:        checksum,
-		Sha256:    checksum,
-		Size:      uint64(fi.Size()),
-		Path:      path,
-		Ref:       ref,
-		OciConfig: ociConfig,
-	}, nil
+	info.Path = path
+	info.Ref = ref
+	return info, nil
 }
 
 // LibraryInfo queries remote library to get info about the image.
@@ -240,7 +178,12 @@ func LibraryInfo(ctx context.Context, ref *Reference, auth *k8s.AuthConfig) (*In
 
 // Remove removes image from the host filesystem. It makes sure
 // no one relies on image file and if this check fails it returns ErrIsUsed error.
+// Local SIF images that were not pulled by CRI are never actually removed.
 func (i *Info) Remove() error {
+	if i.Ref.URI() == singularity.LocalFileDomain {
+		return nil
+	}
+
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
@@ -292,6 +235,92 @@ func (i *Info) Matches(filter *k8s.ImageFilter) bool {
 		}
 	}
 	return false
+}
+
+func pullImage(ctx context.Context, ref *Reference, auth *k8s.AuthConfig, pullPath string) error {
+	pullURL := strings.TrimPrefix(ref.String(), ref.URI()+"/")
+	switch ref.URI() {
+	case singularity.LibraryDomain:
+		config := &library.Config{
+			BaseURL:   auth.GetServerAddress(),
+			AuthToken: auth.GetRegistryToken(),
+		}
+		client, err := library.NewClient(config)
+		if err != nil {
+			return fmt.Errorf("could not create library client: %v", err)
+		}
+		w, err := os.Create(pullPath)
+		if err != nil {
+			return fmt.Errorf("could not create file to pull image: %v", err)
+		}
+		parts := strings.Split(pullURL, ":")
+		// don't check index out of range since we add :latest by default when parsing ref
+		err = client.DownloadImage(ctx, w, parts[0], parts[1], nil)
+		_ = w.Close()
+		if err != nil {
+			return fmt.Errorf("could not pull library image: %v", err)
+		}
+	case singularity.DockerDomain:
+		var errMsg bytes.Buffer
+		if auth.GetServerAddress() != "" {
+			pullURL = fmt.Sprintf("%s/%s", auth.GetServerAddress(), pullURL)
+		}
+		remote := fmt.Sprintf("%s://%s", singularity.DockerProtocol, pullURL)
+		buildCmd := exec.CommandContext(ctx, singularity.RuntimeName, "build", "-F", pullPath, remote)
+		buildCmd.Env = []string{
+			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
+			// assume auth.Auth is not needed b/c k8s decodes it into username and password,
+			// see https://github.com/kubernetes/kubernetes/blob/master/pkg/credentialprovider/config.go#L284
+			fmt.Sprintf("%s=%s", singularity.EnvDockerUsername, auth.GetUsername()),
+			fmt.Sprintf("%s=%s", singularity.EnvDockerPassword, auth.GetPassword()),
+		}
+		buildCmd.Stderr = &errMsg
+		buildCmd.Stdout = ioutil.Discard
+		err := buildCmd.Run()
+		if err != nil {
+			return fmt.Errorf("could not build image: %s", &errMsg)
+		}
+	default:
+		return fmt.Errorf("unknown image registry: %s", ref.URI())
+	}
+	return nil
+}
+
+func sifInfo(sifPath string) (*Info, error) {
+	sif, err := os.Open(sifPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not open sif image: %v", err)
+	}
+
+	fi, err := sif.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch file info: %v", err)
+	}
+
+	h := sha256.New()
+	_, err = io.Copy(h, sif)
+	if err != nil {
+		return nil, fmt.Errorf("could not get sif image digest: %v", err)
+	}
+	checksum := fmt.Sprintf("%x", h.Sum(nil))
+
+	err = sif.Close()
+	if err != nil {
+		return nil, fmt.Errorf("could not close pulled image: %v", err)
+	}
+
+	ociConfig, err := fetchOCIConfig(sifPath)
+	if err != nil {
+		glog.Errorf("Could not fetch OCI config for image %s: %v", sifPath, err)
+	}
+
+	return &Info{
+		ID:        checksum,
+		Sha256:    checksum,
+		Size:      uint64(fi.Size()),
+		Path:      sifPath,
+		OciConfig: ociConfig,
+	}, nil
 }
 
 func fetchOCIConfig(imgPath string) (*specs.ImageConfig, error) {

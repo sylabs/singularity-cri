@@ -169,6 +169,14 @@ func TestPullImage(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "local SIF no found",
+			ref: &Reference{
+				uri:  singularity.LocalFileDomain,
+				tags: []string{"local.file/tmp/not-found.sif"},
+			},
+			expectError: "no such file or directory",
+		},
 	}
 
 	for _, tc := range tt {
@@ -187,7 +195,7 @@ func TestPullImage(t *testing.T) {
 			if image != nil {
 				require.NoError(t, image.Remove(), "could not remove image")
 			}
-			if image != nil && tc.ref.uri == singularity.DockerDomain {
+			if image != nil && tc.ref.URI() == singularity.DockerDomain {
 				image.ID = ""
 				image.Sha256 = ""
 				image.Path = ""
@@ -332,14 +340,17 @@ func TestInfo_Verify(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			var err error
 			img := tc.image
 			if img == nil {
-				var cleanup func()
-				img, cleanup = pullImage(t, tc.imgRef)
-				defer cleanup()
+				img, err = Pull(context.Background(), os.TempDir(), tc.imgRef, nil)
+				require.NoError(t, err, "could not pull SIF")
+				defer func() {
+					require.NoError(t, img.Remove(), "could not remove SIF")
+				}()
 			}
 
-			err := img.Verify()
+			err = img.Verify()
 			if tc.expectError == "" {
 				require.NoError(t, err, "unexpected error")
 			} else {
@@ -704,13 +715,5 @@ func TestInfo_MarshalJSON(t *testing.T) {
 			require.NoError(t, err, "could not marshal image")
 			require.JSONEq(t, tc.expect, string(res))
 		})
-	}
-}
-
-func pullImage(t *testing.T, source *Reference) (*Info, func()) {
-	image, err := Pull(context.Background(), os.TempDir(), source, nil)
-	require.NoError(t, err, "could not pull SIF")
-	return image, func() {
-		require.NoError(t, image.Remove(), "could not remove SIF")
 	}
 }

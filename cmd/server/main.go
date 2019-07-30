@@ -181,14 +181,17 @@ func startCRI(ctx context.Context, wg *sync.WaitGroup, config Config) error {
 		defer lis.Close()
 
 		go grpcServer.Serve(lis)
-		defer grpcServer.Stop()
 
 		glog.Infof("Singularity-CRI server started on %v", lis.Addr())
 		<-ctx.Done()
 
 		glog.Info("Singularity-CRI service exiting...")
+		grpcServer.Stop()
 		if err := syRuntime.Shutdown(); err != nil {
 			glog.Errorf("Error during singularity runtime service shutdown: %v", err)
+		}
+		if err := syImage.Shutdown(); err != nil {
+			glog.Errorf("Error during singularity image service shutdown: %v", err)
 		}
 	}()
 	return nil
@@ -228,7 +231,6 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		defer lis.Close()
 
 		go grpcServer.Serve(lis)
-		defer grpcServer.Stop()
 
 		err := device.RegisterInKubelet(filepath.Base(devicePluginSocket))
 		if err != nil {
@@ -242,6 +244,7 @@ func startDevicePlugin(ctx context.Context, wg *sync.WaitGroup, config Config) e
 		<-ctx.Done()
 
 		glog.Info("Singularity device plugin exiting...")
+		grpcServer.Stop()
 		cleanup()
 	}()
 	return <-register

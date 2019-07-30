@@ -22,6 +22,10 @@ const (
 	// For more info refer to https://cloud.sylabs.io/library.
 	LibraryDomain = "cloud.sylabs.io"
 
+	// LocalFileDomain is a special case domain that should be used
+	// for a pre-pulled SIF images.
+	LocalFileDomain = "local.file"
+
 	// DockerDomain holds docker primary domain to pull images from.
 	DockerDomain = "docker.io"
 

@@ -80,6 +80,18 @@ func NewSingularityRegistry(storePath string, index *index.ImageIndex) (*Singula
 	return &registry, nil
 }
 
+// Shutdown should be called whenever SingularityRegistry is no longer
+// used to make sure allocated resources are freed.
+func (s *SingularityRegistry) Shutdown() error {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	if err := s.infoFile.Close(); err != nil {
+		return fmt.Errorf("could not close infoFile: %v", err)
+	}
+	return nil
+}
+
 // PullImage pulls an image with authentication config.
 func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageRequest) (*k8s.PullImageResponse, error) {
 	ref, err := image.ParseRef(req.Image.Image)
@@ -222,6 +234,7 @@ func (s *SingularityRegistry) ListImages(ctx context.Context, req *k8s.ListImage
 }
 
 // ImageFsInfo returns information of the filesystem that is used to store images.
+// Note that local SIF images that were not pulled by CRI are not counted in this stat.
 func (s *SingularityRegistry) ImageFsInfo(context.Context, *k8s.ImageFsInfoRequest) (*k8s.ImageFsInfoResponse, error) {
 	fsInfo, err := fs.Usage(s.storage)
 	if err != nil {
@@ -289,11 +302,11 @@ func (s *SingularityRegistry) dumpInfo() error {
 	}
 	enc := json.NewEncoder(s.infoFile)
 	encodeToFile := func(info *image.Info) {
-		err = enc.Encode(info)
+		if info.Ref.URI() == singularity.LocalFileDomain {
+			return
+		}
+		_ = enc.Encode(info)
 	}
 	s.images.Iterate(encodeToFile)
-	if err != nil {
-		return fmt.Errorf("could not encode image  %v", err)
-	}
 	return nil
 }

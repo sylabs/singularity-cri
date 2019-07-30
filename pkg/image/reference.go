@@ -77,6 +77,13 @@ func (r *Reference) UnmarshalJSON(data []byte) error {
 // ParseRef constructs image reference based on imgRef.
 func ParseRef(imgRef string) (*Reference, error) {
 	imgRef = NormalizedImageRef(imgRef)
+	if strings.HasPrefix(imgRef, singularity.LocalFileDomain) {
+		return &Reference{
+			uri:  singularity.LocalFileDomain,
+			tags: []string{imgRef},
+		}, nil
+	}
+
 	uri := singularity.DockerDomain
 	if strings.HasPrefix(imgRef, singularity.LibraryDomain) {
 		uri = singularity.LibraryDomain
@@ -89,23 +96,26 @@ func ParseRef(imgRef string) (*Reference, error) {
 	switch uri {
 	case singularity.LibraryDomain:
 		if strings.Contains(imgRef, "sha256.") {
-			ref.digests = append(ref.digests, imgRef)
+			ref.digests = []string{imgRef}
 		} else {
-			ref.tags = append(ref.tags, imgRef)
+			ref.tags = []string{imgRef}
 		}
 	case singularity.DockerDomain:
 		if strings.IndexByte(imgRef, '@') != -1 {
-			ref.digests = append(ref.digests, imgRef)
+			ref.digests = []string{imgRef}
 		} else {
-			ref.tags = append(ref.tags, imgRef)
+			ref.tags = []string{imgRef}
 		}
 	}
 
 	return &ref, nil
 }
 
-// URI returns uri from which image was originally pulled
+// URI returns uri from which image was originally pulled.
 func (r *Reference) URI() string {
+	if r == nil {
+		return ""
+	}
 	return r.uri
 }
 
@@ -157,6 +167,13 @@ func (r *Reference) RemoveTag(tag string) {
 func NormalizedImageRef(imgRef string) string {
 	imgRef = strings.TrimPrefix(imgRef, singularity.DockerDomain+"/")
 	i := strings.LastIndexByte(imgRef, ':')
+	if strings.HasPrefix(imgRef, singularity.LocalFileDomain) {
+		if i == -1 {
+			return imgRef
+		}
+		// kubernetes will add :latest tag, so we need to trim it for the file
+		return imgRef[:i]
+	}
 	if i == -1 {
 		return imgRef + ":latest"
 	}
