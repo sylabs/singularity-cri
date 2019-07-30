@@ -171,6 +171,7 @@ func NormalizedImageRef(imgRef string) string {
 		if i == -1 {
 			return imgRef
 		}
+		// kubernetes will add :latest tag, so we need to trim it for the file
 		return imgRef[:i]
 	}
 	if i == -1 {
