@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -122,6 +123,7 @@ func (c *CLIClient) Create(id, bundle string, stdin, tty bool, flags ...string) 
 			glog.V(5).Info("Starting stream copying from master to stderr")
 			_, err := io.Copy(os.Stderr, syio.NewContextReader(ctx, master))
 			glog.V(5).Infof("Stream copying returned: %v", err)
+			go io.Copy(ioutil.Discard, master)
 		}()
 		stdinWrite = master
 
