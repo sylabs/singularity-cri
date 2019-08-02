@@ -123,6 +123,8 @@ func (c *CLIClient) Create(id, bundle string, stdin, tty bool, flags ...string) 
 			glog.V(5).Info("Starting stream copying from master to stderr")
 			_, err := io.Copy(os.Stderr, syio.NewContextReader(ctx, master))
 			glog.V(5).Infof("Stream copying returned: %v", err)
+			// we need to drain master to prevent buffer overflow,
+			// see https://github.com/sylabs/singularity-cri/pull/348
 			go io.Copy(ioutil.Discard, master)
 		}()
 		stdinWrite = master
