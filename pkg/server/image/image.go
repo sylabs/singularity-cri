@@ -104,7 +104,7 @@ func (s *SingularityRegistry) PullImage(ctx context.Context, req *k8s.PullImageR
 		return nil, status.Errorf(codes.NotFound, "image %s is not found", ref)
 	}
 	if err != nil && err != image.ErrNotLibrary {
-		return nil, status.Errorf(codes.Internal, "could not get %s image metadata", ref)
+		return nil, status.Errorf(codes.Internal, "could not get %s image metadata: %v", ref, err)
 	}
 	if info != nil {
 		_, err := s.images.Find(info.Sha256)

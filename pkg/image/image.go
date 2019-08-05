@@ -151,7 +151,7 @@ func LibraryInfo(ctx context.Context, ref *Reference, auth *k8s.AuthConfig) (*In
 	pullURL := strings.TrimPrefix(ref.String(), ref.URI()+"/")
 	config := &library.Config{
 		BaseURL:   auth.GetServerAddress(),
-		AuthToken: auth.GetRegistryToken(),
+		AuthToken: auth.GetPassword(),
 	}
 	client, err := library.NewClient(config)
 	if err != nil {
@@ -243,7 +243,7 @@ func pullImage(ctx context.Context, ref *Reference, auth *k8s.AuthConfig, pullPa
 	case singularity.LibraryDomain:
 		config := &library.Config{
 			BaseURL:   auth.GetServerAddress(),
-			AuthToken: auth.GetRegistryToken(),
+			AuthToken: auth.GetPassword(),
 		}
 		client, err := library.NewClient(config)
 		if err != nil {
