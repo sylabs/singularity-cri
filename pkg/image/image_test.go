@@ -79,7 +79,7 @@ func TestPullImage(t *testing.T) {
 				ServerAddress: "gcr.io",
 			},
 			expectImage: &Info{
-				Size: 745472,
+				Size: 782336,
 				Ref: &Reference{
 					uri:  singularity.DockerDomain,
 					tags: []string{"cri-tools/test-image-latest"},
