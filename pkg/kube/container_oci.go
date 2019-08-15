@@ -120,7 +120,15 @@ func (t *containerTranslator) configureMounts() error {
 	for _, mount := range t.cont.GetMounts() {
 		source, err := filepath.EvalSymlinks(mount.GetHostPath())
 		if err != nil {
-			return fmt.Errorf("invalid bind mount source: %v", err)
+			if os.IsNotExist(err) {
+				source = mount.GetHostPath()
+				err = os.MkdirAll(source, 0755)
+				if err != nil {
+					return fmt.Errorf("could not create %s: %s", source, err)
+				}
+			} else {
+				return fmt.Errorf("invalid bind mount source: %v", err)
+			}
 		}
 
 		volume := specs.Mount{
