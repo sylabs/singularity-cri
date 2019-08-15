@@ -6,14 +6,12 @@
 package network
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -86,17 +84,17 @@ func GetAllNetworkConfigList(cniPath *CNIPath) ([]*libcni.NetworkConfigList, err
 		if strings.HasSuffix(file, ".conflist") {
 			conf, err := libcni.ConfListFromFile(file)
 			if err != nil {
-				return nil, fmt.Errorf("%s: %s", file, err)
+				return nil, err
 			}
 			networks = append(networks, conf)
 		} else {
 			conf, err := libcni.ConfFromFile(file)
 			if err != nil {
-				return nil, fmt.Errorf("%s: %s", file, err)
+				return nil, err
 			}
 			confList, err := libcni.ConfListFromConf(conf)
 			if err != nil {
-				return nil, fmt.Errorf("%s: %s", file, err)
+				return nil, err
 			}
 			networks = append(networks, confList)
 		}
@@ -450,18 +448,13 @@ func (m *Setup) command(command string) error {
 
 	config := &libcni.CNIConfig{Path: []string{m.cniPath.Plugin}}
 
-	// set a timeout context for the execution of the CNI plugin
-	// to interrupt its execution if it takes more than 5 seconds
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	if command == "ADD" {
 		m.result = make([]types.Result, len(m.networkConfList))
 		for i := 0; i < len(m.networkConfList); i++ {
 			var err error
-			if m.result[i], err = config.AddNetworkList(ctx, m.networkConfList[i], m.runtimeConf[i]); err != nil {
+			if m.result[i], err = config.AddNetworkList(m.networkConfList[i], m.runtimeConf[i]); err != nil {
 				for j := i - 1; j >= 0; j-- {
-					if err := config.DelNetworkList(ctx, m.networkConfList[j], m.runtimeConf[j]); err != nil {
+					if err := config.DelNetworkList(m.networkConfList[j], m.runtimeConf[j]); err != nil {
 						return err
 					}
 				}
@@ -470,7 +463,7 @@ func (m *Setup) command(command string) error {
 		}
 	} else if command == "DEL" {
 		for i := 0; i < len(m.networkConfList); i++ {
-			if err := config.DelNetworkList(ctx, m.networkConfList[i], m.runtimeConf[i]); err != nil {
+			if err := config.DelNetworkList(m.networkConfList[i], m.runtimeConf[i]); err != nil {
 				return err
 			}
 		}

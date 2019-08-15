@@ -26,6 +26,6 @@ baseRunDir: /var/run/singularity
 # default:
 trashDir:
 
-# whether CRI need to log all requests and responses
+# whether CRI needs to log all requests and responses
 # default: false
 debug:
