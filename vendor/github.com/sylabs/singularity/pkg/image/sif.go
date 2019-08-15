@@ -24,7 +24,7 @@ type sifFormat struct{}
 
 func (f *sifFormat) initializer(img *Image, fileinfo os.FileInfo) error {
 	if fileinfo.IsDir() {
-		return fmt.Errorf("not a sif file image")
+		return fmt.Errorf("not a SIF file image")
 	}
 	b := make([]byte, bufferSize)
 	if n, err := img.File.Read(b); err != nil || n != bufferSize {
@@ -41,23 +41,15 @@ func (f *sifFormat) initializer(img *Image, fileinfo os.FileInfo) error {
 	}
 
 	// Check the compatibility of the image's target architecture
-	// TODO: we should check if we need to deal with compatible architectures:
-	// For example, i386 can run on amd64 and maybe some ARM processor can run <= armv6 instructions
-	// on asasrch64 (someone should double check).
+	// TODO: we should check if we need to deal with compatible architectures. For example, i386 can run on amd64 and maybe some ARM processor can run <= armv6 instructions on asasrch64 (someone should double check).
 	// TODO: The typically workflow is:
 	// 1. pull image from docker/library/shub (pull/build commands)
 	// 2. extract image file system to temp folder (build commands)
-	// 3. if definition file contains a 'executable' section, the architecture check should
-	// occur (or delegate to runtime which would fail during execution).
-	// The current code will be called by the starter which will cover most of the
-	// workflow described above. However, SIF is currently build upon the assumption
-	// that the architecture is assigned based on the architecture defined by a Go
-	// runtime, which is not 100% compliant with the intended workflow.
+	// 3. if definition file contains a 'executable' section, the architecture check should occur (or delegate to runtime which would fail during execution).
+	// The current code will be called by the started which will cover most of the workflow desribed above. However, SIF is currently build upon the assumption that the architecture is assigned based on the architecture defined by a Go runtime, which is not 100% compliant with the intended workflow.
 	sifArch := string(fimg.Header.Arch[:sif.HdrArchLen-1])
 	if sifArch != sif.HdrArchUnknown && sifArch != sif.GetSIFArch(runtime.GOARCH) {
-		err := fmt.Errorf("the image's architecture (%s) is incompatible with the host's (%s)", sif.GetGoArch(sifArch), runtime.GOARCH)
-		sylog.Errorf("%s", err)
-		return err
+		sylog.Fatalf("the image's architecture (%s) is incompatible with the host (%s)", sif.GetGoArch(sifArch), runtime.GOARCH)
 	}
 
 	groupID := -1
@@ -94,8 +86,6 @@ func (f *sifFormat) initializer(img *Image, fileinfo os.FileInfo) error {
 			img.Partitions[0].Type = SQUASHFS
 		} else if fstype == sif.FsExt3 {
 			img.Partitions[0].Type = EXT3
-		} else if fstype == sif.FsEncryptedSquashfs {
-			img.Partitions[0].Type = ENCRYPTSQUASHFS
 		} else {
 			return fmt.Errorf("unknown file system type: %v", fstype)
 		}

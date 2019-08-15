@@ -64,9 +64,11 @@ jobs:
       - run:
           name: Install singularity
           working_directory: ~
+          environment:
+            SINGULARITY_VERSION: v3.3.0
           command: |
             git clone https://github.com/sylabs/singularity.git
-            cd singularity
+            cd singularity && git checkout $SINGULARITY_VERSION
             ./mconfig -p /usr/local
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
@@ -116,9 +118,11 @@ jobs:
       - run:
           name: Install singularity
           working_directory: ~
+          environment:
+            SINGULARITY_VERSION: v3.3.0
           command: |
             git clone https://github.com/sylabs/singularity.git
-            cd singularity
+            cd singularity && git checkout $SINGULARITY_VERSION
             ./mconfig -p /usr/local
             make -j$(nproc) -C ./builddir
             sudo make -C ./builddir install
