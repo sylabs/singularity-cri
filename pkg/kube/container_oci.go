@@ -176,16 +176,6 @@ func (t *containerTranslator) configureDevices() error {
 	for _, dev := range t.cont.GetDevices() {
 		device, err := devices.DeviceFromPath(dev.GetHostPath(), dev.GetPermissions())
 		if err == devices.ErrNotADevice {
-			fi, err := os.Stat(dev.GetHostPath())
-			if err != nil {
-				return fmt.Errorf("could not stat host path %s: %v", dev.GetHostPath(), err)
-			}
-
-			if !fi.IsDir() {
-				// fail fast if this is not a device or device directory
-				return fmt.Errorf("%s is neither a directory nor the device", dev.GetHostPath())
-			}
-
 			devs, err := getDevices(dev.GetHostPath())
 			if err != nil {
 				return fmt.Errorf("could not read devices in %s: %v", dev.GetHostPath(), err)
