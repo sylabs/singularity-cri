@@ -459,6 +459,8 @@ func getContainerUser(rootfs, userSpec string) (*user.ExecUser, error) {
 	return execUser, nil
 }
 
+// TODO change this to devices.GetDevices when
+// https://github.com/opencontainers/runc/pull/2107 is merged
 func getDevices(path string) ([]*configs.Device, error) {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
