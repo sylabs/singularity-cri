@@ -36,6 +36,7 @@ const (
 // methods to bring up and down network interface.
 type Manager struct {
 	sync.RWMutex
+	loNetwork      *libcni.NetworkConfigList
 	defaultNetwork *libcni.NetworkConfigList
 	cniPath        *snetwork.CNIPath
 	podCIDR        string
@@ -64,11 +65,19 @@ func (m *Manager) Init(cniPath *snetwork.CNIPath) error {
 	} else {
 		m.cniPath = cniPath
 	}
+	m.loNetwork, _ = libcni.ConfListFromBytes([]byte(`
+{
+	"cniVersion": "0.3.1",
+	"name": "sycri-loopback",
+	"plugins": [{
+        "type": "loopback"
+	}]
+}`))
+
 	return m.setDefaultNetwork()
 }
 
-// checkInit updates CNI network configuration and does some
-// sanity checks.
+// checkInit updates CNI network configuration and does some sanity checks.
 func (m *Manager) checkInit() error {
 	if err := m.setDefaultNetwork(); err != nil {
 		return err
@@ -135,13 +144,13 @@ func (m *Manager) SetUpPod(podConfig *PodConfig) error {
 		return fmt.Errorf("empty POD namespace name")
 	}
 
-	cfg := []*libcni.NetworkConfigList{m.defaultNetwork}
+	cfg := []*libcni.NetworkConfigList{m.loNetwork, m.defaultNetwork}
 	podConfig.Setup, err = snetwork.NewSetupFromConfig(cfg, podConfig.ID, podConfig.NsPath, m.cniPath)
 	if err != nil {
 		return err
 	}
 
-	args := fmt.Sprintf("%s:", cfg[0].Name)
+	args := fmt.Sprintf("%s:", m.defaultNetwork.Name)
 	for i, kv := range [][2]string{
 		{"IgnoreUnknown", "1"},
 		{"K8S_POD_NAMESPACE", podConfig.Namespace},
