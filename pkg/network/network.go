@@ -144,13 +144,13 @@ func (m *Manager) SetUpPod(podConfig *PodConfig) error {
 		return fmt.Errorf("empty POD namespace name")
 	}
 
-	cfg := []*libcni.NetworkConfigList{m.loNetwork, m.defaultNetwork}
+	cfg := []*libcni.NetworkConfigList{m.defaultNetwork, m.loNetwork}
 	podConfig.Setup, err = snetwork.NewSetupFromConfig(cfg, podConfig.ID, podConfig.NsPath, m.cniPath)
 	if err != nil {
 		return err
 	}
 
-	args := fmt.Sprintf("%s:", m.defaultNetwork.Name)
+	args := fmt.Sprintf("%s:", cfg[0].Name)
 	for i, kv := range [][2]string{
 		{"IgnoreUnknown", "1"},
 		{"K8S_POD_NAMESPACE", podConfig.Namespace},
