@@ -23,55 +23,51 @@ import (
 	k8s "k8s.io/kubernetes/pkg/kubelet/apis/cri/runtime/v1alpha2"
 )
 
-// NetworkStatus returns POD ip address.
+// NetworkStatus returns pod's IP address.
 func (p *Pod) NetworkStatus() *k8s.PodSandboxNetworkStatus {
-	if p.networkConfig == nil || p.networkConfig.Setup == nil || p.namespacePath(specs.NetworkNamespace) == "" {
+	if p.network == nil {
 		return nil
 	}
-	netIP, err := p.networkConfig.Setup.GetNetworkIP("", "4")
-	if err == nil {
-		return &k8s.PodSandboxNetworkStatus{Ip: netIP.String()}
+	netIP, err := p.network.GetIP()
+	if err != nil {
+		glog.Warningf("Could not get IP for pod %s: %v", p.id, err)
+		return nil
 	}
-	glog.Warningf("Could not get IPv4 for pod %s: %v", p.id, err)
-
-	netIP, err = p.networkConfig.Setup.GetNetworkIP("", "6")
-	if err == nil {
-		return &k8s.PodSandboxNetworkStatus{Ip: netIP.String()}
-	}
-	glog.Warningf("Could not get IPv6 for pod %s: %v", p.id, err)
-	return nil
+	return &k8s.PodSandboxNetworkStatus{Ip: netIP.String()}
 }
 
 // SetUpNetwork brings up network interface and configure it
-// inside POD network namespace.
+// inside pod's network namespace.
 func (p *Pod) SetUpNetwork(manager *network.Manager) error {
 	nsPath := p.namespacePath(specs.NetworkNamespace)
 	if nsPath == "" {
 		return nil
 	}
-	p.networkConfig = &network.PodConfig{
+	networkConfig := &network.PodConfig{
 		ID:           p.id,
 		Namespace:    p.GetMetadata().Namespace,
 		Name:         p.GetMetadata().Name,
 		NsPath:       nsPath,
 		PortMappings: p.GetPortMappings(),
 	}
-	return manager.SetUpPod(p.networkConfig)
+	net, err := manager.SetUpPod(networkConfig)
+	if err != nil {
+		return fmt.Errorf("could not set up pod's network: %v", err)
+	}
+	p.network = net
+	return nil
 }
 
 // TearDownNetwork tears down network interface previously
-// set inside POD network namespace.
+// set inside pod's network namespace.
 func (p *Pod) TearDownNetwork(manager *network.Manager) error {
-	if p.networkConfig == nil {
+	if p.network == nil {
 		return nil
 	}
-	if p.networkConfig.Setup == nil {
-		return nil
-	}
-	err := manager.TearDownPod(p.networkConfig)
+	err := manager.TearDownPod(p.network)
 	if err != nil {
 		return fmt.Errorf("could not tear down network: %v", err)
 	}
-	p.networkConfig.Setup = nil
+	p.network = nil
 	return nil
 }

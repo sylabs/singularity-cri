@@ -16,6 +16,7 @@ package network
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 
@@ -36,22 +37,30 @@ const (
 // methods to bring up and down network interface.
 type Manager struct {
 	sync.RWMutex
+	loNetwork      *libcni.NetworkConfigList
 	defaultNetwork *libcni.NetworkConfigList
 	cniPath        *snetwork.CNIPath
 	podCIDR        string
 }
 
-// PodConfig contains/defines POD network configuration.
+// PodConfig contains/defines pod network configuration.
 type PodConfig struct {
 	ID           string
 	Namespace    string
 	Name         string
 	NsPath       string
 	PortMappings []*k8s.PortMapping
-	Setup        *snetwork.Setup
 }
 
-// Init initialize CNI network manager.
+// PodNetwork represents set up pod's network. It is a caller's responsibility
+// to tear this network down by calling Manager.TearDownPod during pod's shutdown.
+// PodNetwork is also used to retrieve pod's IP address.
+type PodNetwork struct {
+	setup          *snetwork.Setup
+	defaultNetwork string
+}
+
+// Init initializes CNI network manager.
 func (m *Manager) Init(cniPath *snetwork.CNIPath) error {
 	if m.cniPath != nil {
 		return nil
@@ -64,11 +73,11 @@ func (m *Manager) Init(cniPath *snetwork.CNIPath) error {
 	} else {
 		m.cniPath = cniPath
 	}
+
 	return m.setDefaultNetwork()
 }
 
-// checkInit updates CNI network configuration and does some
-// sanity checks.
+// checkInit updates CNI network configuration and does some sanity checks.
 func (m *Manager) checkInit() error {
 	if err := m.setDefaultNetwork(); err != nil {
 		return err
@@ -110,38 +119,60 @@ func (m *Manager) setDefaultNetwork() error {
 	}
 	m.defaultNetwork = netConfList[0]
 	glog.V(1).Infof("Network configuration found: %s", m.defaultNetwork.Name)
+
+	for _, p := range m.defaultNetwork.Plugins {
+		if p.Network.Type == "loopback" {
+			return nil
+		}
+	}
+
+	glog.V(1).Infof("%s does not set up loopback interface, adding additional config", m.defaultNetwork.Name)
+	m.loNetwork, _ = libcni.ConfListFromBytes([]byte(`
+{
+	"cniVersion": "0.3.1",
+	"name": "sycri-loopback",
+	"plugins": [{
+        "type": "loopback"
+	}]
+}`))
+
 	return nil
 }
 
-// SetUpPod bring up POD network interface.
-func (m *Manager) SetUpPod(podConfig *PodConfig) error {
+// SetUpPod bring up pod's network interface.
+func (m *Manager) SetUpPod(podConfig *PodConfig) (*PodNetwork, error) {
 	err := m.checkInit()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if podConfig == nil {
-		return fmt.Errorf("nil POD configuration")
+		return nil, fmt.Errorf("nil POD configuration")
 	}
 	if podConfig.ID == "" {
-		return fmt.Errorf("empty ID")
+		return nil, fmt.Errorf("empty ID")
 	}
 	if podConfig.NsPath == "" {
-		return fmt.Errorf("empty network namespace path")
+		return nil, fmt.Errorf("empty network namespace path")
 	}
 	if podConfig.Name == "" {
-		return fmt.Errorf("empty POD name")
+		return nil, fmt.Errorf("empty POD name")
 	}
 	if podConfig.Namespace == "" {
-		return fmt.Errorf("empty POD namespace name")
+		return nil, fmt.Errorf("empty POD namespace name")
 	}
 
-	cfg := []*libcni.NetworkConfigList{m.defaultNetwork}
-	podConfig.Setup, err = snetwork.NewSetupFromConfig(cfg, podConfig.ID, podConfig.NsPath, m.cniPath)
+	var cfg []*libcni.NetworkConfigList
+	// add loopback interface if default network doesn't have one
+	if m.loNetwork != nil {
+		cfg = append(cfg, m.loNetwork)
+	}
+	cfg = append(cfg, m.defaultNetwork)
+	setup, err := snetwork.NewSetupFromConfig(cfg, podConfig.ID, podConfig.NsPath, m.cniPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	args := fmt.Sprintf("%s:", cfg[0].Name)
+	args := fmt.Sprintf("%s:", m.defaultNetwork.Name)
 	for i, kv := range [][2]string{
 		{"IgnoreUnknown", "1"},
 		{"K8S_POD_NAMESPACE", podConfig.Namespace},
@@ -162,7 +193,7 @@ func (m *Manager) SetUpPod(podConfig *PodConfig) error {
 			if hostPort == 0 {
 				hostPort = pm.ContainerPort
 			}
-			err := podConfig.Setup.SetCapability(m.defaultNetwork.Name, "portMappings", snetwork.PortMapEntry{
+			err := setup.SetCapability(m.defaultNetwork.Name, "portMappings", snetwork.PortMapEntry{
 				HostPort:      int(hostPort),
 				ContainerPort: int(pm.ContainerPort),
 				Protocol:      strings.ToLower(pm.Protocol.String()),
@@ -173,24 +204,27 @@ func (m *Manager) SetUpPod(podConfig *PodConfig) error {
 		}
 	}
 	glog.V(3).Infof("Network for pod %s args: %s", podConfig.ID, args)
-	if err := podConfig.Setup.SetArgs([]string{args}); err != nil {
-		return err
+	if err := setup.SetArgs([]string{args}); err != nil {
+		return nil, err
 	}
-	if err := podConfig.Setup.AddNetworks(); err != nil {
-		return err
+	if err := setup.AddNetworks(); err != nil {
+		return nil, err
 	}
-	return nil
+	return &PodNetwork{
+		setup:          setup,
+		defaultNetwork: m.defaultNetwork.Name,
+	}, nil
 }
 
-// TearDownPod tears down POD network interface.
-func (m *Manager) TearDownPod(podConfig *PodConfig) error {
+// TearDownPod tears down pod's network interface.
+func (m *Manager) TearDownPod(podNetwork *PodNetwork) error {
 	if err := m.checkInit(); err != nil {
 		return err
 	}
-	if podConfig.Setup == nil {
+	if podNetwork.setup == nil {
 		return fmt.Errorf("nil network setup")
 	}
-	return podConfig.Setup.DelNetworks()
+	return podNetwork.setup.DelNetworks()
 }
 
 // Status returns an error if the network manager is not initialized.
@@ -198,7 +232,7 @@ func (m *Manager) Status() error {
 	return m.checkInit()
 }
 
-// SetPodCIDR updates POD CIDR.
+// SetPodCIDR updates pod's CIDR.
 func (m *Manager) SetPodCIDR(cidr string) {
 	m.Lock()
 	if m.podCIDR == "" {
@@ -206,4 +240,19 @@ func (m *Manager) SetPodCIDR(cidr string) {
 	}
 	m.Unlock()
 	m.checkInit()
+}
+
+// GetIP returns pod's IP address. It first tries to fetch IPv4
+// and in case of errors will try to fetch IPv6.
+func (n *PodNetwork) GetIP() (net.IP, error) {
+	netIP, err := n.setup.GetNetworkIP(n.defaultNetwork, "4")
+	if err == nil {
+		return netIP, nil
+	}
+
+	netIP, err = n.setup.GetNetworkIP(n.defaultNetwork, "6")
+	if err == nil {
+		return netIP, nil
+	}
+	return nil, fmt.Errorf("could not get pod's IP: %v", err)
 }

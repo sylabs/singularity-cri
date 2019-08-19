@@ -56,7 +56,7 @@ type Pod struct {
 	syncChan   <-chan runtime.State
 	syncCancel context.CancelFunc
 
-	networkConfig *network.PodConfig
+	network *network.PodNetwork
 }
 
 // NewPod constructs Pod instance. Pod is thread safe to use.
