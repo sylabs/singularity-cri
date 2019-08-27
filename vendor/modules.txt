@@ -84,10 +84,10 @@ github.com/opencontainers/go-digest
 # github.com/opencontainers/image-spec v1.0.1
 github.com/opencontainers/image-spec/specs-go/v1
 github.com/opencontainers/image-spec/specs-go
-# github.com/opencontainers/runc v1.0.0-rc6
+# github.com/opencontainers/runc v1.0.0-rc2.0.20190826210544-c61c7370f960
+github.com/opencontainers/runc/libcontainer/configs
 github.com/opencontainers/runc/libcontainer/devices
 github.com/opencontainers/runc/libcontainer/user
-github.com/opencontainers/runc/libcontainer/configs
 # github.com/opencontainers/runtime-spec v0.0.0-20180913141938-5806c3563733
 github.com/opencontainers/runtime-spec/specs-go
 # github.com/opencontainers/runtime-tools v0.8.0
