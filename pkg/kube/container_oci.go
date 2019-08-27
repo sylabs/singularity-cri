@@ -16,12 +16,10 @@ package kube
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -184,7 +182,7 @@ func (t *containerTranslator) configureDevices() error {
 	for _, dev := range t.cont.GetDevices() {
 		device, err := devices.DeviceFromPath(dev.GetHostPath(), dev.GetPermissions())
 		if err == devices.ErrNotADevice {
-			devs, err := getDevices(dev.GetHostPath())
+			devs, err := devices.GetDevices(dev.GetHostPath())
 			if err != nil {
 				return fmt.Errorf("could not read devices in %s: %v", dev.GetHostPath(), err)
 			}
@@ -457,41 +455,4 @@ func getContainerUser(rootfs, userSpec string) (*user.ExecUser, error) {
 		return nil, fmt.Errorf("invalid user: %v", err)
 	}
 	return execUser, nil
-}
-
-// TODO change this to devices.GetDevices when
-// https://github.com/opencontainers/runc/pull/2107 is merged
-func getDevices(path string) ([]*configs.Device, error) {
-	files, err := ioutil.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("could not read %s: %v", path, err)
-	}
-	var out []*configs.Device
-	for _, f := range files {
-		switch f.Name() {
-		case "console", "pts", "shm", "fd", "mqueue", ".lxc", ".lxd-mounts":
-			continue
-		}
-
-		if f.IsDir() {
-			sub, err := getDevices(filepath.Join(path, f.Name()))
-			if err != nil {
-				return nil, err
-			}
-
-			out = append(out, sub...)
-			continue
-		}
-
-		device, err := devices.DeviceFromPath(filepath.Join(path, f.Name()), "rwm")
-		if err != nil {
-			if err == devices.ErrNotADevice || os.IsNotExist(err) {
-				continue
-			}
-			return nil, fmt.Errorf("could not get device: %v", err)
-
-		}
-		out = append(out, device)
-	}
-	return out, nil
 }
