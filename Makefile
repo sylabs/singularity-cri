@@ -67,7 +67,7 @@ $(SY_CRI_TEST):
 
 GOBIN = $(shell go env GOPATH)/bin
 LINTER = $(GOBIN)/golangci-lint
-LINTER_VERSION := v1.17.1
+LINTER_VERSION := v1.19.1
 
 .PHONY: linter-install
 linter-install:
