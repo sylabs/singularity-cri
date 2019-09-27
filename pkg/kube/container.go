@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -59,9 +58,8 @@ type Container struct {
 	logPath      string
 	execEnvs     []string
 
-	createOnce sync.Once
-	isStopped  bool
-	isRemoved  bool
+	isStopped bool
+	isRemoved bool
 
 	isStdinClosed bool
 	stdin         io.WriteCloser
@@ -249,32 +247,26 @@ func (c *Container) Create(baseDir string) error {
 		}
 	}()
 
-	c.createOnce.Do(func() {
-		c.baseDir = baseDir
-		err = c.validateConfig()
-		if err != nil {
-			err = fmt.Errorf("invalid container config: %v", err)
-			return
-		}
-		err = c.addLogDirectory()
-		if err != nil {
-			err = fmt.Errorf("could not create log directory: %v", err)
-			return
-		}
-		c.imgInfo.Borrow(c.id)
-		err = c.spawnOCIContainer()
-		if err != nil {
-			err = fmt.Errorf("could not spawn container: %v", err)
-			return
-		}
-		err = c.UpdateState()
-		if err != nil {
-			err = fmt.Errorf("could not update container state: %v", err)
-			return
-		}
-		c.pod.addContainer(c)
-	})
-	return err
+	c.baseDir = baseDir
+	err = c.validateConfig()
+	if err != nil {
+		return fmt.Errorf("invalid container config: %v", err)
+	}
+	err = c.addLogDirectory()
+	if err != nil {
+		return fmt.Errorf("could not create log directory: %v", err)
+	}
+	c.imgInfo.Borrow(c.id)
+	err = c.spawnOCIContainer()
+	if err != nil {
+		return fmt.Errorf("could not spawn container: %v", err)
+	}
+	err = c.UpdateState()
+	if err != nil {
+		return fmt.Errorf("could not update container state: %v", err)
+	}
+	c.pod.addContainer(c)
+	return nil
 }
 
 // Start starts created container.
