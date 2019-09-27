@@ -65,7 +65,7 @@ jobs:
           name: Install singularity
           working_directory: ~
           environment:
-            SINGULARITY_VERSION: v3.3.0
+            SINGULARITY_VERSION: v3.4.1
           command: |
             git clone https://github.com/sylabs/singularity.git
             cd singularity && git checkout $SINGULARITY_VERSION
@@ -119,7 +119,7 @@ jobs:
           name: Install singularity
           working_directory: ~
           environment:
-            SINGULARITY_VERSION: v3.3.0
+            SINGULARITY_VERSION: v3.4.1
           command: |
             git clone https://github.com/sylabs/singularity.git
             cd singularity && git checkout $SINGULARITY_VERSION
