@@ -25,11 +25,26 @@ import (
 	"github.com/sylabs/singularity/pkg/util/unix"
 )
 
-// State defines type for manipulating with container's state.
+// State represents an OCI container state.
 type State int
 
+// String returns a human readable representation of a State.
+func (s State) String() string {
+	switch s {
+	case StateCreating:
+		return "creating"
+	case StateCreated:
+		return "created"
+	case StateRunning:
+		return "running"
+	case StateExited:
+		return "exited"
+	}
+	return "unknown"
+}
+
 const (
-	// StateUnknown means current state is unknown (perhaps, something went wrong)
+	// StateUnknown means current state is unknown (perhaps, something went wrong).
 	StateUnknown State = iota
 	// StateCreating means container is being created at the moment.
 	StateCreating
@@ -73,7 +88,7 @@ func ObserveState(ctx context.Context, socket string) (<-chan State, error) {
 					glog.Errorf("Could not read state at %s: %v", socket, err)
 					return
 				}
-				glog.V(4).Infof("Received state %d at %s", state, socket)
+				glog.V(4).Infof("Received state %v at %s", state, socket)
 				syncChan <- state
 				if state == StateExited {
 					return
