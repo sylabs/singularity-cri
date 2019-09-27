@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -157,7 +158,7 @@ func LibraryInfo(ctx context.Context, ref *Reference, auth *k8s.AuthConfig) (*In
 	if err != nil {
 		return nil, fmt.Errorf("could not create library client: %v", err)
 	}
-	img, err := client.GetImage(ctx, pullURL)
+	img, err := client.GetImage(ctx, runtime.GOARCH, pullURL)
 	if err == library.ErrNotFound {
 		return nil, ErrNotFound
 	}
@@ -204,7 +205,7 @@ func (i *Info) Verify() error {
 		return nil
 	}
 
-	_, err := signing.Verify(i.Path, singularity.KeysServer, 0, false, "", false, true)
+	_, _, err := signing.Verify(i.Path, singularity.KeysServer, 0, false, "", false, true)
 	noSignatures := err != nil && strings.Contains(err.Error(), "no signatures found")
 	if noSignatures {
 		glog.V(2).Infof("Image %s is not signed", i.Ref)
@@ -255,7 +256,7 @@ func pullImage(ctx context.Context, ref *Reference, auth *k8s.AuthConfig, pullPa
 		}
 		parts := strings.Split(pullURL, ":")
 		// don't check index out of range since we add :latest by default when parsing ref
-		err = client.DownloadImage(ctx, w, parts[0], parts[1], nil)
+		err = client.DownloadImage(ctx, w, runtime.GOARCH, parts[0], parts[1], nil)
 		_ = w.Close()
 		if err != nil {
 			return fmt.Errorf("could not pull library image: %v", err)
