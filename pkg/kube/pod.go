@@ -41,7 +41,6 @@ type Pod struct {
 	*k8s.PodSandboxConfig
 	baseDir string
 
-	runOnce   sync.Once
 	isStopped bool
 	isRemoved bool
 
@@ -108,31 +107,23 @@ func (p *Pod) Run(baseDir string) error {
 		}
 	}()
 
-	p.runOnce.Do(func() {
-		p.baseDir = baseDir
-		if err = p.validateConfig(); err != nil {
-			err = fmt.Errorf("invalid pod config: %v", err)
-			return
-		}
-		if err = p.prepareFiles(); err != nil {
-			err = fmt.Errorf("could not create pod directories: %v", err)
-			return
-		}
-		if err = p.unshareNamespaces(); err != nil {
-			err = fmt.Errorf("could not unshare namespaces: %v", err)
-			return
-		}
-		if err = p.spawnOCIPod(); err != nil {
-			err = fmt.Errorf("could not spawn pod: %v", err)
-			return
-		}
-		err = p.UpdateState()
-		if err != nil {
-			err = fmt.Errorf("could not update pod state: %v", err)
-			return
-		}
-	})
-	return err
+	p.baseDir = baseDir
+	if err = p.validateConfig(); err != nil {
+		return fmt.Errorf("invalid pod config: %v", err)
+	}
+	if err = p.prepareFiles(); err != nil {
+		return fmt.Errorf("could not create pod directories: %v", err)
+	}
+	if err = p.unshareNamespaces(); err != nil {
+		return fmt.Errorf("could not unshare namespaces: %v", err)
+	}
+	if err = p.spawnOCIPod(); err != nil {
+		return fmt.Errorf("could not spawn pod: %v", err)
+	}
+	if err = p.UpdateState(); err != nil {
+		return fmt.Errorf("could not update pod state: %v", err)
+	}
+	return nil
 }
 
 // Stop stops pod and all its containers, reclaims any resources.
