@@ -270,6 +270,13 @@ func pullImage(ctx context.Context, ref *Reference, auth *k8s.AuthConfig, pullPa
 		buildCmd := exec.CommandContext(ctx, singularity.RuntimeName, "build", "-F", pullPath, remote)
 		buildCmd.Env = []string{
 			fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
+			fmt.Sprintf("TMPDIR=%s", os.Getenv("TMPDIR")),
+			fmt.Sprintf("HTTP_PROXY=%s", os.Getenv("HTTP_PROXY")),
+			fmt.Sprintf("HTTPS_PROXY=%s", os.Getenv("HTTPS_PROXY")),
+			fmt.Sprintf("NO_PROXY=%s", os.Getenv("NO_PROXY")),
+			fmt.Sprintf("http_proxy=%s", os.Getenv("http_proxy")),
+			fmt.Sprintf("https_proxy=%s", os.Getenv("https_proxy")),
+			fmt.Sprintf("no_proxy=%s", os.Getenv("no_proxy")),
 			// assume auth.Auth is not needed b/c k8s decodes it into username and password,
 			// see https://github.com/kubernetes/kubernetes/blob/master/pkg/credentialprovider/config.go#L284
 			fmt.Sprintf("%s=%s", singularity.EnvDockerUsername, auth.GetUsername()),
