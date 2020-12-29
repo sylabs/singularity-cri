@@ -1,5 +1,13 @@
 # Singularity-CRI
 
+The singularity-cri and wlm-operator projects were created by Sylabs to explore interaction between the Kubernetes and HPC worlds. In 2020, rather than dilute our efforts over a large number of projects, we have focused on Singularity itself and our supporting services. We're also looking forward to introducing new features and technologies in 2021.
+
+At this point we have archived the repositories to indicate that they aren't under active development or maintenance. We recognize there is still interest in singularity-cri and wlm-operator, and we'd like these projects to find a home within a community that can further develop and maintain them. The code is open-source under the Apache License 2.0, to be compatible with other projects in the k8s ecosystem.
+
+Please reach out to us via community@sylabs.io if you are interested in establishing a new home for the projects.
+
+----
+
 [![CircleCI](https://circleci.com/gh/sylabs/singularity-cri.svg?style=svg&circle-token=276de7aa1d82749ecf8ed6513c72399041885dec)](https://circleci.com/gh/sylabs/singularity-cri)
 [![Code Coverage](https://codecov.io/gh/sylabs/singularity-cri/branch/master/graph/badge.svg)](https://codecov.io/gh/sylabs/singularity-cri)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sylabs/singularity-cri)](https://goreportcard.com/report/github.com/sylabs/singularity-cri)
